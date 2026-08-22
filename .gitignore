@@ -1,0 +1,97 @@
+# ---------------------------------------------------------------------------
+# Peyk workspace .gitignore
+#
+# Deliberately absent from this file: *.g.dart, *.freezed.dart, *.gr.dart and
+# *.config.dart. Generated Dart sources ARE committed to this repository.
+# See docs/ARCHITECTURE.md ("Why generated files are committed") for the three
+# reasons: CI time, reviewability, and correctness of affected-test selection.
+# ---------------------------------------------------------------------------
+
+# Dart / Flutter tooling output
+.dart_tool/
+.packages
+build/
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+doc/api/
+
+# Workspace member lockfiles. Only the root lockfile is resolved and committed.
+**/packages/**/pubspec.lock
+**/apps/**/pubspec.lock
+**/tooling/**/pubspec.lock
+
+# Test and coverage artifacts
+coverage/
+.cache/
+test/.test_coverage.dart
+**/failures/
+junit/
+*.lcov
+
+# Melos
+.melos_tool/
+melos_*.iml
+
+# IDE and editor
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+*.swp
+.history/
+
+# macOS / Linux / Windows shell noise
+.DS_Store
+Thumbs.db
+*~
+
+# Android derived output
+**/android/.gradle/
+**/android/captures/
+**/android/local.properties
+**/android/**/gradle-wrapper.jar
+**/android/.idea/
+**/android/app/debug/
+**/android/app/profile/
+**/android/app/release/
+**/android/key.properties
+*.jks
+*.keystore
+
+# iOS / macOS derived output
+**/ios/Pods/
+**/ios/.symlinks/
+**/ios/Flutter/Flutter.framework
+**/ios/Flutter/Flutter.podspec
+**/ios/Flutter/Generated.xcconfig
+**/ios/Flutter/flutter_export_environment.sh
+**/ios/Flutter/App.framework
+**/ios/Flutter/ephemeral/
+**/macos/Pods/
+**/macos/Flutter/ephemeral/
+**/macos/Flutter/GeneratedPluginRegistrant.swift
+**/*.xcworkspace/xcuserdata/
+**/*.xcodeproj/xcuserdata/
+**/DerivedData/
+
+# Web / Windows / Linux desktop derived output
+**/web/build/
+**/windows/flutter/ephemeral/
+**/linux/flutter/ephemeral/
+
+# Secrets and environment overlays
+*.env
+.env.*
+!.env.example
+**/dart_defines/*.local.json
+
+# Fastlane
+**/fastlane/report.xml
+**/fastlane/Preview.html
+**/fastlane/screenshots/
+**/fastlane/test_output/

@@ -1,0 +1,20 @@
+# Generated Dart sources are committed (see docs/ARCHITECTURE.md) but they are
+# not authored code. Marking them keeps GitHub language stats honest and
+# collapses them by default in pull request diffs.
+*.g.dart      linguist-generated=true
+*.freezed.dart linguist-generated=true
+*.gr.dart     linguist-generated=true
+*.config.dart linguist-generated=true
+
+# Lockfiles and generated docs are noise in review as well.
+pubspec.lock            linguist-generated=true
+docs/dependency-graph.md linguist-generated=true
+
+# Normalize line endings so Windows contributors do not churn the diff.
+* text=auto eol=lf
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ttf binary
+*.otf binary
