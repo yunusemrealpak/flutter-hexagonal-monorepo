@@ -34,6 +34,10 @@ junit/
 .melos_tool/
 melos_*.iml
 
+# fvm keeps the pinned SDK here; the pin itself lives in .fvmrc and is tracked.
+.fvm/flutter_sdk
+.fvm/versions
+
 # IDE and editor
 .idea/
 *.iml

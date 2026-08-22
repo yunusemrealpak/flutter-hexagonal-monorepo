@@ -1,0 +1,107 @@
+name: peyk_workspace
+description: >-
+  Workspace root for Peyk, the sample courier and field-operations product used
+  to demonstrate hexagonal architecture across a 74-package Flutter monorepo.
+publish_to: none
+version: 0.0.0
+
+# Dart pub workspaces resolve every member package against a single dependency
+# solution and a single .dart_tool directory. One `dart pub get` at the root is
+# enough for the whole repository, and version skew between packages becomes
+# impossible to express.
+#
+# The list is empty in phase 0 because no package exists yet. Every package
+# added from phase 1 onwards registers its path here and declares
+# `resolution: workspace` in its own pubspec.
+workspace: []
+
+environment:
+  sdk: ^3.12.0
+
+dev_dependencies:
+  # Pinned in the repository rather than installed globally, so that every
+  # machine and every CI runner uses the same melos.
+  melos: ^8.3.0
+  very_good_analysis: ^10.3.0
+
+# ---------------------------------------------------------------------------
+# Melos
+#
+# Scripts marked "(phase N)" invoke tooling that is written in a later phase.
+# They are declared here so that the command surface is stable from the first
+# commit: CI files, git hooks and documentation can reference the same names
+# throughout the build-up instead of being rewritten each phase.
+# ---------------------------------------------------------------------------
+melos:
+  scripts:
+    # -- Formatting ---------------------------------------------------------
+    format:
+      description: Format every Dart source in the workspace, generated files included.
+      run: dart format .
+
+    format:check:
+      description: Verify formatting without writing. Used by CI and the pre-commit hook.
+      run: dart format --output=none --set-exit-if-changed .
+
+    # -- Static analysis ----------------------------------------------------
+    analyze:
+      description: >-
+        Analyze the whole workspace in a single analysis context. Infos are
+        fatal: a lint that is only a suggestion is a lint nobody fixes.
+      run: dart analyze --fatal-infos --fatal-warnings .
+
+    # -- Code generation ----------------------------------------------------
+    gen:
+      description: >-
+        Run build_runner in packages changed against origin/main and in their
+        dependents. This is the everyday command; run it before every commit.
+      exec: dart run build_runner build --delete-conflicting-outputs
+      packageFilters:
+        dependsOn: build_runner
+        diff: origin/main
+        includeDependents: true
+
+    gen:all:
+      description: >-
+        Run build_runner across the entire workspace. Reserved for nightly CI
+        and for the aftermath of a large refactor, because it is the only way
+        to catch corruption that incremental caching hides.
+      exec: dart run build_runner build --delete-conflicting-outputs
+      packageFilters:
+        dependsOn: build_runner
+
+    gen:check:
+      description: >-
+        Staleness gate. Regenerates the affected packages and fails if the
+        working tree changed, which means a generated file in the repository
+        did not match its source.
+      steps:
+        - gen
+        - >-
+          git diff --exit-code
+          || (echo "" && echo "Generated files are stale. Run 'dart run melos run gen', then commit the regenerated files together with their sources." && exit 1)
+
+    gen:watch:
+      description: >-
+        Watch mode for the single package you are working on. Melos prompts for
+        the package; never run watch across the workspace.
+      exec: dart run build_runner watch --delete-conflicting-outputs
+      packageFilters:
+        dependsOn: build_runner
+
+    # -- Architecture -------------------------------------------------------
+    arch:check:
+      description: >-
+        Enforce the dependency constitution in docs/DEPENDENCY_RULES.md.
+        (phase 3 — tooling/arch_check)
+      run: dart run tooling/arch_check/bin/arch_check.dart
+
+    # -- Tests --------------------------------------------------------------
+    test:affected:
+      description: >-
+        Run only the tests a change against origin/main can break, walking the
+        dependency graph outwards from the changed packages.
+        (phase 8 — tooling/test_runner)
+      run: >-
+        dart run tooling/test_runner/bin/test_runner.dart
+        --affected --base=origin/main

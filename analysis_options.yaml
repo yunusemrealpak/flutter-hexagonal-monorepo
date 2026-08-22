@@ -1,0 +1,67 @@
+# ---------------------------------------------------------------------------
+# Workspace-wide analysis configuration.
+#
+# This file sits at the workspace root, so every package inherits it. A package
+# only adds its own analysis_options.yaml when it has a genuine, documented
+# reason to differ.
+#
+# Baseline: very_good_analysis 10.3.0 — 212 rules, strict-casts, strict-inference
+# and strict-raw-types. A strict baseline is what makes `dart analyze
+# --fatal-infos` meaningful as a gate: a lint that is merely a suggestion is a
+# lint nobody fixes, and across 74 packages that debt compounds.
+# ---------------------------------------------------------------------------
+include: package:very_good_analysis/analysis_options.yaml
+
+analyzer:
+  errors:
+    # --- Constitution, enforced by the analyzer -----------------------------
+    # Rule 1.2.5: a package's public surface is its barrel; `package:x/src/...`
+    # is off limits. `implementation_imports` is the analyzer's own check for
+    # exactly that, so it is promoted from lint to error and fails the IDE too,
+    # not only the command line.
+    implementation_imports: error
+
+    # tooling/arch_check reads pubspec.yaml files and treats them as the truth
+    # about what a package depends on. That premise only holds if an import
+    # cannot exist without a matching pubspec entry, which is what this rule
+    # guarantees. Promoted so a transitive import can never silently pass.
+    depend_on_referenced_packages: error
+
+    # --- Generated code ----------------------------------------------------
+    # freezed and json_serializable place @Default / @JsonKey on constructor
+    # parameters, which the analyzer reports as an invalid annotation target
+    # even though the generators handle it correctly. This is the one
+    # relaxation generated code genuinely requires.
+    invalid_annotation_target: ignore
+
+  # Deliberately NOT excluded: *.g.dart, *.freezed.dart, *.gr.dart and
+  # *.config.dart. Generated code is committed and must keep being compiled and
+  # type-checked; excluding it would hide real breakage — a generator output
+  # that no longer matches its source is a build failure we want to see now,
+  # not at app build time.
+  #
+  # Style lints are relaxed for those files by a different mechanism, one that
+  # is per-file instead of per-project: the generators emit an
+  # `// ignore_for_file: type=lint` header. For builders that do not emit one by
+  # default, each package's build.yaml sets it explicitly:
+  #
+  #     targets:
+  #       $default:
+  #         builders:
+  #           source_gen:combining_builder:
+  #             options:
+  #               ignore_for_file:
+  #                 - type=lint
+  #
+  # That header suppresses lints only. Errors, warnings and type checks still
+  # surface, which is exactly the balance this repository wants.
+  exclude:
+    - "**/*.mocks.dart"
+
+# No rules are added on top of the baseline. very_good_analysis already carries
+# the ones that do constitutional work here — implementation_imports,
+# depend_on_referenced_packages, avoid_print (use the Logger port),
+# only_throw_errors and avoid_catches_without_on_clauses (no exception crosses a
+# port boundary), public_member_api_docs (an undocumented public member in an
+# _api package is the wrong signal in a reference repository). Adding more would
+# only make the set harder to reason about.

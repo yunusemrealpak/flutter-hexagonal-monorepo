@@ -1,0 +1,57 @@
+# ---------------------------------------------------------------------------
+# Workspace-wide test configuration.
+#
+# Package-level dart_test.yaml files inherit nothing from this one — the test
+# package reads the file next to the pubspec being tested. tooling/test_runner
+# (phase 8) is what carries these defaults down to every package, and
+# tooling/scaffold (phase 3) copies the tag and preset block into each new
+# package it generates.
+# ---------------------------------------------------------------------------
+
+# A retried test is a test that lies about whether the code works. The default
+# is zero everywhere; the only exception is the quarantined `flaky` tag below,
+# which exists so that a known-unstable test can be isolated and tracked
+# instead of being silently retried inside the main suite.
+retry: 0
+
+# Hermeticity (docs/TESTING.md): no test uses the real clock, the real network
+# or shared global state. A test that needs longer than this is almost always a
+# test that reached for something real.
+timeout: 30s
+
+tags:
+  # ~80% of the suite. Pure Dart, _api and _application packages, no Flutter
+  # binding. These are the tests that must stay fast enough to run on save.
+  unit:
+
+  # ~15%. Bloc and widget tests in _presentation packages.
+  widget:
+    timeout: 60s
+
+  # ~4%. design_system components and selected screens. Excluded from the pr
+  # preset because goldens are font- and platform-sensitive; CI runs them on a
+  # pinned image in a separate job.
+  golden:
+    timeout: 2x
+
+  # ~1%. Excluded from the pr preset for runtime, not for reliability.
+  integration:
+    timeout: 5x
+
+  # Quarantine. The only place a retry is allowed, and only so that an unstable
+  # test stays visible and counted while it is being fixed. Never apply this tag
+  # to buy a green build.
+  flaky:
+    retry: 2
+    timeout: 2x
+
+presets:
+  # What a pull request runs: everything fast and deterministic, with the
+  # platform- and runtime-heavy tags left to their own jobs.
+  pr:
+    exclude_tags: golden || integration || flaky
+
+  # The quarantined suite, run on its own so that its failures are attributable
+  # and its retry budget is not hidden inside a larger run.
+  quarantine:
+    include_tags: flaky
