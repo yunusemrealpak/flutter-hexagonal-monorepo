@@ -1,0 +1,4 @@
+# asdf toolchain pins. Kept in sync with .fvmrc and with the flutter-version
+# input of the CI workflows.
+flutter 3.44.2-stable
+dart 3.12.2
