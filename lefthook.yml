@@ -1,0 +1,70 @@
+# ---------------------------------------------------------------------------
+# Git hooks.
+#
+# Install once per clone:
+#   brew install lefthook   # or: npm i -g lefthook
+#   lefthook install
+#
+# The split between pre-commit and pre-push is deliberate. pre-commit only runs
+# what is cheap enough to run dozens of times a day and is scoped to the staged
+# files. Code generation and architecture checks live in pre-push: running
+# build_runner on every commit would tax every commit for a mistake that is
+# only expensive once it reaches CI, and pre-push is the last point where
+# catching it still costs nothing.
+# ---------------------------------------------------------------------------
+
+# Hooks would otherwise fire on every step of a rebase or on merge commits,
+# where there is nothing meaningful for them to check.
+skip:
+  - merge
+  - rebase
+
+pre-commit:
+  parallel: true
+  commands:
+    format:
+      glob: "*.dart"
+      # Formats the staged files and re-stages them, so a formatting-only
+      # difference never becomes a second commit.
+      run: dart format {staged_files} && git add {staged_files}
+
+    analyze:
+      glob: "*.dart"
+      # Scoped to staged files rather than the workspace: the analyzer still
+      # resolves them in their full package context, but 74 packages do not get
+      # walked for a two-file change.
+      run: dart analyze --fatal-infos --fatal-warnings {staged_files}
+
+pre-push:
+  # Sequential, and named with numeric prefixes: lefthook orders commands by
+  # name, so the generation gate runs before the architecture check, which runs
+  # before the tests.
+  parallel: false
+  commands:
+    1_gen_check:
+      # The staleness gate. A generated file that no longer matches its source
+      # breaks affected-test selection, so it must never reach the remote.
+      run: dart run melos run gen:check
+
+    2_arch_check:
+      # Guarded because tooling/arch_check is written in phase 3. The guard
+      # removes itself the moment the tool exists; until then the hook says so
+      # out loud rather than passing silently.
+      run: |
+        if [ ! -f tooling/arch_check/bin/arch_check.dart ]; then
+          echo "arch_check not present yet (phase 3) — dependency rules must be verified by hand."
+          exit 0
+        fi
+        dart run melos run arch:check
+
+    3_test_affected:
+      # Guarded for the same reason; tooling/test_runner arrives in phase 8.
+      # Until then, fall back to the pr preset over the whole workspace, which
+      # is still correct, only slower.
+      run: |
+        if [ ! -f tooling/test_runner/bin/test_runner.dart ]; then
+          echo "test_runner not present yet (phase 8) — running the pr preset across the workspace."
+          dart run melos exec --dir-exists=test -- dart test --preset pr
+          exit $?
+        fi
+        dart run melos run test:affected
