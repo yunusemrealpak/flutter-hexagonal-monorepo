@@ -24,6 +24,7 @@ workspace:
   - packages/platform/http_dio
   - packages/platform/location_service
   - packages/platform/media_capture
+  - packages/platform/push_messaging
   - packages/platform/secure_store
   - packages/platform/storage_drift
 
