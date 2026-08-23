@@ -129,7 +129,9 @@ Requires **Flutter 3.44.2 / Dart 3.12.2** — pinned in `.fvmrc` and `.tool-vers
 
 ```bash
 # 1. Resolve the whole workspace in one shot (pub workspaces: one lockfile, one .dart_tool)
-dart pub get
+#    `flutter pub get`, not `dart pub get`: from phase 2 onwards some platform
+#    packages depend on the Flutter SDK, and only Flutter's pub can resolve it.
+flutter pub get
 
 # 2. Melos is a dev_dependency, so no global install is required
 dart run melos --help
@@ -143,6 +145,7 @@ dart run melos run analyze         # dart analyze --fatal-infos everywhere
 dart run melos run gen             # codegen for changed packages + their dependents
 dart run melos run gen:check       # fail if any generated file is stale (what CI runs)
 dart run melos run arch:check      # enforce the dependency constitution
+dart run melos run test             # pr preset everywhere (dart + flutter runners)
 dart run melos run test:affected   # run only the tests a change can break
 ```
 
