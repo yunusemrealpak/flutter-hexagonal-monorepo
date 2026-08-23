@@ -1,0 +1,28 @@
+name: secure_store
+description: >-
+  The keychain-backed adapter for the SecureStore port, and the translation
+  from a platform channel's exceptions into its sealed failure type.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  core_kernel: ^0.1.0
+  core_ports: ^0.1.0
+  flutter:
+    sdk: flutter
+  # The plugin, for the Darwin, Android and Windows implementations it
+  # registers, and for the option classes a composition root builds.
+  flutter_secure_storage: ^11.0.0
+  # The adapter is written against the platform interface so that a test can
+  # substitute an implementation instead of a method channel.
+  flutter_secure_storage_platform_interface: ^2.0.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  plugin_platform_interface: ^2.1.8
