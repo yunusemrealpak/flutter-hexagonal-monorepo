@@ -1,4 +1,4 @@
-import 'package:core_testing/src/recording_analytics_sink.dart';
+import 'recording_analytics_sink.dart';
 
 /// One call captured by a [RecordingAnalyticsSink].
 ///

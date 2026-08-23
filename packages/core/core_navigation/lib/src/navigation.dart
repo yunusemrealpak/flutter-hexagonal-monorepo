@@ -1,4 +1,4 @@
-import 'package:core_navigation/src/route_location.dart';
+import 'route_location.dart';
 
 /// Moves the user between destinations.
 ///

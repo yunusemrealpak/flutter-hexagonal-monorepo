@@ -1,6 +1,6 @@
 import 'package:core_kernel/core_kernel.dart';
-import 'package:core_ports/src/key_value_store.dart';
-import 'package:core_ports/src/secure_store_failure.dart';
+import 'key_value_store.dart';
+import 'secure_store_failure.dart';
 
 /// Reads and writes values that must not be recoverable from a device backup
 /// or a filesystem dump.

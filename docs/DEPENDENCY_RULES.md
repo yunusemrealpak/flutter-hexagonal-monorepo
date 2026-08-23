@@ -79,14 +79,18 @@ The rules in this section apply to the `dependencies:` block of a pubspec and to
 |---|---|---|
 | S1 | Every package has a barrel at `lib/<package_name>.dart`. | `missing_barrel` |
 | S2 | That barrel is the only `.dart` file directly under `lib/`. Everything else lives under `lib/src/`. | `stray_lib_file` |
-| S3 | No file imports `package:<other_package>/src/...`. Within its own package, relative imports into `src/` are fine. | `deep_import` |
+| S3 | No file imports `package:<other_package>/src/...`. Within its own package, imports are relative — see the convention in CLAUDE.md section 3 — so `package:*/src/` appearing anywhere in the source is a violation with no exceptions to weigh. | `deep_import` |
 | S4 | A barrel exports nothing that leaks an internal type it does not intend to publish. | `barrel_leak` |
 | S5 | The `name:` in `pubspec.yaml` equals the directory name. | `name_mismatch` |
 | S6 | The package path is registered in the root `pubspec.yaml` `workspace:` list, and the package declares `resolution: workspace`. | `unregistered_package` |
 | S7 | The dependency graph is acyclic. | `dependency_cycle` |
 | S8 | An `_api` package contains no implementation class — no class that implements or extends a port declared in the same package, and no concrete adapter. | `implementation_in_api` |
 
-S3 is additionally enforced by the analyzer: `implementation_imports` is promoted to `error` in the root `analysis_options.yaml`.
+S3 is additionally enforced by the analyzer: `implementation_imports` is promoted to `error` in the root `analysis_options.yaml`. Because intra-package imports are relative, it is also verifiable by hand in one command:
+
+```bash
+grep -rn "package:[a-z_]*/src/" packages/ apps/   # any output is a violation
+```
 
 ---
 

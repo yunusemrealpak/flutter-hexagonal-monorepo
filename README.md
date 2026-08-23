@@ -146,7 +146,7 @@ dart run melos run arch:check      # enforce the dependency constitution
 dart run melos run test:affected   # run only the tests a change can break
 ```
 
-If your editor reports `depend_on_referenced_packages` on imports that `dart run melos run analyze` accepts, the Dart analysis server is holding analysis contexts from before those packages existed. Restart it — **Dart: Restart Analysis Server** in the VS Code command palette. The command line is the source of truth.
+If your editor reports `depend_on_referenced_packages` on imports that `dart run melos run analyze` accepts, it is running a Dart SDK older than 3.6, which is where pub workspaces landed. An editor launched from the Dock does not inherit your shell's PATH and can resolve an older `dart` from the system default. Check with `ps -eo command | grep language-server`, and pin the SDK — in VS Code, set `dart.sdkPath` to `<flutter>/bin/cache/dart-sdk`. The command line is the source of truth.
 
 Git hooks are managed by [lefthook](https://github.com/evilmartians/lefthook):
 

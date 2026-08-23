@@ -1,4 +1,4 @@
-import 'package:core_ports/src/log_level.dart';
+import 'log_level.dart';
 
 /// Records what the application did, without saying where the record goes.
 ///

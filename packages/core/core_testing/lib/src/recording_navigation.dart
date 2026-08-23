@@ -1,5 +1,5 @@
 import 'package:core_navigation/core_navigation.dart';
-import 'package:core_testing/src/navigation_record.dart';
+import 'navigation_record.dart';
 
 /// A [Navigation] that maintains a real history and records every call.
 ///

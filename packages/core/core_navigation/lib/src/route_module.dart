@@ -1,4 +1,4 @@
-import 'package:core_navigation/src/route_definition.dart';
+import 'route_definition.dart';
 
 /// What a presentation package exposes so that an app can mount it.
 ///

@@ -89,6 +89,7 @@ A dependency that is not in this table is a violation, not an exception. If you 
 - **A port method returns `Result` when the operation can fail, and a plain value when it cannot.** Invariant 1.2.9 forbids an exception crossing a port boundary; it does not require a failure branch that can never be taken. `Clock.now()`, `IdGenerator.newId()` and `RandomSource.nextInt()` return plain values — they have no failure mode, and wrapping them would put an unreachable `Failed` case at every call site. Everything that touches I/O, a device capability or a remote system returns `Result` with a `sealed` failure type declared in the package that owns the port. The prohibition on throwing still applies to every port without exception.
 - Value objects use a private constructor plus a validating factory that returns a `Result`.
 - Entities are immutable, carry behaviour, and evolve through `copyWith`.
+- **Inside a package, import by relative path; across packages, import the barrel.** This inverts what very_good_analysis prefers, and the reason is rule 1.2.5. While a package may legitimately write `package:<self>/src/...`, every occurrence of `package:*/src/` has to be checked against which package the file lives in before a violation can be told from a normal import. With relative imports inside a package, that pattern means one thing only — someone reached across a boundary — so the rule becomes a grep and `arch_check`'s deep-import check becomes exact instead of context-sensitive.
 - File names are `snake_case`; one public type per file.
 - Every package has a short `README.md`: what it is for, what it may depend on, and what must never live in it.
 - Comments and documentation inside code are written in English.
@@ -225,20 +226,28 @@ Doing it by hand — or checking the scaffolder's output — means verifying all
 | Hand-fixing a wrong `*.freezed.dart` | Fix the source or `build.yaml`, then regenerate. |
 | Enabling every builder in a new package's `build.yaml` | Enable what the package type needs, disable the rest explicitly. |
 | Committing source without its regenerated output | They travel in the same commit; otherwise affected-test selection lies. |
-| Chasing `depend_on_referenced_packages` errors the IDE reports but `melos run analyze` does not | Restart the Dart analysis server. See below — the command line is the source of truth. |
+| Chasing `depend_on_referenced_packages` errors the IDE reports but `melos run analyze` does not | The editor is running an SDK older than Dart 3.6. See below — the command line is the source of truth. |
 
 ---
 
-### The IDE goes stale when packages are added
+### When the editor disagrees with the command line
 
-Adding a package to the workspace while the Dart analysis server is running leaves that server with analysis contexts that predate the package. It then cannot resolve `package:` URIs for the new files, and reports two symptoms that look alarming and mean nothing:
+If the editor reports `depend_on_referenced_packages` on imports that `melos run analyze` accepts, it is running a Dart SDK older than **3.6**, which is where pub workspaces landed. Such an SDK has no concept of `resolution: workspace` and cannot follow `.dart_tool/pub/workspace_ref.json`, so it fails to resolve every `package:` URI in the workspace.
 
-- `depend_on_referenced_packages` on nearly every import, **including a file importing its own package** — the giveaway, since that lint never fires on a package's own name.
+Two symptoms identify it, and both look like something else:
+
+- `depend_on_referenced_packages` on nearly every import, **including a file importing its own package**. That is the giveaway: the lint never fires on a package's own name, so seeing it means package resolution is dead rather than a dependency being genuinely absent.
 - `unused_import` on an import that exists only to resolve a doc reference, because the unresolvable package makes the `[Type]` reference fail too.
 
-`dart analyze` from the command line is the source of truth, and `melos run analyze` is what the hooks and CI run. When the two disagree, the IDE is wrong. Fix it with **Dart: Restart Analysis Server** (VS Code command palette), or reload the window.
+Confirm it by finding the language server the editor actually launched and asking its version:
 
-Expect this once per phase, since every phase adds packages.
+```bash
+ps -eo command | grep "language-server" | grep -v grep
+```
+
+The usual cause is PATH: an editor launched from the Dock does not inherit the shell's PATH, so it resolves `dart` from the system default rather than from the Flutter SDK. Pin it instead of relying on PATH — in VS Code, `dart.sdkPath` set to `<flutter>/bin/cache/dart-sdk`.
+
+`dart analyze` from the command line is the source of truth, and `melos run analyze` is what the hooks and CI run. When the two disagree, check the editor's SDK before changing any code.
 
 ---
 

@@ -1,5 +1,5 @@
 import 'package:core_kernel/core_kernel.dart';
-import 'package:core_ports/src/key_value_store.dart';
+import 'key_value_store.dart';
 
 /// Why a [KeyValueStore] operation did not complete.
 ///

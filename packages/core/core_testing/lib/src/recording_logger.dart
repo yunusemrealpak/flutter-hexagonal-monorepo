@@ -1,5 +1,5 @@
 import 'package:core_ports/core_ports.dart';
-import 'package:core_testing/src/log_record.dart';
+import 'log_record.dart';
 
 /// A [Logger] that keeps what it was told.
 ///

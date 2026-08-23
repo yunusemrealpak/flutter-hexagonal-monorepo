@@ -1,4 +1,4 @@
-import 'package:core_ports/src/network_condition.dart';
+import 'network_condition.dart';
 
 /// Reports whether the device can reach the network, and how.
 ///

@@ -70,6 +70,22 @@ linter:
     # rather than suppressed at ~40 declaration sites.
     one_member_abstracts: false
 
+    # Inside a package, import by relative path; across packages, import the
+    # barrel. very_good_analysis picks the opposite of this pair, which makes
+    # `package:core_kernel/src/value_object.dart` the correct form *inside*
+    # core_kernel — and that is precisely what makes rule S3 unenforceable by
+    # eye. S3 forbids reaching into another package's `src/`, but while a
+    # package legitimately writes `package:<self>/src/...`, every occurrence
+    # has to be checked against which package the file lives in before you can
+    # tell a violation from a normal import.
+    #
+    # With relative imports inside a package, `package:*/src/` in the source
+    # means one thing only: someone reached across a boundary. The rule becomes
+    # a grep, and arch_check's deep-import check becomes exact rather than
+    # context-sensitive.
+    always_use_package_imports: false
+    prefer_relative_imports: true
+
 # No other rules are added on top of the baseline. very_good_analysis already carries
 # the ones that do constitutional work here — implementation_imports,
 # depend_on_referenced_packages, avoid_print (use the Logger port),

@@ -3,7 +3,7 @@
 // convention and evolve through `copyWith`.
 // ignore_for_file: avoid_equals_and_hash_code_on_mutable_classes
 
-import 'package:core_kernel/src/value_object.dart';
+import 'value_object.dart';
 
 /// Base class for a domain object that is defined by its identifier rather
 /// than by its contents.

@@ -1,4 +1,4 @@
-import 'package:core_ports/src/device_permission.dart';
+import 'device_permission.dart';
 
 /// Where a [DevicePermission] currently stands.
 enum PermissionState {

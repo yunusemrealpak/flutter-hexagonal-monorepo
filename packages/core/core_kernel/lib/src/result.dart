@@ -8,7 +8,7 @@
 // structural instead: every field is final and every constructor is const.
 // ignore_for_file: avoid_equals_and_hash_code_on_mutable_classes
 
-import 'package:core_kernel/src/failure.dart';
+import 'failure.dart';
 
 /// The outcome of an operation that can fail.
 ///

@@ -1,5 +1,5 @@
 import 'package:core_navigation/core_navigation.dart';
-import 'package:core_testing/src/recording_navigation.dart';
+import 'recording_navigation.dart';
 
 /// One call captured by a [RecordingNavigation].
 sealed class NavigationRecord {
