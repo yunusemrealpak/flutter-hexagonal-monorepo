@@ -22,6 +22,7 @@ workspace:
   - packages/platform/connectivity_monitor
   - packages/platform/device_permissions
   - packages/platform/http_dio
+  - packages/platform/location_service
   - packages/platform/secure_store
   - packages/platform/storage_drift
 
