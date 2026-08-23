@@ -225,6 +225,20 @@ Doing it by hand — or checking the scaffolder's output — means verifying all
 | Hand-fixing a wrong `*.freezed.dart` | Fix the source or `build.yaml`, then regenerate. |
 | Enabling every builder in a new package's `build.yaml` | Enable what the package type needs, disable the rest explicitly. |
 | Committing source without its regenerated output | They travel in the same commit; otherwise affected-test selection lies. |
+| Chasing `depend_on_referenced_packages` errors the IDE reports but `melos run analyze` does not | Restart the Dart analysis server. See below — the command line is the source of truth. |
+
+---
+
+### The IDE goes stale when packages are added
+
+Adding a package to the workspace while the Dart analysis server is running leaves that server with analysis contexts that predate the package. It then cannot resolve `package:` URIs for the new files, and reports two symptoms that look alarming and mean nothing:
+
+- `depend_on_referenced_packages` on nearly every import, **including a file importing its own package** — the giveaway, since that lint never fires on a package's own name.
+- `unused_import` on an import that exists only to resolve a doc reference, because the unresolvable package makes the `[Type]` reference fail too.
+
+`dart analyze` from the command line is the source of truth, and `melos run analyze` is what the hooks and CI run. When the two disagree, the IDE is wrong. Fix it with **Dart: Restart Analysis Server** (VS Code command palette), or reload the window.
+
+Expect this once per phase, since every phase adds packages.
 
 ---
 
