@@ -58,7 +58,19 @@ analyzer:
   exclude:
     - "**/*.mocks.dart"
 
-# No rules are added on top of the baseline. very_good_analysis already carries
+linter:
+  rules:
+    # A port is a named interface with one method more often than not — Clock,
+    # IdGenerator, RandomSource, CommandTransportPort. `one_member_abstracts`
+    # would have every one of them replaced by a bare function type, which
+    # deletes exactly what makes the architecture legible: the name of the
+    # capability, the place its documentation lives, and the thing a fake and a
+    # real adapter both declare they are. Section 3 of CLAUDE.md requires
+    # `abstract interface class` for ports, so this rule is off workspace-wide
+    # rather than suppressed at ~40 declaration sites.
+    one_member_abstracts: false
+
+# No other rules are added on top of the baseline. very_good_analysis already carries
 # the ones that do constitutional work here — implementation_imports,
 # depend_on_referenced_packages, avoid_print (use the Logger port),
 # only_throw_errors and avoid_catches_without_on_clauses (no exception crosses a

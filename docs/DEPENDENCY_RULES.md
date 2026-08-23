@@ -58,6 +58,13 @@ Read this as a whitelist. Any dependency edge not listed is a violation (`forbid
 
 Third-party packages are unrestricted except where §4 forbids them explicitly.
 
+### 2.0 What "depend on" means
+
+The rules in this section apply to the `dependencies:` block of a pubspec and to imports under `lib/`. Two things are deliberately outside their scope:
+
+- **`dev_dependencies:` used only by `test/`.** Every package needs a test harness, and `package:test` is not an architectural dependency — it never ships, and nothing under `lib/` may import it. `core_kernel` therefore has `test` in `dev_dependencies` while still having an empty `dependencies` block, and that is not a violation of "depends on nothing". `arch_check` reads `dependencies:` for edge validation and scans `lib/` for imports; a package that imports a dev dependency from `lib/` is a violation (`dev_dependency_in_lib`).
+- **`build_runner` and generator packages.** They are dev dependencies for the same reason: they run at build time and produce source, they are not part of the package's runtime surface.
+
 ### 2.1 Notes on the two edges people get wrong
 
 **`feature_infrastructure` may not depend on a foreign `_api`.** An adapter translates between one feature's ports and one technology. If it needs a concept from another feature, the concept belongs in its own `_api` and the *use case* — not the adapter — should be doing the crossing.
@@ -87,7 +94,7 @@ S3 is additionally enforced by the analyzer: `implementation_imports` is promote
 
 | ID | In package types | Forbidden import | Why | Violation code |
 |---|---|---|---|---|
-| I1 | `core_kernel` | any package import at all | it is the innermost ring; everything else can depend on it, so it must be able to depend on nothing | `kernel_dependency` |
+| I1 | `core_kernel` | any package import at all under `lib/` | it is the innermost ring; everything else can depend on it, so it must be able to depend on nothing. `dev_dependencies` used by `test/` are out of scope — see §2.0 | `kernel_dependency` |
 | I2 | `feature_api`, `feature_application` | `package:flutter/...` | these packages are pure Dart, which is what keeps the ~80% of the suite that lives here fast | `flutter_in_pure_dart` |
 | I3 | `feature_api`, `feature_application` | `package:dio/...`, `package:drift/...`, `package:http/...`, `package:shared_preferences/...`, and any other transport or persistence library | technology choices belong in adapters | `technology_in_domain` |
 | I4 | `feature_api` | `package:json_annotation/...` | DTOs are an infrastructure concern; see §6 | `serialization_in_api` |
@@ -106,6 +113,13 @@ S3 is additionally enforced by the analyzer: `implementation_imports` is promote
 | A3 | `Uuid()` and equivalents | `IdGenerator` from `core_ports` | `ambient_id` |
 | A4 | `print()` | `Logger` from `core_ports` | `ambient_print` (also covered by the `avoid_print` lint) |
 | A5 | `throw` across a port implementation's public boundary | return a `Result<S, F>` with a `sealed` failure | `exception_at_port_boundary` |
+
+**Matching.** A1–A4 are checked against parsed source, not against a text search. Two failure modes make the naive grep useless, and both were observed while writing the core packages in phase 1:
+
+- **Comments quoting the rule.** `core_ports/clock.dart` documents itself with "this port exists so that no line of product code calls `DateTime.now()`". Every doc comment that explains why a rule exists trips a checker that scans raw text, and the packages most careful about the rule trip it most often.
+- **Regex metacharacters.** A pattern of `DateTime.now()` with an unescaped `.` matches the declaration `DateTime now()` — the port itself — because the dot matches the space.
+
+`arch_check` therefore walks the analyzed AST and reports method invocations and instance creations, ignoring comments and string literals entirely.
 
 **Scope.** A1–A4 are checked in every package except `apps/*` (where the composition root supplies the real implementations) and `tooling/*` (which is not part of the product). Generated files (`*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `*.config.dart`) are exempt from A1–A4, because a `DateTime` in generated output is not the developer's choice. Generated files are **not** exempt from §2, §3 or §4: a generated file importing a package the constitution forbids is a real architectural violation regardless of who typed it.
 

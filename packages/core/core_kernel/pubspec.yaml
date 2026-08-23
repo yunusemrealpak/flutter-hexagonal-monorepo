@@ -1,0 +1,20 @@
+name: core_kernel
+description: >-
+  The innermost ring of the architecture. Holds the vocabulary every other
+  package is allowed to share, and depends on nothing.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+# Intentionally empty. core_kernel is the one package in the workspace that
+# depends on nothing at all — not the Flutter SDK, not one third-party package.
+# Everything can depend on it, so it must be able to depend on nothing.
+dependencies:
+
+dev_dependencies:
+  # Test harness only. Nothing under lib/ imports it, and it never ships.
+  # See docs/DEPENDENCY_RULES.md section 2.0 for why this is not a violation.
+  test: ^1.26.0

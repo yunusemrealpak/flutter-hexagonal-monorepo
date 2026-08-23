@@ -1,0 +1,22 @@
+name: core_testing
+description: >-
+  Behavioural fakes for the core_ports capabilities, plus the deterministic
+  clock and identifier generator every hermetic test in the workspace uses.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  core_kernel: ^0.1.0
+  core_navigation: ^0.1.0
+  core_ports: ^0.1.0
+
+dev_dependencies:
+  # Only this package's own tests need it. The fakes are plain classes with no
+  # matchers, so `test` deliberately stays out of `dependencies` — a _testing
+  # package that put it there would drag the test harness into the dependency
+  # graph of everything that consumes a fake.
+  test: ^1.26.0

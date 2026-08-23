@@ -86,6 +86,7 @@ A dependency that is not in this table is a violation, not an exception. If you 
 - Ports are declared as `abstract interface class`.
 - Failure and state types are `sealed class`.
 - `Result<S, F>` lives in `core_kernel` with `fold`, `map` and `flatMap` helpers.
+- **A port method returns `Result` when the operation can fail, and a plain value when it cannot.** Invariant 1.2.9 forbids an exception crossing a port boundary; it does not require a failure branch that can never be taken. `Clock.now()`, `IdGenerator.newId()` and `RandomSource.nextInt()` return plain values — they have no failure mode, and wrapping them would put an unreachable `Failed` case at every call site. Everything that touches I/O, a device capability or a remote system returns `Result` with a `sealed` failure type declared in the package that owns the port. The prohibition on throwing still applies to every port without exception.
 - Value objects use a private constructor plus a validating factory that returns a `Result`.
 - Entities are immutable, carry behaviour, and evolve through `copyWith`.
 - File names are `snake_case`; one public type per file.
@@ -202,7 +203,7 @@ Doing it by hand — or checking the scaffolder's output — means verifying all
 3. The root `pubspec.yaml` `workspace:` list includes the new path.
 4. A barrel exists at `lib/<package_name>.dart`, and it is the only file directly under `lib/`.
 5. Implementation lives under `lib/src/`; the barrel exports only the public surface.
-6. `build.yaml` enables only the builders this package type needs, everything else `enabled: false`.
+6. If the package uses code generation, `build.yaml` enables only the builders it needs and disables the rest explicitly. A package with no generated files has no `build_runner` dependency and no `build.yaml`, so no builder ever runs there — that is the cheapest configuration, not a missing one.
 7. A `README.md` states the package's role, its allowed dependencies, and what must never live in it.
 8. A `test/` directory exists, even if it starts with a single smoke test.
 9. `dart run tooling/arch_check/bin/arch_check.dart` is clean afterwards.
