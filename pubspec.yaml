@@ -17,6 +17,7 @@ workspace:
   - packages/core/core_kernel
   - packages/core/core_navigation
   - packages/core/core_ports
+  - packages/core/core_testing
 
 environment:
   sdk: ^3.12.0

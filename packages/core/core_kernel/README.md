@@ -34,4 +34,13 @@ Everything in the workspace is allowed to depend on `core_kernel`, so a dependen
 
 **`Failure` is empty.** A `message` getter was considered and rejected: it invites callers to render a failure rather than handle it, and the sealed subtypes already print usefully. A stable `code` string was rejected because every failure would have to invent one whether or not anything consumed it.
 
+**`Result` equality delegates, so collections need unwrapping.** `Success(a) == Success(b)` is exactly `a == b`, and Dart collections compare by identity — so `Success({'a'}) == Success({'a'})` is `false`. Assert on a `Result` wrapping a collection by unwrapping it first:
+
+```dart
+expect(result.isSuccess, isTrue);
+expect(result.fold((value) => value, (failure) => <String>{}), {'a', 'b'});
+```
+
+Deep equality was considered and rejected: it would need a collection-equality helper, which means a third-party dependency in the one package that is allowed none, and it would make `Result` behave differently from every other Dart type that holds a collection.
+
 **`Result`'s failure type is unconstrained.** `Result<S, F>` does not require `F extends Failure`, so tooling and tests can use a plain `String`. In product code `F` is always a `sealed` `Failure` subtype declared by the package that owns the port.
