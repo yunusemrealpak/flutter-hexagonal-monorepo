@@ -18,9 +18,18 @@ workspace:
   - packages/core/core_navigation
   - packages/core/core_ports
   - packages/core/core_testing
+  - packages/platform/analytics_otel
+  - packages/platform/connectivity_monitor
+  - packages/platform/device_permissions
+  - packages/platform/http_dio
+  - packages/platform/location_service
+  - packages/platform/media_capture
+  - packages/platform/push_messaging
+  - packages/platform/secure_store
+  - packages/platform/storage_drift
 
 environment:
-  sdk: ^3.12.0
+  sdk: ^3.12.2
 
 dev_dependencies:
   # Pinned in the repository rather than installed globally, so that every
@@ -59,7 +68,7 @@ melos:
       description: >-
         Run build_runner in packages changed against origin/main and in their
         dependents. This is the everyday command; run it before every commit.
-      exec: dart run build_runner build --delete-conflicting-outputs
+      exec: dart run build_runner build
       packageFilters:
         dependsOn: build_runner
         diff: origin/main
@@ -70,7 +79,7 @@ melos:
         Run build_runner across the entire workspace. Reserved for nightly CI
         and for the aftermath of a large refactor, because it is the only way
         to catch corruption that incremental caching hides.
-      exec: dart run build_runner build --delete-conflicting-outputs
+      exec: dart run build_runner build
       packageFilters:
         dependsOn: build_runner
 
@@ -89,7 +98,7 @@ melos:
       description: >-
         Watch mode for the single package you are working on. Melos prompts for
         the package; never run watch across the workspace.
-      exec: dart run build_runner watch --delete-conflicting-outputs
+      exec: dart run build_runner watch
       packageFilters:
         dependsOn: build_runner
 
@@ -101,6 +110,32 @@ melos:
       run: dart run tooling/arch_check/bin/arch_check.dart
 
     # -- Tests --------------------------------------------------------------
+    test:
+      description: >-
+        Run the pr preset in every package that has tests. Two steps, because
+        a package that depends on the Flutter SDK cannot be run by `dart test`
+        — it needs the Flutter test runner and its binding.
+      steps:
+        - test:dart
+        - test:flutter
+
+    test:dart:
+      description: Pure Dart packages, run by the Dart test runner.
+      exec: dart test --preset pr
+      packageFilters:
+        dirExists: test
+        flutter: false
+
+    test:flutter:
+      description: >-
+        Flutter packages, run by the Flutter test runner. `flutter test` has no
+        `--preset`, so the pr preset's exclusions are spelled out here; the tag
+        definitions themselves still come from each package's dart_test.yaml.
+      exec: flutter test --exclude-tags "golden || integration || flaky"
+      packageFilters:
+        dirExists: test
+        flutter: true
+
     test:affected:
       description: >-
         Run only the tests a change against origin/main can break, walking the

@@ -1,6 +1,6 @@
 import 'package:core_kernel/core_kernel.dart';
 import 'package:core_ports/core_ports.dart';
-import 'package:core_testing/src/in_memory_key_value_store.dart';
+import 'in_memory_key_value_store.dart';
 
 /// A [SecureStore] backed by a map, with a way to make the next call fail.
 ///

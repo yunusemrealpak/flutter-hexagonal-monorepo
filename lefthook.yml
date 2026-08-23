@@ -64,7 +64,7 @@ pre-push:
       run: |
         if [ ! -f tooling/test_runner/bin/test_runner.dart ]; then
           echo "test_runner not present yet (phase 8) — running the pr preset across the workspace."
-          dart run melos exec --dir-exists=test -- dart test --preset pr
+          dart run melos run test
           exit $?
         fi
         dart run melos run test:affected

@@ -2,7 +2,7 @@
 
 This file is the constitution. Read it in full at the start of every session, together with [`docs/DEPENDENCY_RULES.md`](docs/DEPENDENCY_RULES.md). The original task definition this repository is built from is [`docs/HEXAGONAL_MONOREPO_PROJECT_SPEC.md`](docs/HEXAGONAL_MONOREPO_PROJECT_SPEC.md); when this file and the spec disagree, the spec wins and this file gets corrected.
 
-**What this repository is:** a reference implementation of hexagonal architecture (ports and adapters) in a 74-package Flutter monorepo. The sample product is **Peyk**, an enterprise courier and field-operations platform. The goal is not a shippable app — it is a compiling, test-passing skeleton in which every architectural rule is physically visible.
+**What this repository is:** a reference implementation of hexagonal architecture (ports and adapters) in a 75-package Flutter monorepo. The sample product is **Peyk**, an enterprise courier and field-operations platform. The goal is not a shippable app — it is a compiling, test-passing skeleton in which every architectural rule is physically visible.
 
 **Success criteria** (all must hold at every phase boundary):
 
@@ -33,13 +33,28 @@ This file is the constitution. Read it in full at the start of every session, to
 | `<feature>_presentation*` | own `_api`, other features' `_api`, `core_kernel`, `core_navigation`, `design_system` |
 | `<feature>_testing` | own `_api`, `core_kernel`, `core_ports`, `core_testing` |
 | `<feature>_core` (reduced split) | own `_api`, `core_kernel`, `core_ports`, `platform/*`, other features' `_api` |
-| `platform/*` | `core_kernel`, `core_ports` |
+| `platform/*` | `core_kernel`, `core_ports`, the `flutter` SDK |
 | `design_tokens` | nothing (except the `flutter` SDK) |
 | `design_system` | `design_tokens`, `core_kernel` |
 | `tooling/*` | no product package |
 | `apps/*` | anything |
 
 A dependency that is not in this table is a violation, not an exception. If you believe you need one, stop and report it rather than adding it — those moments are where the architecture teaches the most.
+
+**Two platform packages never depend on each other.** They do need each other's capabilities — `location_service`, `media_capture` and `push_messaging` all need a permission that `device_permissions` grants — and the resolution is the one used everywhere else: depend on the *port* in `core_ports`, take it through the constructor, and let an app's composition root supply the adapter.
+
+### 1.1.1 Where a contract is declared
+
+`core_ports` and `platform/*` both declare interfaces. The test for which is which is what the interface speaks in:
+
+| | `core_ports` | `platform/<name>` |
+|---|---|---|
+| Speaks in | the product's words | a technology's words |
+| Example | `SecureStore`, `Clock`, `NetworkStatus` | `HttpTransport`, `LocationSource`, `MediaCapture` |
+| Bar for entry | more than one feature needs it, none owns it | one technology answers it, adapter in the same package |
+| Fake lives in | `core_testing` | the same package as the contract |
+
+Nothing in the product asks for "an HTTP request" or "a GPS fix". A feature asks for a shipment or a delivery proof, through a port in its own `_api`, and its `_infrastructure` answers that *using* a technology contract. The table above already enforces the consequence: `_application` may not depend on `platform/*`, so a use case can never see an `HttpRequest` and can never end up owning a retry policy.
 
 ### 1.2 Invariants
 
@@ -89,6 +104,7 @@ A dependency that is not in this table is a violation, not an exception. If you 
 - **A port method returns `Result` when the operation can fail, and a plain value when it cannot.** Invariant 1.2.9 forbids an exception crossing a port boundary; it does not require a failure branch that can never be taken. `Clock.now()`, `IdGenerator.newId()` and `RandomSource.nextInt()` return plain values — they have no failure mode, and wrapping them would put an unreachable `Failed` case at every call site. Everything that touches I/O, a device capability or a remote system returns `Result` with a `sealed` failure type declared in the package that owns the port. The prohibition on throwing still applies to every port without exception.
 - Value objects use a private constructor plus a validating factory that returns a `Result`.
 - Entities are immutable, carry behaviour, and evolve through `copyWith`.
+- **Inside a package, import by relative path; across packages, import the barrel.** This inverts what very_good_analysis prefers, and the reason is rule 1.2.5. While a package may legitimately write `package:<self>/src/...`, every occurrence of `package:*/src/` has to be checked against which package the file lives in before a violation can be told from a normal import. With relative imports inside a package, that pattern means one thing only — someone reached across a boundary — so the rule becomes a grep and `arch_check`'s deep-import check becomes exact instead of context-sensitive.
 - File names are `snake_case`; one public type per file.
 - Every package has a short `README.md`: what it is for, what it may depend on, and what must never live in it.
 - Comments and documentation inside code are written in English.
@@ -134,7 +150,7 @@ Running codegen across the whole workspace is not acceptable. Use the melos scri
 | `dart run melos run gen:check` | `gen` + `git diff --exit-code` | CI staleness gate |
 | `dart run melos run gen:watch` | one package | while working on that package |
 
-Every package gets its own `build.yaml` and **enables only the builders it needs**; by default build_runner scans every builder in every package, which is significant waste across 74 packages. Narrow the builders' globs with `generate_for` as well.
+Every package gets its own `build.yaml` and **enables only the builders it needs**; by default build_runner scans every builder in every package, which is significant waste across 75 packages. Narrow the builders' globs with `generate_for` as well.
 
 ---
 
@@ -225,6 +241,28 @@ Doing it by hand — or checking the scaffolder's output — means verifying all
 | Hand-fixing a wrong `*.freezed.dart` | Fix the source or `build.yaml`, then regenerate. |
 | Enabling every builder in a new package's `build.yaml` | Enable what the package type needs, disable the rest explicitly. |
 | Committing source without its regenerated output | They travel in the same commit; otherwise affected-test selection lies. |
+| Chasing `depend_on_referenced_packages` errors the IDE reports but `melos run analyze` does not | The editor is running an SDK older than Dart 3.6. See below — the command line is the source of truth. |
+
+---
+
+### When the editor disagrees with the command line
+
+If the editor reports `depend_on_referenced_packages` on imports that `melos run analyze` accepts, it is running a Dart SDK older than **3.6**, which is where pub workspaces landed. Such an SDK has no concept of `resolution: workspace` and cannot follow `.dart_tool/pub/workspace_ref.json`, so it fails to resolve every `package:` URI in the workspace.
+
+Two symptoms identify it, and both look like something else:
+
+- `depend_on_referenced_packages` on nearly every import, **including a file importing its own package**. That is the giveaway: the lint never fires on a package's own name, so seeing it means package resolution is dead rather than a dependency being genuinely absent.
+- `unused_import` on an import that exists only to resolve a doc reference, because the unresolvable package makes the `[Type]` reference fail too.
+
+Confirm it by finding the language server the editor actually launched and asking its version:
+
+```bash
+ps -eo command | grep "language-server" | grep -v grep
+```
+
+The usual cause is PATH: an editor launched from the Dock does not inherit the shell's PATH, so it resolves `dart` from the system default rather than from the Flutter SDK. Pin it instead of relying on PATH — in VS Code, `dart.sdkPath` set to `<flutter>/bin/cache/dart-sdk`.
+
+`dart analyze` from the command line is the source of truth, and `melos run analyze` is what the hooks and CI run. When the two disagree, check the editor's SDK before changing any code.
 
 ---
 

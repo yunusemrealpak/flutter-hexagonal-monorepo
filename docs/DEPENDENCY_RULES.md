@@ -50,7 +50,7 @@ Read this as a whitelist. Any dependency edge not listed is a violation (`forbid
 | `feature_core` | own `_api`, `core_kernel`, `core_ports`, `platform/*`, foreign `_api` | any `_application`, any `_infrastructure`, any `_presentation` |
 | `feature_presentation` | own `_api`, foreign `_api`, `core_kernel`, `core_navigation`, `design_system` | any `_application`, any `_infrastructure`, any `_core`, any `platform/*` |
 | `feature_testing` | own `_api`, `core_kernel`, `core_ports`, `core_testing` | any implementation package |
-| `platform` | `core_kernel`, `core_ports` | any feature package, any other `platform/*` |
+| `platform` | `core_kernel`, `core_ports`, the `flutter` SDK | any feature package, any other `platform/*` |
 | `design_tokens` | the `flutter` SDK only | everything else |
 | `design_system` | `design_tokens`, `core_kernel`, the `flutter` SDK | any feature package, any `platform/*` |
 | `tooling` | third-party Dart packages only | every product package in `packages/` and `apps/` |
@@ -65,11 +65,28 @@ The rules in this section apply to the `dependencies:` block of a pubspec and to
 - **`dev_dependencies:` used only by `test/`.** Every package needs a test harness, and `package:test` is not an architectural dependency — it never ships, and nothing under `lib/` may import it. `core_kernel` therefore has `test` in `dev_dependencies` while still having an empty `dependencies` block, and that is not a violation of "depends on nothing". `arch_check` reads `dependencies:` for edge validation and scans `lib/` for imports; a package that imports a dev dependency from `lib/` is a violation (`dev_dependency_in_lib`).
 - **`build_runner` and generator packages.** They are dev dependencies for the same reason: they run at build time and produce source, they are not part of the package's runtime surface.
 
-### 2.1 Notes on the two edges people get wrong
+### 2.1 Notes on the three edges people get wrong
 
 **`feature_infrastructure` may not depend on a foreign `_api`.** An adapter translates between one feature's ports and one technology. If it needs a concept from another feature, the concept belongs in its own `_api` and the *use case* — not the adapter — should be doing the crossing.
 
 **`feature_application` may not depend on `platform/*`.** Platform packages are driven adapters. An application package that reaches for one has stopped being pure Dart and has stopped being testable without a device.
+
+**`platform/*` may not depend on `platform/*`.** This one bites in practice rather than in theory, because platform packages genuinely need each other's capabilities: `location_service`, `media_capture` and `push_messaging` all need a permission granted, and the adapter for that lives in `device_permissions`. The resolution is the same one the constitution uses everywhere else — depend on the *port*, take it through the constructor, and let an application's composition root supply the adapter. A platform package that reached for another directly would make an app that wants the camera drag in a location plugin.
+
+### 2.2 Where a contract is declared
+
+`core_ports` and `platform/*` both declare interfaces, and telling them apart is the question phase 2 answered. The test is what the interface speaks in.
+
+| | `core_ports` | `platform/<name>` |
+|---|---|---|
+| Speaks in | the product's words | a technology's words |
+| Example | `SecureStore`, `Clock`, `NetworkStatus` | `HttpTransport`, `LocationSource`, `MediaCapture`, `PushMessagingClient` |
+| Bar for entry | more than one feature needs it and none of them owns it | one technology answers it, and the adapter is in the same package |
+| Who may see it | anything that may depend on `core_ports` | `feature_infrastructure`, `feature_core`, `apps/*` — never `_application` |
+
+Nothing in the product asks for "an HTTP request" or "a GPS fix". `shipments` asks for a shipment through a port in `shipments_api`; `delivery` asks whether a courier is at an address. Those are domain contracts, and a feature's `_infrastructure` answers them *using* a technology contract. The dependency table already enforces the consequence: `_application` may not depend on `platform/*`, so a use case can never see an `HttpRequest` and can never end up owning a retry policy.
+
+A technology contract lives in the same package as its adapter, together with the fake that stands in for it. A fake belongs with the contract it imitates — which is why `FakeHttpTransport` ships from `http_dio` and not from `core_testing`, while `InMemorySecureStore` ships from `core_testing`, because `SecureStore` is declared in `core_ports`.
 
 ---
 
@@ -79,14 +96,18 @@ The rules in this section apply to the `dependencies:` block of a pubspec and to
 |---|---|---|
 | S1 | Every package has a barrel at `lib/<package_name>.dart`. | `missing_barrel` |
 | S2 | That barrel is the only `.dart` file directly under `lib/`. Everything else lives under `lib/src/`. | `stray_lib_file` |
-| S3 | No file imports `package:<other_package>/src/...`. Within its own package, relative imports into `src/` are fine. | `deep_import` |
+| S3 | No file imports `package:<other_package>/src/...`. Within its own package, imports are relative — see the convention in CLAUDE.md section 3 — so `package:*/src/` appearing anywhere in the source is a violation with no exceptions to weigh. | `deep_import` |
 | S4 | A barrel exports nothing that leaks an internal type it does not intend to publish. | `barrel_leak` |
 | S5 | The `name:` in `pubspec.yaml` equals the directory name. | `name_mismatch` |
 | S6 | The package path is registered in the root `pubspec.yaml` `workspace:` list, and the package declares `resolution: workspace`. | `unregistered_package` |
 | S7 | The dependency graph is acyclic. | `dependency_cycle` |
 | S8 | An `_api` package contains no implementation class — no class that implements or extends a port declared in the same package, and no concrete adapter. | `implementation_in_api` |
 
-S3 is additionally enforced by the analyzer: `implementation_imports` is promoted to `error` in the root `analysis_options.yaml`.
+S3 is additionally enforced by the analyzer: `implementation_imports` is promoted to `error` in the root `analysis_options.yaml`. Because intra-package imports are relative, it is also verifiable by hand in one command:
+
+```bash
+grep -rn "package:[a-z_]*/src/" packages/ apps/   # any output is a violation
+```
 
 ---
 
@@ -132,7 +153,7 @@ S3 is additionally enforced by the analyzer: `implementation_imports` is promote
 | G1 | `core_kernel` contains no generated file and no `build.yaml`. Regeneration cost in the innermost ring spreads to the whole repository. | `codegen_in_kernel` |
 | G2 | `json_serializable` is not enabled in any `feature_api` package's `build.yaml`, and no `json_annotation` import appears there. This is the machine check for "DTOs are never declared in `_api`". | `serialization_in_api` |
 | G3 | `injectable_generator` is enabled only in `apps/*`. | `annotation_di_outside_app` |
-| G4 | Every package that has generated files has a `build.yaml` that enables the builders it needs and disables the rest explicitly. An unconfigured package makes build_runner scan every builder, which is significant waste at 74 packages. | `unpinned_builders` |
+| G4 | Every package that has generated files has a `build.yaml` that enables the builders it needs and disables the rest explicitly. An unconfigured package makes build_runner scan every builder, which is significant waste at 75 packages. | `unpinned_builders` |
 | G5 | Generated files are committed. `melos run gen` followed by `git diff --exit-code` is clean. | checked by `gen:check`, not by `arch_check` |
 
 The `build.yaml` shape each package type is expected to produce:

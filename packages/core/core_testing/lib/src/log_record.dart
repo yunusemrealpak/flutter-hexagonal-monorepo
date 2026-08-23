@@ -1,5 +1,5 @@
 import 'package:core_ports/core_ports.dart';
-import 'package:core_testing/src/recording_logger.dart';
+import 'recording_logger.dart';
 
 /// One entry captured by a [RecordingLogger].
 final class LogRecord {

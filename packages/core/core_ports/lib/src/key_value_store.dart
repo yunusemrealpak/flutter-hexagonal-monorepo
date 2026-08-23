@@ -1,5 +1,5 @@
 import 'package:core_kernel/core_kernel.dart';
-import 'package:core_ports/src/store_failure.dart';
+import 'store_failure.dart';
 
 /// Reads and writes small values that survive a restart.
 ///

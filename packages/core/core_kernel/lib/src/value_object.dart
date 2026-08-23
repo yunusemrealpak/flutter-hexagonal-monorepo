@@ -3,7 +3,7 @@
 // — the single field is final and the constructor is const.
 // ignore_for_file: avoid_equals_and_hash_code_on_mutable_classes
 
-import 'package:core_kernel/src/entity.dart';
+import 'entity.dart';
 
 /// Base class for a value that is defined entirely by what it holds.
 ///

@@ -1,5 +1,5 @@
 import 'package:core_kernel/core_kernel.dart';
-import 'package:core_ports/src/secure_store.dart';
+import 'secure_store.dart';
 
 /// Why a [SecureStore] operation did not complete.
 ///

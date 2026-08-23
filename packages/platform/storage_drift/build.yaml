@@ -1,0 +1,38 @@
+# Only drift generates here, and it generates only from lib/src.
+#
+# The `generate_for` narrowing is not cosmetic: without it build_runner offers
+# every file in the package to the builder, including the barrel and the test
+# directory. At 74 packages that scan is the difference between a codegen run
+# measured in seconds and one measured in minutes.
+#
+# Rule G4 asks that a package enable what it needs and disable the rest
+# explicitly. The rest is empty here — `freezed` and `json_serializable` are
+# not dev dependencies of this package, so their builders do not exist in its
+# build graph and naming them would fail the build rather than tighten it.
+targets:
+  $default:
+    builders:
+      drift_dev:
+        enabled: true
+        generate_for:
+          - lib/src/**.dart
+        options:
+          # A generated data class that only ever travels between the DAO and
+          # the adapter above it does not need to be comparable to a row from
+          # another database, and the smaller output compiles faster.
+          skip_verification_code: true
+
+          # Timestamps are stored as ISO-8601 text rather than as drift's
+          # default unix seconds, and this is not a taste decision.
+          #
+          # With integer storage drift hands back a *local* DateTime, so a
+          # value written as `2026-01-01T12:00Z` reads back as
+          # `2026-01-01T15:00` in Istanbul: the same instant, a different
+          # object, and `DateTime.==` compares the UTC flag. `Clock` promises
+          # UTC (core_ports), so an adapter that quietly converted would break
+          # that promise one layer below where anyone would look for it — and
+          # every comparison against a server timestamp would be off by
+          # whatever the device's offset happened to be that day.
+          #
+          # Text costs a few bytes a row and keeps the round trip honest.
+          store_date_time_values_as_text: true

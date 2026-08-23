@@ -1,5 +1,5 @@
 import 'package:core_ports/core_ports.dart';
-import 'package:core_testing/src/analytics_record.dart';
+import 'analytics_record.dart';
 
 /// An [AnalyticsSink] that keeps every call in order.
 ///

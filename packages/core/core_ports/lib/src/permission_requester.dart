@@ -1,5 +1,5 @@
-import 'package:core_ports/src/device_permission.dart';
-import 'package:core_ports/src/permission_state.dart';
+import 'device_permission.dart';
+import 'permission_state.dart';
 
 /// Asks the operating system for a guarded capability.
 ///

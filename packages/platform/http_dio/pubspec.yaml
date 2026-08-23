@@ -1,0 +1,20 @@
+name: http_dio
+description: >-
+  The workspace's HTTP transport contract and its Dio-backed adapter, together
+  with the fake every test that would otherwise touch the network runs against.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  core_kernel: ^0.1.0
+  # The only technology this package is allowed to know about. Nothing outside
+  # `src/dio_http_transport.dart` imports it, which is what makes replacing Dio
+  # a one-file change rather than a workspace-wide one.
+  dio: ^5.11.0
+
+dev_dependencies:
+  test: ^1.26.0

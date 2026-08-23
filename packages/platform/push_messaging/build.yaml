@@ -1,0 +1,22 @@
+# Only json_serializable generates here, and only from lib/src.
+#
+# This is the shape §10.1 of the specification prescribes for a platform
+# package: `json_serializable` runs in `_infrastructure` and `platform/*`, for
+# DTOs, and nowhere else. An `_api` package that enabled it would be violating
+# rule G2 — which arch_check checks for in phase 3 by reading exactly this file.
+#
+# `freezed` is not named here because it is not a dev dependency of this
+# package, so its builder does not exist in this package's build graph.
+# Disabling a builder that is not there fails the build rather than tightening
+# it; rule G4's "disable the rest" means the rest of what is actually present.
+targets:
+  $default:
+    builders:
+      json_serializable:
+        enabled: true
+        generate_for:
+          - lib/src/**.dart
+      source_gen:combining_builder:
+        options:
+          ignore_for_file:
+            - type=lint

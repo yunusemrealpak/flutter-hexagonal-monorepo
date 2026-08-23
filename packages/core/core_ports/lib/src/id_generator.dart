@@ -1,4 +1,4 @@
-import 'package:core_ports/src/clock.dart';
+import 'clock.dart';
 
 /// Produces identifiers.
 ///

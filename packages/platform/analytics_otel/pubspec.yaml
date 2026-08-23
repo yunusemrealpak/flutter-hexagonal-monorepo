@@ -1,0 +1,22 @@
+name: analytics_otel
+description: >-
+  OpenTelemetry-backed adapters for the AnalyticsSink and Logger ports, plus a
+  time provider that stamps spans from the Clock port.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  core_ports: ^0.1.0
+  # OpenTelemetry represents timestamps as 64-bit nanosecond counts, which Dart
+  # has no native type for. ClockTimeProvider produces them, so the import is
+  # direct and needs its own entry.
+  fixnum: ^1.1.1
+  opentelemetry: ^0.18.11
+
+dev_dependencies:
+  core_testing: ^0.1.0
+  test: ^1.26.0

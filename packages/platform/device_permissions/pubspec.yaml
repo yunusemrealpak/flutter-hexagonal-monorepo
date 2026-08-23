@@ -1,0 +1,34 @@
+name: device_permissions
+description: >-
+  The permission_handler-backed adapter for the PermissionRequester port, and
+  the durable record of what the user has already been asked.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  core_kernel: ^0.1.0
+  core_ports: ^0.1.0
+  flutter:
+    sdk: flutter
+  # The plugin itself, for the platform implementations it registers on
+  # Android and iOS.
+  permission_handler: ^13.0.1
+  # The adapter is written against the platform interface rather than the
+  # plugin's top-level helpers, so that a test can substitute an
+  # implementation instead of a method channel. permission_handler does not
+  # re-export it, and an import needs its own pubspec entry.
+  permission_handler_platform_interface: ^4.4.0
+
+dev_dependencies:
+  core_testing: ^0.1.0
+  flutter_test:
+    sdk: flutter
+  # Needed to build a platform implementation in tests: PlatformInterface
+  # rejects any instance that does not carry its token, and the mixin is the
+  # sanctioned way past that check.
+  plugin_platform_interface: ^2.1.8
