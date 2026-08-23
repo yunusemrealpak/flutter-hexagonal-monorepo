@@ -1,0 +1,26 @@
+name: connectivity_monitor
+description: >-
+  The connectivity_plus-backed adapter for the NetworkStatus port, including
+  the mapping from transport types to what the product can afford to do.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  # The plugin, for the platform implementations it registers.
+  connectivity_plus: ^7.3.1
+  # The adapter is written against the platform interface, so that a test can
+  # substitute an implementation instead of a method channel.
+  connectivity_plus_platform_interface: ^2.1.0
+  core_ports: ^0.1.0
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  plugin_platform_interface: ^2.1.8
