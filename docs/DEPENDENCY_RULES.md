@@ -114,6 +114,13 @@ S3 is additionally enforced by the analyzer: `implementation_imports` is promote
 | A4 | `print()` | `Logger` from `core_ports` | `ambient_print` (also covered by the `avoid_print` lint) |
 | A5 | `throw` across a port implementation's public boundary | return a `Result<S, F>` with a `sealed` failure | `exception_at_port_boundary` |
 
+**Matching.** A1–A4 are checked against parsed source, not against a text search. Two failure modes make the naive grep useless, and both were observed while writing the core packages in phase 1:
+
+- **Comments quoting the rule.** `core_ports/clock.dart` documents itself with "this port exists so that no line of product code calls `DateTime.now()`". Every doc comment that explains why a rule exists trips a checker that scans raw text, and the packages most careful about the rule trip it most often.
+- **Regex metacharacters.** A pattern of `DateTime.now()` with an unescaped `.` matches the declaration `DateTime now()` — the port itself — because the dot matches the space.
+
+`arch_check` therefore walks the analyzed AST and reports method invocations and instance creations, ignoring comments and string literals entirely.
+
 **Scope.** A1–A4 are checked in every package except `apps/*` (where the composition root supplies the real implementations) and `tooling/*` (which is not part of the product). Generated files (`*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `*.config.dart`) are exempt from A1–A4, because a `DateTime` in generated output is not the developer's choice. Generated files are **not** exempt from §2, §3 or §4: a generated file importing a package the constitution forbids is a real architectural violation regardless of who typed it.
 
 ---
