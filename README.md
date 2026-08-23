@@ -125,7 +125,7 @@ Heavy features (`identity`, `shipments`, `routing`, `delivery`, `payments`, `syn
 
 ## Quick start
 
-Requires **Flutter 3.44.2 / Dart 3.12.2** — pinned in `.fvmrc` and `.tool-versions`.
+Requires **Flutter 3.47.1 / Dart 3.13.1** — pinned in `.fvmrc` and `.tool-versions`.
 
 ```bash
 # 1. Resolve the whole workspace in one shot (pub workspaces: one lockfile, one .dart_tool)
