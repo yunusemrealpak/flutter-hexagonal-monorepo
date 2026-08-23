@@ -13,7 +13,8 @@ version: 0.0.0
 # The list is empty in phase 0 because no package exists yet. Every package
 # added from phase 1 onwards registers its path here and declares
 # `resolution: workspace` in its own pubspec.
-workspace: []
+workspace:
+  - packages/core/core_kernel
 
 environment:
   sdk: ^3.12.0
