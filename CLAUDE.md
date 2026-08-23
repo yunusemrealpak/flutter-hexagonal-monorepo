@@ -2,7 +2,7 @@
 
 This file is the constitution. Read it in full at the start of every session, together with [`docs/DEPENDENCY_RULES.md`](docs/DEPENDENCY_RULES.md). The original task definition this repository is built from is [`docs/HEXAGONAL_MONOREPO_PROJECT_SPEC.md`](docs/HEXAGONAL_MONOREPO_PROJECT_SPEC.md); when this file and the spec disagree, the spec wins and this file gets corrected.
 
-**What this repository is:** a reference implementation of hexagonal architecture (ports and adapters) in a 74-package Flutter monorepo. The sample product is **Peyk**, an enterprise courier and field-operations platform. The goal is not a shippable app — it is a compiling, test-passing skeleton in which every architectural rule is physically visible.
+**What this repository is:** a reference implementation of hexagonal architecture (ports and adapters) in a 75-package Flutter monorepo. The sample product is **Peyk**, an enterprise courier and field-operations platform. The goal is not a shippable app — it is a compiling, test-passing skeleton in which every architectural rule is physically visible.
 
 **Success criteria** (all must hold at every phase boundary):
 
@@ -33,13 +33,28 @@ This file is the constitution. Read it in full at the start of every session, to
 | `<feature>_presentation*` | own `_api`, other features' `_api`, `core_kernel`, `core_navigation`, `design_system` |
 | `<feature>_testing` | own `_api`, `core_kernel`, `core_ports`, `core_testing` |
 | `<feature>_core` (reduced split) | own `_api`, `core_kernel`, `core_ports`, `platform/*`, other features' `_api` |
-| `platform/*` | `core_kernel`, `core_ports` |
+| `platform/*` | `core_kernel`, `core_ports`, the `flutter` SDK |
 | `design_tokens` | nothing (except the `flutter` SDK) |
 | `design_system` | `design_tokens`, `core_kernel` |
 | `tooling/*` | no product package |
 | `apps/*` | anything |
 
 A dependency that is not in this table is a violation, not an exception. If you believe you need one, stop and report it rather than adding it — those moments are where the architecture teaches the most.
+
+**Two platform packages never depend on each other.** They do need each other's capabilities — `location_service`, `media_capture` and `push_messaging` all need a permission that `device_permissions` grants — and the resolution is the one used everywhere else: depend on the *port* in `core_ports`, take it through the constructor, and let an app's composition root supply the adapter.
+
+### 1.1.1 Where a contract is declared
+
+`core_ports` and `platform/*` both declare interfaces. The test for which is which is what the interface speaks in:
+
+| | `core_ports` | `platform/<name>` |
+|---|---|---|
+| Speaks in | the product's words | a technology's words |
+| Example | `SecureStore`, `Clock`, `NetworkStatus` | `HttpTransport`, `LocationSource`, `MediaCapture` |
+| Bar for entry | more than one feature needs it, none owns it | one technology answers it, adapter in the same package |
+| Fake lives in | `core_testing` | the same package as the contract |
+
+Nothing in the product asks for "an HTTP request" or "a GPS fix". A feature asks for a shipment or a delivery proof, through a port in its own `_api`, and its `_infrastructure` answers that *using* a technology contract. The table above already enforces the consequence: `_application` may not depend on `platform/*`, so a use case can never see an `HttpRequest` and can never end up owning a retry policy.
 
 ### 1.2 Invariants
 
@@ -135,7 +150,7 @@ Running codegen across the whole workspace is not acceptable. Use the melos scri
 | `dart run melos run gen:check` | `gen` + `git diff --exit-code` | CI staleness gate |
 | `dart run melos run gen:watch` | one package | while working on that package |
 
-Every package gets its own `build.yaml` and **enables only the builders it needs**; by default build_runner scans every builder in every package, which is significant waste across 74 packages. Narrow the builders' globs with `generate_for` as well.
+Every package gets its own `build.yaml` and **enables only the builders it needs**; by default build_runner scans every builder in every package, which is significant waste across 75 packages. Narrow the builders' globs with `generate_for` as well.
 
 ---
 

@@ -1,6 +1,6 @@
 # flutter-hexagonal-monorepo
 
-**A reference implementation of hexagonal architecture (ports and adapters) inside a large-scale Flutter monorepo.** The repository teaches one thing: what the architecture looks like when its rules are enforced at the *package* level rather than by convention — 74 packages, three applications, a dependency constitution checked by a tool, and a test suite built to scale.
+**A reference implementation of hexagonal architecture (ports and adapters) inside a large-scale Flutter monorepo.** The repository teaches one thing: what the architecture looks like when its rules are enforced at the *package* level rather than by convention — 75 packages, three applications, a dependency constitution checked by a tool, and a test suite built to scale.
 
 **Peyk** is the sample product the architecture is demonstrated on: an enterprise courier and field-operations platform. A *peyk* was the Ottoman sultan's runner — the person who carried the message and the load. The domain is deliberately real enough to hurt: offline-first delivery, cash-on-delivery collection, route optimization, and an outbox that has to survive a dead network.
 
@@ -55,7 +55,7 @@ The generated, always-current graph lives in [`docs/dependency-graph.md`](docs/d
 
 ## Package taxonomy
 
-74 packages, each with exactly one job and one allowed dependency set.
+75 packages, each with exactly one job and one allowed dependency set.
 
 | Package type | Count | Role | May depend on |
 |---|---:|---|---|
@@ -69,7 +69,7 @@ The generated, always-current graph lives in [`docs/dependency-graph.md`](docs/d
 | `<feature>_core` | 7 | `application` + `infrastructure` fused, for light features | own `_api`, `core_kernel`, `core_ports`, `platform/*`, other `_api` |
 | `<feature>_presentation*` | 14 | Driving adapters (UI, blocs) | own `_api`, other `_api`, `core_kernel`, `core_navigation`, `design_system` |
 | `<feature>_testing` | 7 | Behavioural fakes + contract test kits | own `_api`, `core_kernel`, `core_ports`, `core_testing` |
-| `platform/*` | 8 | Technology adapters: Dio, Drift, secure storage, location, media, connectivity, OTel, push | `core_kernel`, `core_ports` |
+| `platform/*` | 9 | Technology adapters: Dio, Drift, secure storage, permissions, location, media, connectivity, OTel, push | `core_kernel`, `core_ports`, the Flutter SDK |
 | `design_tokens` | 1 | Raw design values | nothing but `flutter` |
 | `design_system` | 1 | Widgets and theming | `design_tokens`, `core_kernel` |
 | `tooling/*` | 4 | `arch_check`, `test_runner`, `scaffold`, `dep_graph` | no product package |
@@ -116,7 +116,7 @@ Heavy features (`identity`, `shipments`, `routing`, `delivery`, `payments`, `syn
 ├── packages/
 │   ├── core/                 # core_kernel · core_ports · core_navigation · core_testing
 │   ├── features/             # 13 features
-│   ├── platform/             # 8 technology adapters
+│   ├── platform/             # 9 technology adapters
 │   └── design/               # design_tokens · design_system
 └── tooling/                  # arch_check · test_runner · scaffold · dep_graph
 ```
@@ -168,7 +168,7 @@ The commit history is part of the lesson. Every phase is a tag, so you can check
 |---|---|
 | `phase-00` | Repository foundation: workspace root, melos scripts, lint and test configuration, dependency rules, `CLAUDE.md` |
 | `phase-01` | Core packages — `core_kernel`, `core_ports`, `core_navigation`, `core_testing` |
-| `phase-02` | Eight platform adapters, including Drift schema and migration tests |
+| `phase-02` | Nine platform adapters, including the Drift schema and its migration tests |
 | `phase-03` | `arch_check` and `scaffold` — the rules become machine-enforced from here on |
 | `phase-04` | Reference features `identity` and `shipments`, including the status machine and the first contract kit |
 | `phase-05` | Cross-cutting features `routing`, `delivery`, `payments`, `sync` — all seven scenarios visible in code |
