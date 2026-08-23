@@ -15,6 +15,7 @@ version: 0.0.0
 # `resolution: workspace` in its own pubspec.
 workspace:
   - packages/core/core_kernel
+  - packages/core/core_ports
 
 environment:
   sdk: ^3.12.0

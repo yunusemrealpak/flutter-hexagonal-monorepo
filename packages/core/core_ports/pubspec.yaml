@@ -1,0 +1,16 @@
+name: core_ports
+description: >-
+  Cross-cutting ports: the capabilities every feature is allowed to ask the
+  outside world for, declared as interfaces with no implementation.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  core_kernel: ^0.1.0
+
+dev_dependencies:
+  test: ^1.26.0
