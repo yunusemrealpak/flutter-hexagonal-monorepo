@@ -23,6 +23,7 @@ workspace:
   - packages/platform/device_permissions
   - packages/platform/http_dio
   - packages/platform/location_service
+  - packages/platform/media_capture
   - packages/platform/secure_store
   - packages/platform/storage_drift
 
