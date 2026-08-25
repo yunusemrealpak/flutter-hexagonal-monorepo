@@ -41,9 +41,13 @@ Two things are worth noticing in the output.
 
 **The same code carries different advice.** `forbidden_dependency` fires seven times here, and the remedy is not the same sentence each time: a feature reaching past another feature's contract is told which `_api` to use instead, while an adapter reaching for a foreign `_api` is already using it — its crossing belongs to a use case, and the message says so.
 
-### What it also shows about the checker's limits
+### The shared package, and what is reported about it
 
-`billing_application` depends on `billing_shared`, and that edge is **not** reported. The package itself is caught (`unknown_package_type`), but because it resolves to no type it is left out of the graph, so every dependency into it falls through as third party. Section 8 of the dependency rules already says a checker cannot tell you that the right fix for a cycle is mutual contracts rather than a new `shared` package; this is the mechanical shape of that limit.
+`billing_application` depends on `billing_shared`, and both halves of that are reported: the package itself as `unknown_package_type`, and the edge into it as `forbidden_dependency`.
+
+The second half used to be missing, and this fixture is what found it. A package that resolves to no type is left out of the graph, so a dependency into it looked exactly like a dependency on a package from pub — which meant the classic mistake showed up once, on the package everybody agreed to create, while the packages that then depended on it looked clean. The loader now keeps untyped names addressable for exactly this reason.
+
+What the checker still cannot do is judge the *fix*. Section 8 of the dependency rules says it: nothing here can tell you that the right answer is mutual contracts rather than a package in the middle. It can only make the package in the middle impossible to ignore.
 
 ## Rules for adding one
 

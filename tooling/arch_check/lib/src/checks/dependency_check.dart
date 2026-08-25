@@ -29,9 +29,34 @@ final class DependencyCheck implements Check {
     WorkspacePackage package,
   ) sync* {
     final policy = context.rules.policyFor(package.type);
-    if (policy.allowsAnything) return;
 
     for (final dependency in package.dependencies) {
+      // Checked before the app layer's blanket permission, and before the
+      // third-party fallthrough. "Anything" means any package the
+      // constitution can reason about, and one that resolves to no type is
+      // not that — it is already reported on its own, and every edge into it
+      // is a second thing to report rather than a consequence to swallow.
+      //
+      // Without this, the classic mistake — a `shared` package two features
+      // both reach for — shows up once, on the package, while the five
+      // packages that now depend on it look clean.
+      if (context.workspace.isUntyped(dependency.name)) {
+        yield Violation(
+          code: 'forbidden_dependency',
+          location: ViolationLocation(package: package.relativePath),
+          what:
+              '${package.name} (${package.type.id}) depends on '
+              '${dependency.name}, which resolves to no package type',
+          remedy: context.rules.remedyFor(
+            'forbidden_dependency.untyped',
+            vars: {'package': dependency.name},
+          ),
+        );
+        continue;
+      }
+
+      if (policy.allowsAnything) continue;
+
       if (dependency.isSdk) {
         if (policy.allowSdks.contains(dependency.sdk)) continue;
         yield Violation(

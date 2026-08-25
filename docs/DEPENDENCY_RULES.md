@@ -30,6 +30,8 @@ Rules are applied per *package type*, and a package's type is derived from its p
 
 A package whose path and name do not resolve to exactly one type is itself a violation (`unknown_package_type`). There is no default.
 
+**And so is depending on one.** An untyped package is left out of the dependency graph, because no row of §2 applies to it. Every edge into it is reported as `forbidden_dependency` all the same: without that, a package the constitution cannot reason about would be indistinguishable at every call site from a package on pub, and the classic mistake — a `shared` package two features both reach for — would show up once, on the package, while everything that depended on it looked clean.
+
 **Which name.** The matchers read the *directory* name, not the pubspec's `name:` field. Rule S5 below requires the two to be equal, so in a healthy workspace the choice is invisible; it only matters when they disagree. Believing the pubspec there would drop the package out of every type and replace one obvious violation — `name_mismatch` — with silence about the other twenty rules, so the filesystem wins and the mismatch is reported on its own.
 
 **Owning feature.** For every `feature_*` package, the owning feature is the directory name under `packages/features/`. `shipments_presentation_courier` lives in `packages/features/shipments/`, so its owning feature is `shipments` and its own `_api` is `shipments_api`.

@@ -414,6 +414,14 @@ messages:
     technology; when it needs a concept another feature owns, the crossing
     belongs to a use case, which is the layer allowed to see both.
 
+  forbidden_dependency.untyped: >-
+    {package} resolves to no package type, so nothing can be said about what
+    depending on it means; it is reported on its own as well. Give it a type
+    by moving it under the directory its role belongs to, or move what is
+    inside it into the _api of the feature that owns the concept. A package
+    everybody depends on and nobody owns is the shape this constitution
+    exists to prevent.
+
   forbidden_dependency.third_party: >-
     This package type carries no third-party dependency. core_kernel is the
     innermost ring and design_tokens is a leaf of constants; a third-party

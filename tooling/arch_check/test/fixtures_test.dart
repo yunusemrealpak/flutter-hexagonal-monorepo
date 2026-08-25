@@ -160,7 +160,7 @@ void main() {
         'dependency_cycle': 1,
         'exception_at_port_boundary': 1,
         'flutter_in_pure_dart': 2,
-        'forbidden_dependency': 7,
+        'forbidden_dependency': 8,
         'implementation_in_api': 1,
         'locator_outside_app': 1,
         'missing_barrel': 1,
@@ -187,6 +187,26 @@ void main() {
       );
       expect(adapter.remedy, contains('belongs to a use case'));
       expect(adapter.remedy, isNot(contains('Replace the dependency')));
+    });
+
+    test('reports the edges into the shared package, not only the package', () {
+      // The package resolves to no type, so it is left out of the graph and
+      // every dependency into it would otherwise fall through as third
+      // party. That is how the classic mistake stays invisible: one violation
+      // on the package everybody agreed to create, and silence from the
+      // packages that then depended on it.
+      final run = checker.run(fixture('broken_feature'));
+      final edges = run.violations.where(
+        (violation) => violation.what.contains('billing_shared'),
+      );
+      expect(edges.map((violation) => violation.code), [
+        'forbidden_dependency',
+        'unknown_package_type',
+      ]);
+      expect(
+        edges.first.remedy,
+        contains('nobody owns'),
+      );
     });
 
     test('the clean packages around it report nothing', () {
