@@ -16,6 +16,8 @@ dependencies:
   core_ports: ^0.1.0
   core_testing: ^0.1.0
   identity_api: ^0.1.0
-
-dev_dependencies:
+  # A runtime dependency, because this package ships a contract kit and a
+  # contract kit *is* tests: it calls group() and test() from lib/. See the
+  # note in shipments_testing's pubspec for why core_testing does the
+  # opposite.
   test: ^1.26.0
