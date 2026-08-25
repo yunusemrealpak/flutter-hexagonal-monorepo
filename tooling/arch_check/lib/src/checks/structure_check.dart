@@ -204,6 +204,11 @@ final class StructureCheck implements Check {
   /// S8. A port is declared as `abstract interface class`, so a class that
   /// implements one in the same package is exact rather than a guess; a
   /// concrete class whose name ends in Impl or Adapter is the second half.
+  ///
+  /// Only the exact half applies to generated files. See the note beside the
+  /// skip, and section 5 of `docs/DEPENDENCY_RULES.md` for the general shape
+  /// of the exemption: a rule that reads intent from a name reads nothing at
+  /// all in output nobody named.
   Iterable<Violation> _implementationInApi(
     CheckContext context,
     WorkspacePackage package,
@@ -251,6 +256,19 @@ final class StructureCheck implements Check {
         }
 
         if (declaration.abstractKeyword != null) continue;
+
+        // The half above reads a declaration: a class that implements a port
+        // declared here is an implementation whoever wrote it, and a generator
+        // that emitted one would be emitting a real violation. The half below
+        // reads a *name*, and nobody chose the names in a generated file:
+        // freezed emits `_$SessionCopyWithImpl` for every class it touches, so
+        // a `_api` package with one generated union would report a violation
+        // per generated type and go on doing it until the rule was turned off.
+        if (structure.suffixesSkipGenerated &&
+            context.rules.codegen.isGenerated(file.fileName)) {
+          continue;
+        }
+
         final suffix = structure.forbiddenClassSuffixes
             .where(className.endsWith)
             .firstOrNull;

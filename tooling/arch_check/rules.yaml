@@ -229,6 +229,17 @@ structure:
     in_types: [feature_api]
     port_declaration: abstract_interface_class
     forbidden_class_suffixes: [Impl, Adapter, Repository, Service, Client]
+    # The suffix list is a naming heuristic, and a generator names its own
+    # output: freezed emits a `_$<Type>CopyWithImpl` for every class it
+    # touches, so an _api package with one generated union would report a
+    # violation per generated type. Nobody chose those names, which is the
+    # same reason section 5 exempts generated files from the ambient-API
+    # rules.
+    #
+    # The other half of S8 is not skipped. "A class that implements a port
+    # declared in this package" reads a declaration rather than a name, and a
+    # generator that emitted one would be emitting a real violation.
+    suffixes_skip_generated: true
 
 # ---------------------------------------------------------------------------
 # Section 4 — forbidden imports.

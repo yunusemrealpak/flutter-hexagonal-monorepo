@@ -105,7 +105,9 @@ A technology contract lives in the same package as its adapter, together with th
 | S5 | The `name:` in `pubspec.yaml` equals the directory name. | `name_mismatch` |
 | S6 | The package path is registered in the root `pubspec.yaml` `workspace:` list, and the package declares `resolution: workspace`. | `unregistered_package` |
 | S7 | The dependency graph is acyclic. | `dependency_cycle` |
-| S8 | An `_api` package contains no implementation class — no class that implements or extends a port declared in the same package, and no concrete adapter. | `implementation_in_api` |
+| S8 | An `_api` package contains no implementation class — no class that implements or extends a port declared in the same package, and no concrete adapter. The second half is a naming heuristic and is skipped in generated files; see below. | `implementation_in_api` |
+
+**S8 has two halves, and only one of them reads a generated file.** "A class that implements a port declared in this package" reads a *declaration*: a builder that emitted an adapter into a contract package emitted a real violation, whoever configured it, so generated files are checked. "A concrete class whose name ends in `Impl`, `Adapter`, `Repository`, `Service` or `Client`" reads a *name*, and a generator names its own output — `freezed` emits a `_$<Type>CopyWithImpl` for every class it touches, so an `_api` package with one generated union would report a violation per generated type and go on doing it until somebody turned the rule off. The naming half is therefore skipped in generated files, for the same reason §5 exempts them from the ambient-API rules: the name is not the developer's choice. `rules.yaml` spells this out as `suffixes_skip_generated`.
 
 S3 is additionally enforced by the analyzer: `implementation_imports` is promoted to `error` in the root `analysis_options.yaml`. Because intra-package imports are relative, it is also verifiable by hand in one command:
 
@@ -146,7 +148,7 @@ grep -rn "package:[a-z_]*/src/" packages/ apps/   # any output is a violation
 
 `arch_check` therefore walks the analyzed AST and reports method invocations and instance creations, ignoring comments and string literals entirely.
 
-**Scope.** A1–A4 are checked in every package except `apps/*` (where the composition root supplies the real implementations) and `tooling/*` (which is not part of the product). Generated files (`*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `*.config.dart`) are exempt from A1–A4, because a `DateTime` in generated output is not the developer's choice. Generated files are **not** exempt from §2, §3 or §4: a generated file importing a package the constitution forbids is a real architectural violation regardless of who typed it.
+**Scope.** A1–A4 are checked in every package except `apps/*` (where the composition root supplies the real implementations) and `tooling/*` (which is not part of the product). Generated files (`*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `*.config.dart`) are exempt from A1–A4, because a `DateTime` in generated output is not the developer's choice. Generated files are **not** exempt from §2 or §4: a generated file importing a package the constitution forbids is a real architectural violation regardless of who typed it. §3 applies to them too, with the single carve-out recorded under rule S8 — the half of that rule which reads a class *name* rather than a declaration, for the same reason as here.
 
 ---
 

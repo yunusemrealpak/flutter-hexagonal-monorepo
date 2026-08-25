@@ -67,12 +67,30 @@ void main() {
       expect(codesIn('broken_structure'), {
         'barrel_leak': 2,
         'deep_import': 1,
-        'implementation_in_api': 2,
+        'implementation_in_api': 3,
         'missing_barrel': 1,
         'name_mismatch': 1,
         'stray_lib_file': 1,
         'unregistered_package': 2,
       });
+    });
+
+    test('reads a generated file for S8 by declaration, not by name', () {
+      // generated_port.g.dart holds two classes: one implementing a port
+      // declared in the same package, one merely named `…Impl`. The first is
+      // a violation whoever emitted it; the second is freezed's copy-with
+      // plumbing under another name, and a rule that fired on it would fire
+      // once per generated type until somebody turned the rule off.
+      final run = checker.run(fixture('broken_structure'));
+      final inGenerated = run.violations.where(
+        (violation) =>
+            violation.code == 'implementation_in_api' &&
+            (violation.location.file?.endsWith('generated_port.g.dart') ??
+                false),
+      );
+
+      expect(inGenerated, hasLength(1));
+      expect(inGenerated.single.what, contains('ShipmentCache'));
     });
 
     test('still types a package whose pubspec name is wrong', () {

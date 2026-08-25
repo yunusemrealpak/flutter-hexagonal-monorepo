@@ -98,7 +98,7 @@ void main() {
 
       final summary = decoded['summary']! as Map<String, Object?>;
       expect(summary['clean'], isFalse);
-      expect(summary['violationCount'], 10);
+      expect(summary['violationCount'], 11);
       expect(summary['packagesChecked'], 3);
     });
 

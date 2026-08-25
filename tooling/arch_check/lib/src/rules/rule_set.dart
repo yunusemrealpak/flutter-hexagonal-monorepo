@@ -108,6 +108,7 @@ final class StructureRules {
     required this.barrelAllowsPackageReexport,
     required this.implementationInApiTypes,
     required this.forbiddenClassSuffixes,
+    required this.suffixesSkipGenerated,
   });
 
   /// Package directories scanned for rule S3.
@@ -124,6 +125,15 @@ final class StructureRules {
 
   /// Class-name suffixes that read as an implementation.
   final List<String> forbiddenClassSuffixes;
+
+  /// Whether [forbiddenClassSuffixes] is skipped in generated files.
+  ///
+  /// It is. The suffix list reads intent from a name, and a generator names
+  /// its own output: freezed emits a `…CopyWithImpl` per type it touches.
+  /// The other half of S8 — a class implementing a port declared in the same
+  /// package — still applies to generated files, because that one reads a
+  /// declaration rather than a name.
+  final bool suffixesSkipGenerated;
 }
 
 /// One entry of the `forbidden_imports` list.
@@ -514,6 +524,8 @@ final class RuleSet {
       forbiddenClassSuffixes: _strings(
         implementation['forbidden_class_suffixes'],
       ),
+      suffixesSkipGenerated:
+          implementation['suffixes_skip_generated'] as bool? ?? true,
     );
   }
 
