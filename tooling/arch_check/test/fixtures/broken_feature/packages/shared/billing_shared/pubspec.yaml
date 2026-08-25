@@ -1,0 +1,12 @@
+# "Both features need this, so it goes somewhere in the middle."
+name: billing_shared
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  core_kernel: ^0.1.0
+

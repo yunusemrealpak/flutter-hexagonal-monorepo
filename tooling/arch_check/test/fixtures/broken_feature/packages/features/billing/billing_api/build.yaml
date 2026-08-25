@@ -1,0 +1,9 @@
+# Someone needed a DTO and wired the generator where the DTO was, which is the
+# one place rule G2 forbids it.
+targets:
+  $default:
+    builders:
+      json_serializable:
+        enabled: true
+        generate_for:
+          - lib/src/**.dart

@@ -1,0 +1,24 @@
+# A feature written by someone who has not read the constitution, and the
+# clean packages around it that make its mistakes measurable.
+#
+# billing_testing is missing from the list below on purpose: adding a package
+# and forgetting to register it is one of the mistakes this fixture makes.
+name: fixture_workspace
+publish_to: none
+version: 0.0.0
+
+workspace:
+  - packages/core/core_kernel
+  - packages/core/core_navigation
+  - packages/core/core_ports
+  - packages/design/design_system
+  - packages/features/billing/billing_api
+  - packages/features/billing/billing_application
+  - packages/features/billing/billing_infrastructure
+  - packages/features/billing/billing_presentation
+  - packages/features/shipments/shipments_api
+  - packages/features/shipments/shipments_application
+  - packages/shared/billing_shared
+
+environment:
+  sdk: ^3.12.0

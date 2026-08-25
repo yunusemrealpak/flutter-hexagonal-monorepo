@@ -408,6 +408,12 @@ messages:
     A feature may only reach another feature through its _api package. Replace
     the dependency with {foreign_api} and consume the port declared there.
 
+  forbidden_dependency.foreign_api: >-
+    This package type may not reach another feature at all, contract
+    included. An adapter translates between one feature's ports and one
+    technology; when it needs a concept another feature owns, the crossing
+    belongs to a use case, which is the layer allowed to see both.
+
   forbidden_dependency.third_party: >-
     This package type carries no third-party dependency. core_kernel is the
     innermost ring and design_tokens is a leaf of constants; a third-party
