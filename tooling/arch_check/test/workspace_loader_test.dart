@@ -19,9 +19,11 @@ void main() {
       expect(loaded.workspace.packages.map((package) => package.name), [
         'core_kernel',
         'core_ports',
+        'payments_api',
         'shipments_api',
         'shipments_application',
         'shipments_infrastructure',
+        'shipments_testing',
         'http_dio',
         'some_tool',
       ]);
@@ -60,9 +62,11 @@ void main() {
       expect(types, {
         'core_kernel': PackageType.coreKernel,
         'core_ports': PackageType.corePorts,
+        'payments_api': PackageType.featureApi,
         'shipments_api': PackageType.featureApi,
         'shipments_application': PackageType.featureApplication,
         'shipments_infrastructure': PackageType.featureInfrastructure,
+        'shipments_testing': PackageType.featureTesting,
         'http_dio': PackageType.platform,
         'some_tool': PackageType.tooling,
       });

@@ -53,7 +53,7 @@ Read this as a whitelist. Any dependency edge not listed is a violation (`forbid
 | `feature_infrastructure` | own `_api`, `core_kernel`, `core_ports`, `platform/*` | any `_application`, any foreign feature package including foreign `_api` |
 | `feature_core` | own `_api`, `core_kernel`, `core_ports`, `platform/*`, foreign `_api` | any `_application`, any `_infrastructure`, any `_presentation` |
 | `feature_presentation` | own `_api`, foreign `_api`, `core_kernel`, `core_navigation`, `design_system` | any `_application`, any `_infrastructure`, any `_core`, any `platform/*` |
-| `feature_testing` | own `_api`, `core_kernel`, `core_ports`, `core_testing` | any implementation package |
+| `feature_testing` | own `_api`, `core_kernel`, `core_ports`, `core_testing`, foreign `_api` | any implementation package |
 | `platform` | `core_kernel`, `core_ports`, the `flutter` SDK | any feature package, any other `platform/*` |
 | `design_tokens` | the `flutter` SDK only | everything else |
 | `design_system` | `design_tokens`, `core_kernel`, the `flutter` SDK | any feature package, any `platform/*` |
@@ -69,11 +69,13 @@ The rules in this section apply to the `dependencies:` block of a pubspec and to
 - **`dev_dependencies:` used only by `test/`.** Every package needs a test harness, and `package:test` is not an architectural dependency — it never ships, and nothing under `lib/` may import it. `core_kernel` therefore has `test` in `dev_dependencies` while still having an empty `dependencies` block, and that is not a violation of "depends on nothing". `arch_check` reads `dependencies:` for edge validation and scans `lib/` for imports; a package that imports a dev dependency from `lib/` is a violation (`dev_dependency_in_lib`).
 - **`build_runner` and generator packages.** They are dev dependencies for the same reason: they run at build time and produce source, they are not part of the package's runtime surface.
 
-### 2.1 Notes on the three edges people get wrong
+### 2.1 Notes on the edges people get wrong
 
 **`feature_infrastructure` may not depend on a foreign `_api`.** An adapter translates between one feature's ports and one technology. If it needs a concept from another feature, the concept belongs in its own `_api` and the *use case* — not the adapter — should be doing the crossing.
 
 **`feature_application` may not depend on `platform/*`.** Platform packages are driven adapters. An application package that reaches for one has stopped being pure Dart and has stopped being testable without a device.
+
+**`feature_testing` may depend on a foreign `_api`, and on no implementation.** The row originally allowed neither, and the omission surfaced the first time an `_api` legally named a foreign type: `shipments_api` declares `ShipmentStatus.assignedToCourier(ActorId)`, and `shipments_testing` — whose job is to build fixtures for exactly that surface — could not write the type down. A package that may see another's public surface has to be able to name what is in it. The prohibition that matters is unchanged: a fake that depended on `payments_application` would break whenever those use cases were refactored, which is the whole reason a contract package is separate from the code that satisfies it.
 
 **`platform/*` may not depend on `platform/*`.** This one bites in practice rather than in theory, because platform packages genuinely need each other's capabilities: `location_service`, `media_capture` and `push_messaging` all need a permission granted, and the adapter for that lives in `device_permissions`. The resolution is the same one the constitution uses everywhere else — depend on the *port*, take it through the constructor, and let an application's composition root supply the adapter. A platform package that reached for another directly would make an app that wants the camera drag in a location plugin.
 

@@ -163,8 +163,14 @@ dependencies:
     allow_sdks: [flutter]
     allow_third_party: true
 
+  # foreign_api, for the same reason feature_api and feature_application have
+  # it: a _testing package builds fixtures for its own _api, and an _api may
+  # legally name a type from another feature's contract. A package that could
+  # not name a type its own public surface mentions would be a package whose
+  # fixtures stop at the first cross-feature signature. Contracts only — the
+  # row's real prohibition, "no implementation package", is untouched.
   feature_testing:
-    allow: [own_api, core_kernel, core_ports, core_testing]
+    allow: [own_api, core_kernel, core_ports, core_testing, foreign_api]
     allow_sdks: [flutter]
     allow_third_party: true
 

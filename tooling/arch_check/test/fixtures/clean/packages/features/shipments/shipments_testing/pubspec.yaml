@@ -1,0 +1,16 @@
+# A _testing package that names a type from a foreign _api. Allowed since the
+# feature_testing row gained foreign_api: a fixture builder for its own _api
+# has to be able to name every type that _api's public surface mentions, and a
+# contract package is a contract rather than an implementation.
+name: shipments_testing
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  core_kernel: ^0.1.0
+  payments_api: ^0.1.0
+  shipments_api: ^0.1.0

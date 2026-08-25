@@ -1,4 +1,4 @@
-# Section 2. Four forbidden edges, one dev dependency that reached lib/.
+# Section 2. Five forbidden edges, one dev dependency that reached lib/.
 name: fixture_workspace
 publish_to: none
 version: 0.0.0
@@ -8,6 +8,7 @@ workspace:
   - packages/features/payments/payments_application
   - packages/features/shipments/shipments_api
   - packages/features/shipments/shipments_application
+  - packages/features/shipments/shipments_testing
   - tooling/leaky_tool
 
 environment:
