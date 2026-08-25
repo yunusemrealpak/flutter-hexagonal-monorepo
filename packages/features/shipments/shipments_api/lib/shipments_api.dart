@@ -27,6 +27,7 @@ export 'src/address_point.dart';
 export 'src/barcode.dart';
 export 'src/barcode_resolver_port.dart';
 export 'src/consignee.dart';
+export 'src/courier_reference.dart';
 export 'src/shipment.dart';
 export 'src/shipment_cache.dart';
 export 'src/shipment_delivered.dart';
