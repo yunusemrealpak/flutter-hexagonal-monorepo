@@ -147,7 +147,13 @@ dart run melos run gen:check       # fail if any generated file is stale (what C
 dart run melos run arch:check      # enforce the dependency constitution
 dart run melos run test             # pr preset everywhere (dart + flutter runners)
 dart run melos run test:affected   # run only the tests a change can break
+
+# 4. Starting a new feature — the scaffolder, not melos: melos 8 does not
+#    forward arguments to a script, and the arguments are the point here.
+dart run tooling/scaffold/bin/scaffold.dart new-feature --name billing --split full
 ```
+
+The tools that enforce and apply the architecture, and the discipline of using them together, are described in [`tooling/README.md`](tooling/README.md).
 
 If your editor reports `depend_on_referenced_packages` on imports that `dart run melos run analyze` accepts, it is running a Dart SDK older than 3.6, which is where pub workspaces landed. An editor launched from the Dock does not inherit your shell's PATH and can resolve an older `dart` from the system default. Check with `ps -eo command | grep language-server`, and pin the SDK — in VS Code, set `dart.sdkPath` to `<flutter>/bin/cache/dart-sdk`. The command line is the source of truth.
 
@@ -191,6 +197,7 @@ git checkout phase-04   # the architecture as of the reference features
 | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Hexagonal mapped onto this repository, the seven scenarios, a request traced end to end |
 | [`docs/TESTING.md`](docs/TESTING.md) | The pyramid, contract kits, hermeticity rules, and how this shape reaches 100k tests |
 | [`docs/CI_CD.md`](docs/CI_CD.md) | PR / main / nightly / release pipelines and the caching strategy |
+| [`tooling/README.md`](tooling/README.md) | `arch_check` and `scaffold`: what they do, and the loop they form with the rules |
 | [`docs/HEXAGONAL_MONOREPO_PROJECT_SPEC.md`](docs/HEXAGONAL_MONOREPO_PROJECT_SPEC.md) | The original specification this repository is built from |
 
 Documents marked above are written in the phase that produces them; before that phase they may be absent.
