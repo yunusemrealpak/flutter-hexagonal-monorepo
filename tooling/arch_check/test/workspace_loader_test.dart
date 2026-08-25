@@ -83,6 +83,26 @@ void main() {
   });
 
   group('reading a pubspec', () {
+    test('separates an SDK dependency from a hosted one', () {
+      final loaded = loader.load(fixture('broken_dependencies'));
+      final payments = loaded.workspace.byName('payments_application')!;
+      final flutter = payments.dependencies.singleWhere(
+        (dependency) => dependency.name == 'flutter',
+      );
+      expect(flutter.isSdk, isTrue);
+      expect(flutter.sdk, 'flutter');
+    });
+
+    test('keeps dev dependencies apart from dependencies', () {
+      final loaded = loader.load(fixture('broken_dependencies'));
+      final payments = loaded.workspace.byName('payments_application')!;
+      expect(payments.devDependencies.map((entry) => entry.name), ['meta']);
+      expect(
+        payments.dependencies.map((entry) => entry.name),
+        isNot(contains('meta')),
+      );
+    });
+
     test('reads a build.yaml when there is one, and not otherwise', () {
       final loaded = loader.load(fixture('clean'));
       expect(

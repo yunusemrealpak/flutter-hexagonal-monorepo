@@ -1,0 +1,14 @@
+# Section 3. Every structural rule except the cycle, each broken once.
+#
+# shipments_testing is deliberately absent from the list below: a package that
+# exists on disk and not in the workspace resolution is the other half of S6.
+name: fixture_workspace
+publish_to: none
+version: 0.0.0
+
+workspace:
+  - packages/core/core_kernel
+  - packages/features/shipments/shipments_api
+
+environment:
+  sdk: ^3.12.0
