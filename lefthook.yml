@@ -5,11 +5,20 @@
 #   brew install lefthook   # or: npm i -g lefthook
 #   lefthook install
 #
-# The split between pre-commit and pre-push is deliberate. pre-commit only runs
-# what is cheap enough to run dozens of times a day and is scoped to the staged
-# files. Code generation and architecture checks live in pre-push: running
-# build_runner on every commit would tax every commit for a mistake that is
-# only expensive once it reaches CI, and pre-push is the last point where
+# The split between pre-commit and pre-push is deliberate, and it is drawn by
+# what each check costs rather than by how much it matters.
+#
+# pre-commit runs what is cheap enough to run dozens of times a day: the
+# formatter and the analyzer over the staged files, and the architecture check
+# over the workspace. The last of those is there because finding out at push
+# time that a commit you already made breaks the constitution is a bad trade —
+# the commit is written, the message is written, and the fix now needs an
+# amend or a second commit. It is affordable because arch_check runs from a
+# compiled snapshot; see the arch:check script in the root pubspec.
+#
+# pre-push runs what is not: the code generation gate and the tests. Running
+# build_runner on every commit would tax every commit for a mistake that only
+# becomes expensive once it reaches CI, and pre-push is the last point where
 # catching it still costs nothing.
 # ---------------------------------------------------------------------------
 
@@ -20,15 +29,18 @@ skip:
   - rebase
 
 pre-commit:
-  parallel: true
+  # Sequential, and named with numeric prefixes: lefthook orders commands by
+  # name. The formatter rewrites the staged files and re-stages them, so the
+  # two checks that read those files run after it rather than beside it.
+  parallel: false
   commands:
-    format:
+    1_format:
       glob: "*.dart"
       # Formats the staged files and re-stages them, so a formatting-only
       # difference never becomes a second commit.
       run: dart format {staged_files} && git add {staged_files}
 
-    analyze:
+    2_analyze:
       glob: "*.dart"
       # tooling/arch_check's fixtures are deliberately broken mini workspaces
       # with no pub resolution, and `dart analyze <path>` ignores the root
@@ -43,6 +55,14 @@ pre-commit:
       # walked for a two-file change.
       run: dart analyze --fatal-infos --fatal-warnings {staged_files}
 
+    3_arch_check:
+      # Not scoped to the staged files, and it cannot be: a cycle, a missing
+      # barrel and a forbidden edge are properties of the workspace, not of a
+      # file. It is affordable anyway — the arch:check script runs a compiled
+      # snapshot, so this costs tenths of a second rather than the four
+      # seconds `dart run` spends loading the tool.
+      run: dart run melos run arch:check
+
 pre-push:
   # Sequential, and named with numeric prefixes: lefthook orders commands by
   # name, so the generation gate runs before the architecture check, which runs
@@ -55,15 +75,11 @@ pre-push:
       run: dart run melos run gen:check
 
     2_arch_check:
-      # Guarded because tooling/arch_check is written in phase 3. The guard
-      # removes itself the moment the tool exists; until then the hook says so
-      # out loud rather than passing silently.
-      run: |
-        if [ ! -f tooling/arch_check/bin/arch_check.dart ]; then
-          echo "arch_check not present yet (phase 3) — dependency rules must be verified by hand."
-          exit 0
-        fi
-        dart run melos run arch:check
+      # Also on pre-commit, and kept here for the one path that skips it: the
+      # `skip:` block above turns every hook off during a merge or a rebase,
+      # so a merge commit combining two individually clean branches has never
+      # been checked. This is the last local gate before CI sees it.
+      run: dart run melos run arch:check
 
     3_test_affected:
       # Guarded for the same reason; tooling/test_runner arrives in phase 8.
