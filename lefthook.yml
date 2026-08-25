@@ -30,6 +30,14 @@ pre-commit:
 
     analyze:
       glob: "*.dart"
+      # tooling/arch_check's fixtures are deliberately broken mini workspaces
+      # with no pub resolution, and `dart analyze <path>` ignores the root
+      # analysis_options exclude when a file is named explicitly — which is
+      # exactly what {staged_files} does. Excluding them here keeps the hook
+      # agreeing with `melos run analyze`, which walks the workspace and does
+      # honour the exclude.
+      exclude:
+        - "tooling/*/test/fixtures/**"
       # Scoped to staged files rather than the workspace: the analyzer still
       # resolves them in their full package context, but 74 packages do not get
       # walked for a two-file change.
