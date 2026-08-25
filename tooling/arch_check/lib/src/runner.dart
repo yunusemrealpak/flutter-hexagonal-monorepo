@@ -1,5 +1,6 @@
 import 'checks/check.dart';
 import 'checks/dependency_check.dart';
+import 'checks/import_check.dart';
 import 'checks/structure_check.dart';
 import 'model/violation.dart';
 import 'rules/rule_set.dart';
@@ -57,7 +58,11 @@ final class ArchCheck {
   final RuleSet rules;
 
   /// One check per section of the dependency rules.
-  static const List<Check> checks = [DependencyCheck(), StructureCheck()];
+  static const List<Check> checks = [
+    DependencyCheck(),
+    StructureCheck(),
+    ImportCheck(),
+  ];
 
   /// Checks the workspace rooted at [rootPath].
   CheckRun run(String rootPath) {

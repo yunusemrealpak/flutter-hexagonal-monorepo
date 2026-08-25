@@ -84,6 +84,20 @@ void main() {
     });
   });
 
+  group('section 4, forbidden imports', () {
+    test('catches each import in the package type that forbids it', () {
+      expect(codesIn('broken_imports'), {
+        'annotation_di_outside_app': 1,
+        'flutter_in_pure_dart': 1,
+        'forbidden_dependency': 2,
+        'kernel_dependency': 1,
+        'locator_outside_app': 1,
+        'serialization_in_api': 1,
+        'technology_in_domain': 1,
+      });
+    });
+  });
+
   group('section 1, package types', () {
     test('a package that resolves to no type is itself a violation', () {
       final run = checker.run(fixture('unknown_type'));
