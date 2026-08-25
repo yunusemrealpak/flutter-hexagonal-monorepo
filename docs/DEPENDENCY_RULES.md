@@ -99,7 +99,7 @@ A technology contract lives in the same package as its adapter, together with th
 | S1 | Every package has a barrel at `lib/<package_name>.dart`. | `missing_barrel` |
 | S2 | That barrel is the only `.dart` file directly under `lib/`. Everything else lives under `lib/src/`. | `stray_lib_file` |
 | S3 | No file imports `package:<other_package>/src/...`. Within its own package, imports are relative — see the convention in CLAUDE.md section 3 — so `package:*/src/` appearing anywhere in the source is a violation with no exceptions to weigh. | `deep_import` |
-| S4 | A barrel exports nothing that leaks an internal type it does not intend to publish. | `barrel_leak` |
+| S4 | A barrel re-exports and does nothing else: it declares no type of its own, and it does not re-export another package's `package:` URI. | `barrel_leak` |
 | S5 | The `name:` in `pubspec.yaml` equals the directory name. | `name_mismatch` |
 | S6 | The package path is registered in the root `pubspec.yaml` `workspace:` list, and the package declares `resolution: workspace`. | `unregistered_package` |
 | S7 | The dependency graph is acyclic. | `dependency_cycle` |
@@ -199,7 +199,9 @@ forbidden_dependency  packages/features/payments/payments_application
   Replace the dependency with shipments_api and consume the port declared there.
 ```
 
-`--format=json` emits the same four fields per violation. Exit code is 1 when any violation is found.
+`--format=json` emits the same four fields per violation.
+
+Three exit codes, and the third one matters: **0** clean, **1** violations found, **64** the checker could not run — bad arguments, a missing root, an unreadable `rules.yaml`. A tool that exits 1 both for "the architecture is broken" and for "I could not read my own rules" teaches CI to treat the second as the first, and a rule file that fails to parse then reads as a clean workspace.
 
 ---
 
