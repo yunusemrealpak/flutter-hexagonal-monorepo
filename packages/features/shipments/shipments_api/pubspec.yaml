@@ -15,6 +15,21 @@ environment:
 dependencies:
   core_kernel: ^0.1.0
   core_ports: ^0.1.0
+  freezed_annotation: ^3.1.0
+  # A foreign _api, which section 2 allows and which is the point: a shipment
+  # is assigned to an actor, and the only vocabulary for "an actor" is the one
+  # identity publishes. The alternative — a CourierId of our own — would make
+  # the two features disagree about who somebody is the first time a courier
+  # was also a dispatcher, and would put the reconciliation in whichever
+  # adapter noticed first.
+  #
+  # This edge is why contract packages are separate from implementations: it
+  # reaches identity_api and nothing else, so the graph stays acyclic even
+  # though identity's own screens will eventually read shipments.
+  identity_api: ^0.1.0
+  meta: ^1.19.0
 
 dev_dependencies:
+  build_runner: ^2.16.0
+  freezed: ^4.0.0
   test: ^1.26.0
