@@ -17,8 +17,14 @@ dependencies:
   core_navigation: ^0.1.0
   flutter:
     sdk: flutter
+  # A foreign _api, which section 2 allows a presentation package. This is
+  # scenario 6: the board asks identity_api's PermissionChecker before it
+  # renders the bulk-assign action, and never learns how identity decides.
+  identity_api: ^0.1.0
   shipments_api: ^0.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  identity_testing: ^0.1.0
+  shipments_testing: ^0.1.0

@@ -17,8 +17,15 @@ dependencies:
   core_navigation: ^0.1.0
   flutter:
     sdk: flutter
+  # A foreign _api, which section 2 allows a presentation package. The screen
+  # needs to know whose manifest to ask for, and it asks through SessionReader
+  # — the narrowest port identity publishes for the purpose. It never learns
+  # how identity decides, and it cannot sign anybody out.
+  identity_api: ^0.1.0
   shipments_api: ^0.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  identity_testing: ^0.1.0
+  shipments_testing: ^0.1.0

@@ -22,3 +22,4 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  identity_testing: ^0.1.0
