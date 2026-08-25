@@ -9,6 +9,7 @@
 /// untouched into a real feature is a file nobody read.
 library;
 
+export 'src/cli.dart' show ExitCodes, runCli;
 export 'src/feature_plan.dart';
 export 'src/generator.dart' show Generator, ScaffoldResult;
 export 'src/naming.dart' show Naming;
