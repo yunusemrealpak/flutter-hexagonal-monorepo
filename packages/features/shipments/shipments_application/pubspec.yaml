@@ -15,6 +15,9 @@ environment:
 dependencies:
   core_kernel: ^0.1.0
   core_ports: ^0.1.0
+  # A foreign _api, which section 2 allows. A use case names the courier a
+  # shipment is assigned to, and identity is where that vocabulary lives.
+  identity_api: ^0.1.0
   shipments_api: ^0.1.0
 
 dev_dependencies:

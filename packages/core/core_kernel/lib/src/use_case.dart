@@ -12,10 +12,9 @@
 ///     implements UseCase<CompleteDeliveryCommand,
 ///         Result<DeliveryAttempt, DeliveryFailure>> {
 ///   const CompleteDelivery({
-///     required DeliveryGateway gateway,
-///     required Clock clock,
-///   })  : _gateway = gateway,
-///         _clock = clock;
+///     required this._gateway,
+///     required this._clock,
+///   });
 ///
 ///   final DeliveryGateway _gateway;
 ///   final Clock _clock;
@@ -26,6 +25,12 @@
 ///   ) async { ... }
 /// }
 /// ```
+///
+/// The constructor above declares private field formals — `required
+/// this._gateway` — and the call site still writes the public name,
+/// `CompleteDelivery(gateway: …, clock: …)`. That is what keeps the
+/// collaborators private without the initializer list the older spelling
+/// needed, and it is what `prefer_initializing_formals` asks for.
 ///
 /// `TOutput` is left open rather than fixed to `Result` so that the type
 /// carries what the use case actually promises. Almost all of them return a

@@ -1,11 +1,24 @@
-/// shipments_application
+/// The shipments use cases: pure Dart, and blind to every adapter that answers
+/// its ports.
 ///
-/// Empty for the moment.
+/// One class per intention, each with its collaborators in its constructor and
+/// nothing else — no locator, no global, no Flutter. Reading a constructor
+/// here tells you the complete list of what that use case can touch.
 ///
-/// The scaffolder's seed here was written against the placeholder port in
-/// `shipments_api`, and the commit that made that port real deleted it. The
-/// seed went with it rather than being left behind to break the build in
-/// every commit until this package is written.
+/// What is *not* here is as important. The rule about which state may follow
+/// which lives in `Shipment`, in `shipments_api`; these use cases call it.
+/// A use case orchestrates — read, apply, persist, publish — and an entity
+/// decides. When a rule starts appearing in this package, it is a rule that
+/// two callers will eventually disagree about.
 ///
-/// The barrel stays, because a package without one violates rule S1.
+/// `ShipmentsCoordinator` implements `ShipmentsFacade` by delegating to the
+/// four use cases. It stays thin on purpose: if it ever grows a decision of
+/// its own, that is the signal a use case is missing.
 library;
+
+export 'src/advance_shipment.dart';
+export 'src/find_shipment.dart';
+export 'src/load_manifest.dart';
+export 'src/resolve_barcode.dart';
+export 'src/shipment_move.dart';
+export 'src/shipments_coordinator.dart';

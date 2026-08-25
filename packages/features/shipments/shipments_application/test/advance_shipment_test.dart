@@ -1,0 +1,220 @@
+@Tags(['unit'])
+library;
+
+import 'package:core_kernel/core_kernel.dart';
+import 'package:shipments_api/shipments_api.dart';
+import 'package:shipments_application/shipments_application.dart';
+import 'package:shipments_testing/shipments_testing.dart';
+import 'package:test/test.dart';
+
+import 'support/harness.dart';
+
+void main() {
+  late Harness harness;
+  final courier = Harness.courier();
+
+  setUp(() => harness = Harness());
+
+  Shipment seed(ShipmentBuilder builder) {
+    final shipment = builder.build();
+    harness.gateway.seed(shipment);
+    return shipment;
+  }
+
+  group('the entity decides, the use case orchestrates', () {
+    test('a legal move is applied, saved and cached', () async {
+      final shipment = seed(ShipmentBuilder().withId('ship-1'));
+
+      final result = await harness.advanceShipment(
+        AssignToCourier(id: shipment.id, courier: courier),
+      );
+
+      expect(
+        Harness.unwrap(result).status,
+        ShipmentStatus.assignedToCourier(courier),
+      );
+      expect(harness.gateway.stored.single.status.courier, courier);
+      expect(harness.cache.length, 1);
+    });
+
+    test('a refused move changes nothing anywhere', () async {
+      final shipment = seed(ShipmentBuilder().withId('ship-1'));
+
+      final result = await harness.advanceShipment(
+        CompleteDelivery(id: shipment.id, proofReference: 'proof-1'),
+      );
+
+      expect(
+        result,
+        const Failed<Shipment, ShipmentFailure>(
+          InvalidTransition(
+            from: 'awaitingAssignment',
+            to: 'deliveredToConsignee',
+          ),
+        ),
+      );
+      expect(harness.gateway.stored.single.status, shipment.status);
+      expect(harness.cache.length, 0, reason: 'nothing was cached');
+      expect(harness.events.published, isEmpty);
+    });
+
+    test(
+      'a shipment that does not exist fails before any transition',
+      () async {
+        final missing = Harness.unwrap(ShipmentId.parse('nope'));
+
+        expect(
+          await harness.advanceShipment(
+            AssignToCourier(id: missing, courier: courier),
+          ),
+          Failed<Shipment, ShipmentFailure>(ShipmentNotFound(missing)),
+        );
+      },
+    );
+  });
+
+  group('the clock is a port, not a call', () {
+    test('the transition is stamped with the injected instant', () async {
+      final shipment = seed(
+        ShipmentBuilder().withId('ship-1').assignedTo(courier).loaded(),
+      );
+
+      final result = await harness.advanceShipment(
+        StartDelivery(id: shipment.id, courier: courier),
+      );
+
+      expect(Harness.unwrap(result).history.last.at, Harness.now);
+    });
+
+    test('a caller cannot decide when a delivery happened', () async {
+      // CompleteDelivery carries a proof reference and no timestamp. The only
+      // way `at` gets a value is the Clock port inside the use case, which is
+      // why no test in this suite can produce a delivery two hours ago by
+      // asking for one.
+      final shipment = seed(
+        ShipmentBuilder()
+            .withId('ship-1')
+            .assignedTo(courier)
+            .loaded()
+            .outForDelivery(),
+      );
+
+      final result = await harness.advanceShipment(
+        CompleteDelivery(id: shipment.id, proofReference: 'proof-1'),
+      );
+
+      expect(
+        Harness.unwrap(result).status,
+        ShipmentStatus.deliveredToConsignee(
+          proofReference: 'proof-1',
+          at: Harness.now,
+        ),
+      );
+    });
+  });
+
+  group('domain events', () {
+    test('a delivery is published for whoever is listening', () async {
+      // Scenario 2. payments_application closes the matching collection when
+      // it sees this; neither package knows the other exists.
+      final shipment = seed(
+        ShipmentBuilder()
+            .withId('ship-1')
+            .assignedTo(courier)
+            .loaded()
+            .outForDelivery(),
+      );
+
+      await harness.advanceShipment(
+        CompleteDelivery(id: shipment.id, proofReference: 'proof-7'),
+      );
+
+      final published = harness.events.publishedOf<ShipmentDelivered>().single;
+      expect(published.shipmentId, shipment.id);
+      expect(published.proofReference, 'proof-7');
+      expect(published.occurredAt, Harness.now);
+    });
+
+    test('a failed attempt and a return are published too', () async {
+      final failed = seed(
+        ShipmentBuilder()
+            .withId('ship-1')
+            .assignedTo(courier)
+            .loaded()
+            .outForDelivery(),
+      );
+      await harness.advanceShipment(
+        FailDelivery(id: failed.id, reason: 'nobody home'),
+      );
+
+      final returning = seed(
+        ShipmentBuilder()
+            .withId('ship-2')
+            .withBarcodeBody('38294756103')
+            .assignedTo(courier)
+            .loaded()
+            .outForDelivery(),
+      );
+      await harness.advanceShipment(ReturnToDepot(id: returning.id));
+
+      expect(harness.events.publishedOf<ShipmentFailed>(), hasLength(1));
+      expect(harness.events.publishedOf<ShipmentReturned>(), hasLength(1));
+    });
+
+    test('the quiet moves publish nothing', () async {
+      // An event per transition would be a bus carrying six times the traffic
+      // for symmetry's sake, with every subscriber filtering five of them out.
+      final shipment = seed(ShipmentBuilder().withId('ship-1'));
+
+      await harness.advanceShipment(
+        AssignToCourier(id: shipment.id, courier: courier),
+      );
+      await harness.advanceShipment(
+        LoadOntoVehicle(id: shipment.id, courier: courier),
+      );
+
+      expect(harness.events.published, isEmpty);
+    });
+  });
+
+  group('a failing cache is not a failing delivery', () {
+    test('the move succeeds and the shortfall is logged', () async {
+      final shipment = seed(
+        ShipmentBuilder()
+            .withId('ship-1')
+            .assignedTo(courier)
+            .loaded()
+            .outForDelivery(),
+      );
+      harness.cache.failNextWith(const ShipmentsUnavailable(detail: 'full'));
+
+      final result = await harness.advanceShipment(
+        CompleteDelivery(id: shipment.id, proofReference: 'proof-1'),
+      );
+
+      // A shipment the operation has accepted is not un-accepted because this
+      // device could not write it to disk. Failing here would turn a full disk
+      // into a delivery that did not happen.
+      expect(result.isSuccess, isTrue);
+      expect(harness.events.publishedOf<ShipmentDelivered>(), hasLength(1));
+      expect(
+        harness.logger.records.map((record) => record.message),
+        contains('shipment saved remotely but not cached'),
+      );
+    });
+
+    test('a failing gateway does stop the move', () async {
+      final shipment = seed(ShipmentBuilder().withId('ship-1'));
+      harness.gateway
+        ..failNextWith(const ShipmentsUnavailable())
+        ..failNextWith(const ShipmentsUnavailable());
+
+      final result = await harness.advanceShipment(
+        AssignToCourier(id: shipment.id, courier: courier),
+      );
+
+      expect(result.isFailure, isTrue);
+      expect(harness.events.published, isEmpty);
+    });
+  });
+}
