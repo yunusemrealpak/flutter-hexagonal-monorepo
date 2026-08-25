@@ -1,0 +1,24 @@
+name: identity_presentation
+description: >-
+  The identity UI.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+# Exactly the dependency list section 2 of docs/DEPENDENCY_RULES.md allows for
+# a presentation package. Adding one that is not in that row is a violation,
+# not an exception — arch_check will say which rule and why.
+dependencies:
+  core_kernel: ^0.1.0
+  core_navigation: ^0.1.0
+  flutter:
+    sdk: flutter
+  identity_api: ^0.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
