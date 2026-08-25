@@ -10,5 +10,7 @@
 library;
 
 export 'src/feature_plan.dart';
+export 'src/generator.dart' show Generator, ScaffoldResult;
 export 'src/naming.dart' show Naming;
 export 'src/templates.dart' show filesFor;
+export 'src/workspace_registration.dart';
