@@ -1,0 +1,16 @@
+# A miniature workspace that obeys every rule. Any violation reported here is a false positive.
+name: fixture_workspace
+publish_to: none
+version: 0.0.0
+
+workspace:
+  - packages/core/core_kernel
+  - packages/core/core_ports
+  - packages/features/shipments/shipments_api
+  - packages/features/shipments/shipments_application
+  - packages/features/shipments/shipments_infrastructure
+  - packages/platform/http_dio
+  - tooling/some_tool
+
+environment:
+  sdk: ^3.12.0
