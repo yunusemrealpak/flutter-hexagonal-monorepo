@@ -27,6 +27,7 @@ workspace:
   - packages/platform/push_messaging
   - packages/platform/secure_store
   - packages/platform/storage_drift
+  - tooling/arch_check
 
 environment:
   sdk: ^3.12.2

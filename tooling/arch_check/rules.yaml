@@ -1,0 +1,540 @@
+# ---------------------------------------------------------------------------
+# The dependency constitution, in the form a machine can read.
+#
+# docs/DEPENDENCY_RULES.md is the specification; this file encodes it. When the
+# two disagree, the document is right and this file is the bug. Section 9 of
+# that document is the process for changing either: a pull request touches the
+# document, this file, and a fixture under test/fixtures/ proving the rule
+# fires. A rule with no fixture is a rule that will silently stop working.
+#
+# Rules live here rather than in Dart source for one reason: a rule change
+# should be reviewable next to the sentence it encodes, by someone who does not
+# read the checker's source. Every code, every message and every remedy in the
+# output comes from this file.
+# ---------------------------------------------------------------------------
+version: 1
+
+# ---------------------------------------------------------------------------
+# Discovery — which directories hold packages, and which are never descended
+# into. `test` is on the skip list because no real package lives under one, and
+# because this checker's own fixtures are deliberately broken mini workspaces
+# that would otherwise be discovered as part of the workspace under test.
+# ---------------------------------------------------------------------------
+discovery:
+  roots:
+    - packages
+    - apps
+    - tooling
+  skip_directories:
+    - .dart_tool
+    - .fvm
+    - .git
+    - .melos_tool
+    - build
+    - test
+
+# The directory whose immediate children name the features. A feature package's
+# owning feature is its directory name here, which is what turns `own _api`
+# and `foreign _api` from prose into a lookup.
+feature_root: packages/features
+
+# ---------------------------------------------------------------------------
+# Section 1 — how a package's type is determined.
+#
+# From path and name only, never from contents. A package that matches no
+# entry, or more than one, is itself a violation: there is no default type.
+# Matchers are `path` (exact, relative to the workspace root), `path_prefix`,
+# `name_suffix` and `name_contains`; all keys present on an entry must match.
+#
+# The name a matcher sees is the *directory* name. Rule S5 requires it to equal
+# the pubspec's `name:`, and when the two disagree, believing the pubspec would
+# drop the package out of every type and replace one clear violation with
+# silence about the other twenty rules.
+# ---------------------------------------------------------------------------
+package_types:
+  - type: core_kernel
+    path: packages/core/core_kernel
+  - type: core_ports
+    path: packages/core/core_ports
+  - type: core_navigation
+    path: packages/core/core_navigation
+  - type: core_testing
+    path: packages/core/core_testing
+
+  - type: feature_api
+    path_prefix: packages/features/
+    name_suffix: _api
+  - type: feature_application
+    path_prefix: packages/features/
+    name_suffix: _application
+  - type: feature_infrastructure
+    path_prefix: packages/features/
+    name_suffix: _infrastructure
+  - type: feature_core
+    path_prefix: packages/features/
+    name_suffix: _core
+  # `contains`, not `suffix`: shipments ships two presentation packages,
+  # shipments_presentation_courier and shipments_presentation_dispatcher.
+  - type: feature_presentation
+    path_prefix: packages/features/
+    name_contains: _presentation
+  - type: feature_testing
+    path_prefix: packages/features/
+    name_suffix: _testing
+
+  - type: platform
+    path_prefix: packages/platform/
+
+  - type: design_tokens
+    path: packages/design/design_tokens
+  - type: design_system
+    path: packages/design/design_system
+
+  - type: tooling
+    path_prefix: tooling/
+  - type: app
+    path_prefix: apps/
+
+# ---------------------------------------------------------------------------
+# Section 2 — allowed dependencies. A whitelist: an edge that is not listed is
+# a violation.
+#
+#   allow             workspace package types this type may depend on, plus the
+#                     two relative tokens `own_api` and `foreign_api`, plus
+#                     `any` for the app layer
+#   allow_sdks        SDK dependencies (`flutter: {sdk: flutter}`) permitted
+#   allow_third_party whether hosted pub packages are permitted at all
+#
+# On `allow_third_party`: the document closes section 2 with "third-party
+# packages are unrestricted except where section 4 forbids them explicitly", so
+# it is true everywhere the row does not say otherwise. Two rows say otherwise
+# in so many words — core_kernel ("not one third-party package") and
+# design_tokens ("the flutter SDK only") — and only those two are false here.
+# The specific third-party bans on the domain packages are rules I3 to I6
+# below, which is where an open-ended list of transport and persistence
+# libraries belongs.
+# ---------------------------------------------------------------------------
+dependencies:
+  core_kernel:
+    allow: []
+    allow_sdks: []
+    allow_third_party: false
+
+  core_ports:
+    allow: [core_kernel]
+    allow_sdks: []
+    allow_third_party: true
+
+  core_navigation:
+    allow: [core_kernel]
+    allow_sdks: []
+    allow_third_party: true
+
+  core_testing:
+    allow: [core_kernel, core_ports, core_navigation]
+    allow_sdks: []
+    allow_third_party: true
+
+  feature_api:
+    allow: [core_kernel, core_ports, foreign_api]
+    allow_sdks: []
+    allow_third_party: true
+
+  feature_application:
+    allow: [own_api, core_kernel, core_ports, foreign_api]
+    allow_sdks: []
+    allow_third_party: true
+
+  # No foreign `_api`. An adapter translates between one feature's ports and
+  # one technology; if it needs another feature's concept, the crossing belongs
+  # to a use case, not to an adapter.
+  feature_infrastructure:
+    allow: [own_api, core_kernel, core_ports, platform]
+    allow_sdks: [flutter]
+    allow_third_party: true
+
+  feature_core:
+    allow: [own_api, core_kernel, core_ports, platform, foreign_api]
+    allow_sdks: [flutter]
+    allow_third_party: true
+
+  feature_presentation:
+    allow: [own_api, foreign_api, core_kernel, core_navigation, design_system]
+    allow_sdks: [flutter]
+    allow_third_party: true
+
+  feature_testing:
+    allow: [own_api, core_kernel, core_ports, core_testing]
+    allow_sdks: [flutter]
+    allow_third_party: true
+
+  # Never another platform package. They do need each other's capabilities —
+  # location, camera and push all need a permission granted — and the
+  # resolution is a port in core_ports supplied by a composition root.
+  platform:
+    allow: [core_kernel, core_ports]
+    allow_sdks: [flutter]
+    allow_third_party: true
+
+  design_tokens:
+    allow: []
+    allow_sdks: [flutter]
+    allow_third_party: false
+
+  design_system:
+    allow: [design_tokens, core_kernel]
+    allow_sdks: [flutter]
+    allow_third_party: true
+
+  # Third-party only. Rule I7 states the same ban as an import rule, so a tool
+  # that reached into the product would be caught twice.
+  tooling:
+    allow: []
+    allow_sdks: []
+    allow_third_party: true
+
+  app:
+    allow: [any]
+    allow_sdks: [flutter]
+    allow_third_party: true
+
+# ---------------------------------------------------------------------------
+# Section 3 — structural rules.
+#
+# S1, S2, S5, S6 and S7 need no configuration beyond their remedy text, which
+# lives in `messages` at the end of this file. S3, S4 and S8 do.
+# ---------------------------------------------------------------------------
+structure:
+  # S3. Intra-package imports are relative by convention (CLAUDE.md section 3),
+  # so `package:*/src/` in a source file means one thing only: someone reached
+  # across a package boundary. No exception to weigh, including the package's
+  # own name.
+  deep_import:
+    pattern: 'package:{package}/src/'
+    scan: [lib, bin, test]
+
+  # S4. The mechanical reading of "a barrel leaks nothing": a barrel re-exports
+  # and does nothing else. A type declared in the barrel itself lives outside
+  # lib/src/, which contradicts rule 1.2.5, and a re-exported `package:` URI
+  # republishes a dependency's surface as this package's own.
+  barrel:
+    allow_declarations: false
+    allow_package_reexport: false
+
+  # S8. A port is declared as `abstract interface class` (CLAUDE.md section 3),
+  # so "a class implementing a port declared in the same package" is exact
+  # rather than a guess. Sealed failure hierarchies and freezed unions are
+  # untouched by it: they extend a `sealed class` or mix in a generated one.
+  implementation_in_api:
+    in_types: [feature_api]
+    port_declaration: abstract_interface_class
+    forbidden_class_suffixes: [Impl, Adapter, Repository, Service, Client]
+
+# ---------------------------------------------------------------------------
+# Section 4 — forbidden imports.
+#
+#   in_types      the types the rule applies to; `*` means every type
+#   except_types  subtracted from in_types
+#   forbid        import URI prefixes; matched against the literal URI
+#   scan          directories of the package that are read for this rule
+# ---------------------------------------------------------------------------
+forbidden_imports:
+  - id: I1
+    code: kernel_dependency
+    in_types: [core_kernel]
+    forbid: ['package:']
+    scan: [lib]
+
+  - id: I2
+    code: flutter_in_pure_dart
+    in_types: [feature_api, feature_application]
+    forbid: ['package:flutter/']
+    scan: [lib, test]
+
+  # Not exhaustive and not meant to be — the document says "and any other
+  # transport or persistence library". What is listed is what exists in this
+  # workspace, so that the check has teeth today; a new technology package adds
+  # its import prefix here in the same commit that introduces it.
+  - id: I3
+    code: technology_in_domain
+    in_types: [feature_api, feature_application]
+    forbid:
+      - 'package:connectivity_plus'
+      - 'package:dio/'
+      - 'package:drift/'
+      - 'package:firebase_'
+      - 'package:flutter_secure_storage'
+      - 'package:geolocator'
+      - 'package:http/'
+      - 'package:image_picker'
+      - 'package:opentelemetry/'
+      - 'package:permission_handler'
+      - 'package:shared_preferences/'
+      - 'package:sqlite3/'
+    scan: [lib, test]
+
+  - id: I4
+    code: serialization_in_api
+    in_types: [feature_api]
+    forbid: ['package:json_annotation/']
+    scan: [lib, test]
+
+  - id: I5
+    code: locator_outside_app
+    in_types: ['*']
+    except_types: [app]
+    forbid: ['package:get_it/']
+    scan: [lib, test]
+
+  - id: I6
+    code: annotation_di_outside_app
+    in_types: ['*']
+    except_types: [app]
+    forbid: ['package:injectable/']
+    scan: [lib, test]
+
+  # Expressed against the workspace rather than against a fixed list: any
+  # package discovered under packages/ or apps/ is off limits to a tool.
+  - id: I7
+    code: tooling_depends_on_product
+    in_types: [tooling]
+    forbid_workspace_products: true
+    scan: [lib, bin, test]
+
+# ---------------------------------------------------------------------------
+# Section 5 — forbidden APIs.
+#
+# Checked against a parsed AST, never against raw text. Two failure modes make
+# the naive grep useless and both were observed while writing core_ports: a doc
+# comment quoting the rule it explains, and a regex whose unescaped dot makes
+# `DateTime.now()` match the declaration `DateTime now()`.
+#
+# `callee` matches a call's textual target: the constructor name of an explicit
+# instance creation, or `target.method` for an invocation with a simple target,
+# or the bare name for an unqualified call. `clock.now()` is therefore not a
+# match for `DateTime.now`, and `sink.print()` is not a match for `print`.
+# ---------------------------------------------------------------------------
+forbidden_apis:
+  scan: [lib, test]
+  # apps/* is where the composition root supplies the real implementations, and
+  # tooling/* is not part of the product.
+  except_types: [app, tooling]
+  rules:
+    - id: A1
+      code: ambient_clock
+      kind: callee
+      callees: ['DateTime.now']
+
+    - id: A2
+      code: ambient_random
+      kind: callee
+      callees: ['Random', 'Random.secure', 'math.Random', 'math.Random.secure']
+
+    - id: A3
+      code: ambient_id
+      kind: callee
+      callees: ['Uuid']
+
+    - id: A4
+      code: ambient_print
+      kind: callee
+      callees: ['print', 'debugPrint']
+
+    # A method that promises a Result has already said how it reports failure.
+    # A throw inside it is a second, undeclared channel that the caller's type
+    # does not mention. Detection is by declared return type — `Result<...>`,
+    # `Future<Result<...>>`, `FutureOr<Result<...>>` or `Stream<Result<...>>` —
+    # so it needs no resolution and no whole-workspace analysis.
+    - id: A5
+      code: exception_at_port_boundary
+      kind: throw_in_result_returning_member
+      result_type: Result
+
+# ---------------------------------------------------------------------------
+# Section 6 — code generation rules that are machine-checked.
+# ---------------------------------------------------------------------------
+codegen:
+  generated_file_suffixes:
+    - .config.dart
+    - .freezed.dart
+    - .g.dart
+    - .gr.dart
+
+  # G1. The innermost ring carries no generated file, no build.yaml and no
+  # build_runner dependency: a regeneration here is a regeneration everywhere.
+  no_codegen_in:
+    types: [core_kernel]
+    code: codegen_in_kernel
+
+  # G2 and G3, read out of each package's build.yaml.
+  banned_builders:
+    - builder: json_serializable
+      code: serialization_in_api
+      in_types: [feature_api]
+    - builder: injectable_generator
+      code: annotation_di_outside_app
+      in_types: ['*']
+      except_types: [app]
+
+  # G4. A package with generated files declares which builders produce them and
+  # narrows each one with `generate_for`. Without the narrowing build_runner
+  # offers every file in the package to every builder, and at 75 packages that
+  # scan is the difference between a codegen run measured in seconds and one
+  # measured in minutes.
+  #
+  # "Disable the rest explicitly" is not checkable and deliberately not
+  # attempted: naming a builder that is not a dev dependency of the package
+  # fails the build rather than tightening it, so the rest that can be disabled
+  # is only ever the rest that is present.
+  pinned_builders:
+    code: unpinned_builders
+    require_generate_for: true
+
+# ---------------------------------------------------------------------------
+# Remedies. Every violation the checker emits reads its fourth field from here,
+# so the advice a developer gets is reviewed as prose, in this file, next to
+# the rule that produces it.
+# ---------------------------------------------------------------------------
+messages:
+  unknown_package_type: >-
+    A package's type comes from its path and name, and there is no default.
+    Move the package under the directory its type belongs to, or rename it so
+    that exactly one matcher in the package_types list applies.
+
+  # Three shapes of a forbidden edge get their own sentence, because the reason
+  # each one is wrong differs and a generic remedy would say nothing useful
+  # about any of them.
+  forbidden_dependency.foreign_feature: >-
+    A feature may only reach another feature through its _api package. Replace
+    the dependency with {foreign_api} and consume the port declared there.
+
+  forbidden_dependency.third_party: >-
+    This package type carries no third-party dependency. core_kernel is the
+    innermost ring and design_tokens is a leaf of constants; a third-party
+    package in either becomes a transitive dependency of most of the
+    workspace. Move the code that needs the library outwards.
+
+  forbidden_dependency.sdk: >-
+    This package type is pure Dart and stays that way. The fast 80% of the
+    suite lives in packages that never bind a Flutter engine; adding the SDK
+    here moves those tests onto the Flutter test runner.
+
+  forbidden_dependency: >-
+    Remove the dependency. If the two packages genuinely need each other, the
+    answer is a port: declare it in the _api package of whichever feature owns
+    the concept, and let a composition root supply the implementation. Creating
+    a shared or common package makes the graph green and the architecture
+    worse.
+
+  dev_dependency_in_lib: >-
+    A dev dependency does not ship. Either move the package into
+    dependencies:, or move the code that imports it into test/.
+
+  tooling_depends_on_product: >-
+    A tool has to be able to analyze a broken workspace without being part of
+    it. Read what you need from the filesystem — pubspecs, source, build.yaml —
+    rather than importing the package.
+
+  missing_barrel: >-
+    Add lib/<package_name>.dart and export the package's public surface from
+    it. A package with no barrel has no public surface, only files other
+    packages guess at.
+
+  stray_lib_file: >-
+    Move the file under lib/src/ and export it from the barrel if it is part of
+    the public surface. Only the barrel lives directly under lib/.
+
+  deep_import: >-
+    Import the other package's barrel instead. If the type you need is not
+    exported from it, either it belongs in the barrel or you are reaching
+    across a boundary. Inside your own package, use a relative import.
+
+  barrel_leak: >-
+    A barrel re-exports and does nothing else. Move the declaration into
+    lib/src/ and export it, and do not re-export another package's URI —
+    depend on that package directly instead.
+
+  name_mismatch: >-
+    Make the pubspec's name: field equal the directory name. Tooling across
+    this workspace resolves a package by its directory and reports it by its
+    name; when the two differ, every report points at the wrong thing.
+
+  unregistered_package: >-
+    Add the package's path to the workspace: list in the root pubspec.yaml and
+    declare resolution: workspace in the package's own pubspec. A package
+    outside the workspace resolution gets its own dependency solution, which is
+    how version skew enters a monorepo.
+
+  dependency_cycle: >-
+    Break the cycle with contracts, not with a new package. Two features that
+    need each other depend on each other's _api; contract packages depend on no
+    implementation, so the graph stays acyclic. A shared or common package
+    would silence this check and hide the coupling.
+
+  implementation_in_api: >-
+    Move the implementation out of the _api package. A contract package holds
+    entities, value objects, ports and failures; the class that satisfies a
+    port belongs in _infrastructure, in _core, or in a fake in _testing.
+
+  kernel_dependency: >-
+    core_kernel depends on nothing. Everything in the workspace may depend on
+    it, so a dependency added here is a dependency added everywhere. If the
+    type you need is not already in the kernel, it belongs in core_ports or in
+    the feature that owns it.
+
+  flutter_in_pure_dart: >-
+    _api and _application are pure Dart, which is what keeps the fast 80% of
+    the suite fast. For state use a plain sealed class, and for output use the
+    Logger port from core_ports rather than debugPrint.
+
+  technology_in_domain: >-
+    A transport or persistence library belongs in an adapter. Declare what the
+    domain needs as a port in the _api package, and let _infrastructure answer
+    it using the technology.
+
+  serialization_in_api: >-
+    DTOs are an infrastructure concern. Declare the DTO and run
+    json_serializable in _infrastructure or in a platform package, and map it
+    to an entity at the adapter boundary.
+
+  locator_outside_app: >-
+    Dependencies arrive through constructors. A service locator inside a
+    package hides what that package needs and makes it untestable without
+    global setup; the locator exists only at an app's composition root.
+
+  annotation_di_outside_app: >-
+    Annotation-based DI is app-layer only. Inside a package, take collaborators
+    as constructor parameters.
+
+  ambient_clock: >-
+    Take a Clock from core_ports through the constructor and call clock.now().
+    A test that uses the real clock is a test that will flake.
+
+  ambient_random: >-
+    Take a RandomSource from core_ports through the constructor. A test cannot
+    assert on a value the code drew from a real random generator.
+
+  ambient_id: >-
+    Take an IdGenerator from core_ports through the constructor. Deterministic
+    identifiers are what let a test assert on one instead of matching a
+    wildcard.
+
+  ambient_print: >-
+    Use the Logger port from core_ports. Output that goes straight to stdout
+    cannot be routed, levelled, or asserted on.
+
+  exception_at_port_boundary: >-
+    Catch it here and return a Failed with a sealed failure type declared in
+    the package that owns the port. A method that returns Result has already
+    told its caller how failure arrives; a throw is a second channel the
+    caller's type does not mention.
+
+  codegen_in_kernel: >-
+    Delete the generated file and its builder configuration, and hand-write the
+    type. core_kernel is the innermost ring, so a regeneration here spreads
+    across the entire repository.
+
+  unpinned_builders: >-
+    Add a build.yaml that enables the builders this package needs and narrows
+    each one with generate_for. Without it build_runner offers every file in
+    the package to every builder it can find.
