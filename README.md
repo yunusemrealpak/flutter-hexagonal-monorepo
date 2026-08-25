@@ -72,7 +72,7 @@ The generated, always-current graph lives in [`docs/dependency-graph.md`](docs/d
 | `platform/*` | 9 | Technology adapters: Dio, Drift, secure storage, permissions, location, media, connectivity, OTel, push | `core_kernel`, `core_ports`, the Flutter SDK |
 | `design_tokens` | 1 | Raw design values | nothing but `flutter` |
 | `design_system` | 1 | Widgets and theming | `design_tokens`, `core_kernel` |
-| `tooling/*` | 4 | `arch_check`, `test_runner`, `scaffold`, `dep_graph` | no product package |
+| `tooling/*` | 4 | `arch_check` and `scaffold` (phase 3), `test_runner` and `dep_graph` (phase 8) | no product package |
 | `apps/*` | 3 | Composition roots — the only place a service locator exists | everything |
 
 The full, authoritative table is [`docs/DEPENDENCY_RULES.md`](docs/DEPENDENCY_RULES.md). `tooling/arch_check` enforces it.
@@ -169,7 +169,7 @@ The commit history is part of the lesson. Every phase is a tag, so you can check
 | `phase-00` | Repository foundation: workspace root, melos scripts, lint and test configuration, dependency rules, `CLAUDE.md` |
 | `phase-01` | Core packages — `core_kernel`, `core_ports`, `core_navigation`, `core_testing` |
 | `phase-02` | Nine platform adapters, including the Drift schema and its migration tests |
-| `phase-03` | `arch_check` and `scaffold` — the rules become machine-enforced from here on |
+| `phase-03` | `arch_check` and `scaffold` — the rules become machine-enforced from here on, and a new feature is generated with them already obeyed |
 | `phase-04` | Reference features `identity` and `shipments`, including the status machine and the first contract kit |
 | `phase-05` | Cross-cutting features `routing`, `delivery`, `payments`, `sync` — all seven scenarios visible in code |
 | `phase-06` | Seven light features on the reduced three-package split |

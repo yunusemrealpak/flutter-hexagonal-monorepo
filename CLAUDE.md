@@ -205,12 +205,16 @@ The pull request description states: the phase's scope, the number and names of 
 
 ## 7. Adding a new package
 
-Use the scaffolder once it exists (phase 3 onward):
+Use the scaffolder (`tooling/scaffold`, from phase 3):
 
 ```bash
 dart run tooling/scaffold/bin/scaffold.dart new-feature --name billing --split full
 dart run tooling/scaffold/bin/scaffold.dart new-feature --name faq --split reduced
+dart run tooling/scaffold/bin/scaffold.dart new-feature --name shipments \
+  --split full --with-testing --presentation courier,dispatcher
 ```
+
+`--with-testing` adds the `_testing` package; create it only when another package's tests will consume its fakes. `--presentation a,b` gives the feature one presentation package per app. `--codegen` writes a `build.yaml` and the matching dev dependencies for the roles that generate — off by default, because a package with no generated files is supposed to have neither (§4.2 and point 6 below). `--dry-run` lists what would be written; `--force` overwrites, and without it a re-run leaves existing files alone, which is what makes it safe to re-run on a feature that already exists.
 
 Doing it by hand — or checking the scaffolder's output — means verifying all of the following:
 
@@ -223,6 +227,8 @@ Doing it by hand — or checking the scaffolder's output — means verifying all
 7. A `README.md` states the package's role, its allowed dependencies, and what must never live in it.
 8. A `test/` directory exists, even if it starts with a single smoke test.
 9. `dart run tooling/arch_check/bin/arch_check.dart` is clean afterwards.
+
+The scaffolder's own acceptance test is exactly item 9: it generates every shape of feature into a throwaway workspace and runs `arch_check` over the result. A change to the constitution that the scaffolder does not follow fails there before anyone notices it in a real feature.
 
 **Choosing a split.** Full split (`_api`, `_application`, `_infrastructure`, `_presentation`, `_testing`) is for features with real business rules, more than one outbound adapter, or offline behaviour. Reduced split (`_api`, `_core`, `_presentation`) is the starting point for narrow features; `_api` is separate in every case. A `_testing` package is created only when its fakes are consumed by another package.
 
