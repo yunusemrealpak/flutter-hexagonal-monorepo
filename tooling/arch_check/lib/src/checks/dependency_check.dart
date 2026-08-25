@@ -101,18 +101,28 @@ final class DependencyCheck implements Check {
     WorkspacePackage package,
     WorkspacePackage target,
   ) {
-    // The most common shape by far, and the one worth naming: a feature that
-    // reached past another feature's contract into its internals.
-    if (package.type.isFeature &&
+    final isForeign =
+        package.type.isFeature &&
         target.type.isFeature &&
         target.owningFeature != null &&
-        target.owningFeature != package.owningFeature) {
-      return context.rules.remedyFor(
-        'forbidden_dependency.foreign_feature',
-        vars: {'foreign_api': '${target.owningFeature}_api'},
-      );
+        target.owningFeature != package.owningFeature;
+    if (!isForeign) return context.rules.remedyFor('forbidden_dependency');
+
+    // Two different mistakes wear the same violation code, and telling a
+    // developer to do what they already did is worse than saying nothing.
+    //
+    // Reaching past a contract into another feature's internals is fixed by
+    // depending on that feature's _api instead. But the target here may
+    // already *be* that _api — `_infrastructure` is not allowed to see a
+    // foreign feature at all — and then the fix is not a different
+    // dependency, it is a different layer doing the crossing.
+    if (target.type == PackageType.featureApi) {
+      return context.rules.remedyFor('forbidden_dependency.foreign_api');
     }
-    return context.rules.remedyFor('forbidden_dependency');
+    return context.rules.remedyFor(
+      'forbidden_dependency.foreign_feature',
+      vars: {'foreign_api': '${target.owningFeature}_api'},
+    );
   }
 
   /// Section 2.0: a package that imports a dev dependency from `lib/` has

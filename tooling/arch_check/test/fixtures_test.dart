@@ -145,6 +145,69 @@ void main() {
     });
   });
 
+  group('a whole feature written without the constitution', () {
+    // The other fixtures isolate a section each. This one is a plausible
+    // feature with the mistakes people actually make, and it exists to show
+    // what the report looks like when a real change goes wrong — several
+    // rules at once, most of them consequences of two or three decisions.
+    test('reports every mistake in it, and nothing more', () {
+      expect(codesIn('broken_feature'), {
+        'ambient_clock': 1,
+        'ambient_print': 1,
+        'ambient_random': 1,
+        'barrel_leak': 1,
+        'deep_import': 1,
+        'dependency_cycle': 1,
+        'exception_at_port_boundary': 1,
+        'flutter_in_pure_dart': 2,
+        'forbidden_dependency': 7,
+        'implementation_in_api': 1,
+        'locator_outside_app': 1,
+        'missing_barrel': 1,
+        'serialization_in_api': 3,
+        'stray_lib_file': 1,
+        'technology_in_domain': 1,
+        'unknown_package_type': 1,
+        'unpinned_builders': 1,
+        'unregistered_package': 2,
+      });
+    });
+
+    test('tells an adapter the crossing belongs to a use case', () {
+      // Two mistakes share the forbidden_dependency code and need different
+      // advice. A feature reaching past another's contract is told which _api
+      // to use instead; an adapter reaching for a foreign _api is already
+      // using it, and telling it to do that again would be worse than saying
+      // nothing.
+      final run = checker.run(fixture('broken_feature'));
+      final adapter = run.violations.singleWhere(
+        (violation) =>
+            violation.what.contains('billing_infrastructure') &&
+            violation.what.contains('shipments_api'),
+      );
+      expect(adapter.remedy, contains('belongs to a use case'));
+      expect(adapter.remedy, isNot(contains('Replace the dependency')));
+    });
+
+    test('the clean packages around it report nothing', () {
+      // core_kernel, core_ports, core_navigation, design_system and
+      // shipments_api are correct in this fixture. A rule that fired on them
+      // would be firing on the real workspace too.
+      final run = checker.run(fixture('broken_feature'));
+      final clean = {
+        'packages/core/core_kernel',
+        'packages/core/core_navigation',
+        'packages/core/core_ports',
+        'packages/design/design_system',
+        'packages/features/shipments/shipments_api',
+      };
+      expect(
+        run.violations.map((violation) => violation.location.package).toSet(),
+        isNot(anyElement(isIn(clean))),
+      );
+    });
+  });
+
   group('section 1, package types', () {
     test('a package that resolves to no type is itself a violation', () {
       final run = checker.run(fixture('unknown_type'));

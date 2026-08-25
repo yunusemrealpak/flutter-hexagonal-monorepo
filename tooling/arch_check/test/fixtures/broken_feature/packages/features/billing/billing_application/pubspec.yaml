@@ -1,0 +1,24 @@
+# A use case package that reached past every boundary it has.
+name: billing_application
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  billing_api: ^0.1.0
+  billing_infrastructure: ^0.1.0
+  billing_shared: ^0.1.0
+  core_kernel: ^0.1.0
+  core_ports: ^0.1.0
+  dio: ^5.11.0
+  flutter:
+    sdk: flutter
+  get_it: ^9.4.0
+  shipments_application: ^0.1.0
+
+dev_dependencies:
+  test: ^1.26.0
+

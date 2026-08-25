@@ -1,0 +1,21 @@
+# A contract package that took on the Flutter SDK and a serializer.
+name: billing_api
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  core_kernel: ^0.1.0
+  core_ports: ^0.1.0
+  flutter:
+    sdk: flutter
+  json_annotation: ^4.12.0
+
+dev_dependencies:
+  build_runner: ^2.16.0
+  json_serializable: ^6.14.0
+  test: ^1.26.0
+

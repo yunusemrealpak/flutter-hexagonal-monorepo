@@ -1,0 +1,17 @@
+# The other half of the cycle: each team imported the other's use case.
+name: shipments_application
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  billing_application: ^0.1.0
+  core_kernel: ^0.1.0
+  shipments_api: ^0.1.0
+
+dev_dependencies:
+  test: ^1.26.0
+

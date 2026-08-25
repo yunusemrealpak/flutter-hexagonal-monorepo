@@ -1,0 +1,22 @@
+# Added in a hurry: no resolution: workspace, and the barrel is named
+# after the feature instead of after the package.
+name: billing_presentation
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  billing_api: ^0.1.0
+  billing_application: ^0.1.0
+  core_kernel: ^0.1.0
+  core_navigation: ^0.1.0
+  design_system: ^0.1.0
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+

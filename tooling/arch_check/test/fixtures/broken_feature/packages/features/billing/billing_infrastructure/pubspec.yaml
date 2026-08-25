@@ -1,0 +1,21 @@
+# An adapter that lets exceptions out and knows about another feature.
+name: billing_infrastructure
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  billing_api: ^0.1.0
+  core_kernel: ^0.1.0
+  core_ports: ^0.1.0
+  dio: ^5.11.0
+  shipments_api: ^0.1.0
+
+dev_dependencies:
+  build_runner: ^2.16.0
+  json_serializable: ^6.14.0
+  test: ^1.26.0
+
