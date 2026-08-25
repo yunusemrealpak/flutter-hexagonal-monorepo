@@ -1,0 +1,25 @@
+# Mirrors the workspace template at the repository root. The test package reads
+# the file next to the pubspec being tested, so every package carries its own
+# copy.
+#
+# scaffold is pure Dart with no Flutter binding, so only the tags a pure Dart
+# package can produce are declared here.
+retry: 0
+
+# One of these tests runs arch_check over a freshly generated workspace as a
+# subprocess, which pays for a Dart VM start and a JIT compile of the checker.
+# That is the acceptance criterion for this package, so it is worth the wall
+# clock; the default 30s is not enough for it on a cold machine.
+timeout: 90s
+
+tags:
+  unit:
+  flaky:
+    retry: 2
+    timeout: 2x
+
+presets:
+  pr:
+    exclude_tags: flaky
+  quarantine:
+    include_tags: flaky

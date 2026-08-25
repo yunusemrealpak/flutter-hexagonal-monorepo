@@ -28,6 +28,7 @@ workspace:
   - packages/platform/secure_store
   - packages/platform/storage_drift
   - tooling/arch_check
+  - tooling/scaffold
 
 environment:
   sdk: ^3.12.2
