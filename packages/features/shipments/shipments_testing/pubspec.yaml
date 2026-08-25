@@ -1,0 +1,30 @@
+name: shipments_testing
+description: >-
+  Fakes and the contract kit for shipments, consumed by other packages' tests.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+# Exactly the dependency list section 2 of docs/DEPENDENCY_RULES.md allows for
+# a testing package. Adding one that is not in that row is a violation,
+# not an exception — arch_check will say which rule and why.
+dependencies:
+  core_kernel: ^0.1.0
+  core_ports: ^0.1.0
+  core_testing: ^0.1.0
+  # A foreign _api, allowed since the feature_testing row gained one. This
+  # package builds fixtures for shipments_api, and shipments_api names ActorId
+  # in its own public surface — a fixture builder that could not write the
+  # type down would stop at the first cross-feature signature.
+  identity_api: ^0.1.0
+  shipments_api: ^0.1.0
+  # A runtime dependency here, and a dev dependency in core_testing. The
+  # difference is what the two packages ship. core_testing ships fakes, which
+  # are plain classes with no matchers in them; this package also ships a
+  # contract kit, and a contract kit *is* tests — it calls group() and test()
+  # from lib/. Leaving `test` in dev_dependencies would make that an
+  # dev_dependency_in_lib violation, and rightly so.
+  test: ^1.26.0

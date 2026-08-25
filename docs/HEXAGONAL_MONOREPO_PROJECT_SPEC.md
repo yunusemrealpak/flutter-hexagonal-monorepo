@@ -69,7 +69,7 @@ Bu bölüm tartışmaya kapalıdır. Her paketin pubspec'i bu tabloya uymak zoru
 | `<feature>_application` | kendi `_api`'si, `core_kernel`, `core_ports`, diğer feature'ların yalnızca `_api` paketleri |
 | `<feature>_infrastructure` | kendi `_api`'si, `core_kernel`, `core_ports`, `platform/*` |
 | `<feature>_presentation*` | kendi `_api`'si, diğer feature'ların `_api` paketleri, `core_kernel`, `core_navigation`, `design_system` |
-| `<feature>_testing` | kendi `_api`'si, `core_kernel`, `core_ports`, `core_testing` |
+| `<feature>_testing` | kendi `_api`'si, `core_kernel`, `core_ports`, `core_testing`, diğer feature'ların yalnızca `_api` paketleri |
 | `<feature>_core` (indirgenmiş bölmede) | kendi `_api`'si, `core_kernel`, `core_ports`, `platform/*`, diğer feature'ların `_api` paketleri |
 | `platform/*` | `core_kernel`, `core_ports` |
 | `design_tokens` | hiçbir şey (flutter hariç) |

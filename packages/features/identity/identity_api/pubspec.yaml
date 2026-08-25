@@ -1,0 +1,38 @@
+name: identity_api
+description: >-
+  The identity contract: entities, value objects, ports and the sealed
+  failures they return.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+# Exactly the dependency list section 2 of docs/DEPENDENCY_RULES.md allows for
+# a api package. Adding one that is not in that row is a violation,
+# not an exception — arch_check will say which rule and why.
+dependencies:
+  core_kernel: ^0.1.0
+  core_ports: ^0.1.0
+  # The annotations only. The generator itself is a dev dependency, because it
+  # runs at build time and is not part of this package's runtime surface.
+  #
+  # freezed_annotation re-exports a handful of json_annotation symbols. Nothing
+  # here imports them and nothing here is serializable: rule I4 and rule G2
+  # keep DTOs out of an _api package, and json_serializable is not enabled in
+  # this package's build.yaml.
+  freezed_annotation: ^3.1.0
+  # `@immutable`, and nothing else. Several types here are values that carry
+  # more than one field, so they define `==` and `hashCode` by hand; the
+  # `avoid_equals_and_hash_code_on_mutable_classes` lint asks for proof that
+  # the class really is immutable, and this annotation is that proof. It is
+  # declared explicitly rather than taken from freezed_annotation's re-export,
+  # so that a file with no generated code does not have to import a code
+  # generation package to say it is immutable.
+  meta: ^1.19.0
+
+dev_dependencies:
+  build_runner: ^2.16.0
+  freezed: ^4.0.0
+  test: ^1.26.0

@@ -1,0 +1,10 @@
+# Rule G4: generated_port.g.dart is generated, so the package says what
+# produced it and narrows the builder. The fixture is broken in section 3, not
+# in section 6, and an unpinned builder here would blur which rule it measures.
+targets:
+  $default:
+    builders:
+      freezed:
+        enabled: true
+        generate_for:
+          - lib/src/**.dart

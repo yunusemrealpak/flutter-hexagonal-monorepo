@@ -24,7 +24,7 @@ void main() {
     test('a clean workspace exits 0', () {
       final code = runCli(arguments('clean'), out: out, err: err);
       expect(code, ExitCodes.clean);
-      expect(out.toString(), contains('clean — 7 packages'));
+      expect(out.toString(), contains('clean — 9 packages'));
     });
 
     test('violations exit 1', () {
@@ -98,7 +98,7 @@ void main() {
 
       final summary = decoded['summary']! as Map<String, Object?>;
       expect(summary['clean'], isFalse);
-      expect(summary['violationCount'], 10);
+      expect(summary['violationCount'], 11);
       expect(summary['packagesChecked'], 3);
     });
 

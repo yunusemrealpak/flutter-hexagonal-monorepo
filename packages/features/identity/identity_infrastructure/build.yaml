@@ -1,0 +1,22 @@
+# json_serializable only, and only from lib/src. The narrowing is rule G4.
+#
+# freezed is absent rather than disabled: it is not a dev dependency here, so
+# naming it would fail the build instead of tightening it.
+targets:
+  $default:
+    builders:
+      json_serializable:
+        enabled: true
+        generate_for:
+          - lib/src/**.dart
+        options:
+          create_to_json: true
+          field_rename: none
+          # See the note in shipments_infrastructure's build.yaml: without
+          # this, a nested DTO reaches the map as the object itself and fails
+          # with a cast error two layers from the cause.
+          explicit_to_json: true
+      source_gen:combining_builder:
+        options:
+          ignore_for_file:
+            - type=lint

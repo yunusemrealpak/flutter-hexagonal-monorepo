@@ -1,0 +1,19 @@
+# freezed only, and only from lib/src.
+#
+# The `generate_for` narrowing is rule G4: without it build_runner offers every
+# file in the package to the builder, the barrel and the test directory
+# included. At 74 packages that scan is the difference between a codegen run
+# measured in seconds and one measured in minutes.
+#
+# json_serializable is deliberately absent rather than disabled. It is not a
+# dev dependency of this package, so its builder does not exist in this
+# package's build graph, and naming it here would fail the build instead of
+# tightening it. Rules I4 and G2 forbid it in an _api package anyway: a DTO
+# belongs in identity_infrastructure.
+targets:
+  $default:
+    builders:
+      freezed:
+        enabled: true
+        generate_for:
+          - lib/src/**.dart

@@ -53,7 +53,7 @@ Read this as a whitelist. Any dependency edge not listed is a violation (`forbid
 | `feature_infrastructure` | own `_api`, `core_kernel`, `core_ports`, `platform/*` | any `_application`, any foreign feature package including foreign `_api` |
 | `feature_core` | own `_api`, `core_kernel`, `core_ports`, `platform/*`, foreign `_api` | any `_application`, any `_infrastructure`, any `_presentation` |
 | `feature_presentation` | own `_api`, foreign `_api`, `core_kernel`, `core_navigation`, `design_system` | any `_application`, any `_infrastructure`, any `_core`, any `platform/*` |
-| `feature_testing` | own `_api`, `core_kernel`, `core_ports`, `core_testing` | any implementation package |
+| `feature_testing` | own `_api`, `core_kernel`, `core_ports`, `core_testing`, foreign `_api` | any implementation package |
 | `platform` | `core_kernel`, `core_ports`, the `flutter` SDK | any feature package, any other `platform/*` |
 | `design_tokens` | the `flutter` SDK only | everything else |
 | `design_system` | `design_tokens`, `core_kernel`, the `flutter` SDK | any feature package, any `platform/*` |
@@ -69,11 +69,13 @@ The rules in this section apply to the `dependencies:` block of a pubspec and to
 - **`dev_dependencies:` used only by `test/`.** Every package needs a test harness, and `package:test` is not an architectural dependency — it never ships, and nothing under `lib/` may import it. `core_kernel` therefore has `test` in `dev_dependencies` while still having an empty `dependencies` block, and that is not a violation of "depends on nothing". `arch_check` reads `dependencies:` for edge validation and scans `lib/` for imports; a package that imports a dev dependency from `lib/` is a violation (`dev_dependency_in_lib`).
 - **`build_runner` and generator packages.** They are dev dependencies for the same reason: they run at build time and produce source, they are not part of the package's runtime surface.
 
-### 2.1 Notes on the three edges people get wrong
+### 2.1 Notes on the edges people get wrong
 
 **`feature_infrastructure` may not depend on a foreign `_api`.** An adapter translates between one feature's ports and one technology. If it needs a concept from another feature, the concept belongs in its own `_api` and the *use case* — not the adapter — should be doing the crossing.
 
 **`feature_application` may not depend on `platform/*`.** Platform packages are driven adapters. An application package that reaches for one has stopped being pure Dart and has stopped being testable without a device.
+
+**`feature_testing` may depend on a foreign `_api`, and on no implementation.** The row originally allowed neither, and the omission surfaced the first time an `_api` legally named a foreign type: `shipments_api` declares `ShipmentStatus.assignedToCourier(ActorId)`, and `shipments_testing` — whose job is to build fixtures for exactly that surface — could not write the type down. A package that may see another's public surface has to be able to name what is in it. The prohibition that matters is unchanged: a fake that depended on `payments_application` would break whenever those use cases were refactored, which is the whole reason a contract package is separate from the code that satisfies it.
 
 **`platform/*` may not depend on `platform/*`.** This one bites in practice rather than in theory, because platform packages genuinely need each other's capabilities: `location_service`, `media_capture` and `push_messaging` all need a permission granted, and the adapter for that lives in `device_permissions`. The resolution is the same one the constitution uses everywhere else — depend on the *port*, take it through the constructor, and let an application's composition root supply the adapter. A platform package that reached for another directly would make an app that wants the camera drag in a location plugin.
 
@@ -105,7 +107,9 @@ A technology contract lives in the same package as its adapter, together with th
 | S5 | The `name:` in `pubspec.yaml` equals the directory name. | `name_mismatch` |
 | S6 | The package path is registered in the root `pubspec.yaml` `workspace:` list, and the package declares `resolution: workspace`. | `unregistered_package` |
 | S7 | The dependency graph is acyclic. | `dependency_cycle` |
-| S8 | An `_api` package contains no implementation class — no class that implements or extends a port declared in the same package, and no concrete adapter. | `implementation_in_api` |
+| S8 | An `_api` package contains no implementation class — no class that implements or extends a port declared in the same package, and no concrete adapter. The second half is a naming heuristic and is skipped in generated files; see below. | `implementation_in_api` |
+
+**S8 has two halves, and only one of them reads a generated file.** "A class that implements a port declared in this package" reads a *declaration*: a builder that emitted an adapter into a contract package emitted a real violation, whoever configured it, so generated files are checked. "A concrete class whose name ends in `Impl`, `Adapter`, `Repository`, `Service` or `Client`" reads a *name*, and a generator names its own output — `freezed` emits a `_$<Type>CopyWithImpl` for every class it touches, so an `_api` package with one generated union would report a violation per generated type and go on doing it until somebody turned the rule off. The naming half is therefore skipped in generated files, for the same reason §5 exempts them from the ambient-API rules: the name is not the developer's choice. `rules.yaml` spells this out as `suffixes_skip_generated`.
 
 S3 is additionally enforced by the analyzer: `implementation_imports` is promoted to `error` in the root `analysis_options.yaml`. Because intra-package imports are relative, it is also verifiable by hand in one command:
 
@@ -146,7 +150,7 @@ grep -rn "package:[a-z_]*/src/" packages/ apps/   # any output is a violation
 
 `arch_check` therefore walks the analyzed AST and reports method invocations and instance creations, ignoring comments and string literals entirely.
 
-**Scope.** A1–A4 are checked in every package except `apps/*` (where the composition root supplies the real implementations) and `tooling/*` (which is not part of the product). Generated files (`*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `*.config.dart`) are exempt from A1–A4, because a `DateTime` in generated output is not the developer's choice. Generated files are **not** exempt from §2, §3 or §4: a generated file importing a package the constitution forbids is a real architectural violation regardless of who typed it.
+**Scope.** A1–A4 are checked in every package except `apps/*` (where the composition root supplies the real implementations) and `tooling/*` (which is not part of the product). Generated files (`*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `*.config.dart`) are exempt from A1–A4, because a `DateTime` in generated output is not the developer's choice. Generated files are **not** exempt from §2 or §4: a generated file importing a package the constitution forbids is a real architectural violation regardless of who typed it. §3 applies to them too, with the single carve-out recorded under rule S8 — the half of that rule which reads a class *name* rather than a declaration, for the same reason as here.
 
 ---
 

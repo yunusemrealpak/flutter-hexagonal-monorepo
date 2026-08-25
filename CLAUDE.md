@@ -31,7 +31,7 @@ This file is the constitution. Read it in full at the start of every session, to
 | `<feature>_application` | own `_api`, `core_kernel`, `core_ports`, other features' `_api` packages only |
 | `<feature>_infrastructure` | own `_api`, `core_kernel`, `core_ports`, `platform/*` |
 | `<feature>_presentation*` | own `_api`, other features' `_api`, `core_kernel`, `core_navigation`, `design_system` |
-| `<feature>_testing` | own `_api`, `core_kernel`, `core_ports`, `core_testing` |
+| `<feature>_testing` | own `_api`, `core_kernel`, `core_ports`, `core_testing`, other features' `_api` packages |
 | `<feature>_core` (reduced split) | own `_api`, `core_kernel`, `core_ports`, `platform/*`, other features' `_api` |
 | `platform/*` | `core_kernel`, `core_ports`, the `flutter` SDK |
 | `design_tokens` | nothing (except the `flutter` SDK) |

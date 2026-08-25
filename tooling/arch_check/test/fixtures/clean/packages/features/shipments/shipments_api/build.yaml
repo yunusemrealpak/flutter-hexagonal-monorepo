@@ -1,0 +1,9 @@
+# Rule G4: a package with generated files says which builder produced them and
+# narrows it. shipment_status.freezed.dart is that file.
+targets:
+  $default:
+    builders:
+      freezed:
+        enabled: true
+        generate_for:
+          - lib/src/**.dart

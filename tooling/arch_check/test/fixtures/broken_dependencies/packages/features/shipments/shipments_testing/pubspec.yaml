@@ -1,0 +1,17 @@
+# A _testing package that reached an implementation. Widening the row to allow
+# a foreign _api did not widen it to allow this: payments_application is where
+# payments' use cases live, and a fake that depended on them would be a fake
+# that broke whenever they were refactored — which is the whole reason a
+# contract package is separate from the code that satisfies it.
+name: shipments_testing
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  core_kernel: ^0.1.0
+  payments_application: ^0.1.0
+  shipments_api: ^0.1.0

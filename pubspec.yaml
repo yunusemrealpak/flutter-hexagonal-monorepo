@@ -18,6 +18,17 @@ workspace:
   - packages/core/core_navigation
   - packages/core/core_ports
   - packages/core/core_testing
+  - packages/features/identity/identity_api
+  - packages/features/identity/identity_application
+  - packages/features/identity/identity_infrastructure
+  - packages/features/identity/identity_presentation
+  - packages/features/identity/identity_testing
+  - packages/features/shipments/shipments_api
+  - packages/features/shipments/shipments_application
+  - packages/features/shipments/shipments_infrastructure
+  - packages/features/shipments/shipments_presentation_courier
+  - packages/features/shipments/shipments_presentation_dispatcher
+  - packages/features/shipments/shipments_testing
   - packages/platform/analytics_otel
   - packages/platform/connectivity_monitor
   - packages/platform/device_permissions

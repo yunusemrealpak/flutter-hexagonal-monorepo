@@ -1,0 +1,32 @@
+# json_serializable only, and only from lib/src. The narrowing is rule G4.
+#
+# freezed is absent rather than disabled: it is not a dev dependency of this
+# package, so its builder does not exist in this package's build graph and
+# naming it would fail the build instead of tightening it. Nothing here needs
+# it either — a DTO is a data class with a fromJson, and the domain types it
+# maps to live in shipments_api.
+targets:
+  $default:
+    builders:
+      json_serializable:
+        enabled: true
+        generate_for:
+          - lib/src/**.dart
+        options:
+          # A DTO that arrives from the wire is checked by the mapper, not by
+          # the generated constructor: an absent field is a mapping failure
+          # with a name in it, which is more use than a TypeError.
+          create_to_json: true
+          field_rename: none
+
+          # Without this, a nested DTO is written to the map as the object
+          # itself and only becomes JSON when jsonEncode happens to walk it.
+          # Anything that reads the map first — a round trip through fromJson,
+          # a cache that stores the map, a test — gets a ShipmentStatusDto
+          # where it expected a Map and fails with a cast error two layers from
+          # the cause. The round-trip test in this package is what found it.
+          explicit_to_json: true
+      source_gen:combining_builder:
+        options:
+          ignore_for_file:
+            - type=lint

@@ -32,7 +32,17 @@ void main() {
         isEmpty,
         reason: run.violations.map((v) => '$v').join('\n'),
       );
-      expect(run.packagesChecked, 7);
+      expect(run.packagesChecked, 9);
+    });
+
+    test('lets a _testing package name a foreign contract', () {
+      // shipments_testing depends on payments_api. The row allowed neither a
+      // foreign _api nor an implementation until an _api legally named a
+      // foreign type and the package whose job is to build fixtures for that
+      // surface could not write the type down. Contracts only: the companion
+      // assertion in broken_dependencies is what proves the other half.
+      final run = checker.run(fixture('clean'));
+      expect(run.violations, isEmpty);
     });
 
     test('exempts tooling from the ambient-API rules', () {
@@ -48,9 +58,23 @@ void main() {
     test('catches every forbidden edge and nothing else', () {
       expect(codesIn('broken_dependencies'), {
         'dev_dependency_in_lib': 1,
-        'forbidden_dependency': 3,
+        'forbidden_dependency': 4,
         'tooling_depends_on_product': 1,
       });
+    });
+
+    test('still refuses a _testing package that reached an implementation', () {
+      // The half of the feature_testing row that did not widen. A fake bound
+      // to payments_application would break whenever those use cases were
+      // refactored, which is why a contract package is separate from the code
+      // that satisfies it.
+      final run = checker.run(fixture('broken_dependencies'));
+      final reached = run.violations.singleWhere(
+        (violation) => violation.location.package.endsWith('shipments_testing'),
+      );
+
+      expect(reached.code, 'forbidden_dependency');
+      expect(reached.what, contains('payments_application'));
     });
 
     test('names the contract package a feature should have used', () {
@@ -67,12 +91,30 @@ void main() {
       expect(codesIn('broken_structure'), {
         'barrel_leak': 2,
         'deep_import': 1,
-        'implementation_in_api': 2,
+        'implementation_in_api': 3,
         'missing_barrel': 1,
         'name_mismatch': 1,
         'stray_lib_file': 1,
         'unregistered_package': 2,
       });
+    });
+
+    test('reads a generated file for S8 by declaration, not by name', () {
+      // generated_port.g.dart holds two classes: one implementing a port
+      // declared in the same package, one merely named `…Impl`. The first is
+      // a violation whoever emitted it; the second is freezed's copy-with
+      // plumbing under another name, and a rule that fired on it would fire
+      // once per generated type until somebody turned the rule off.
+      final run = checker.run(fixture('broken_structure'));
+      final inGenerated = run.violations.where(
+        (violation) =>
+            violation.code == 'implementation_in_api' &&
+            (violation.location.file?.endsWith('generated_port.g.dart') ??
+                false),
+      );
+
+      expect(inGenerated, hasLength(1));
+      expect(inGenerated.single.what, contains('ShipmentCache'));
     });
 
     test('still types a package whose pubspec name is wrong', () {
