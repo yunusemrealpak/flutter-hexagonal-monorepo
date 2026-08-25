@@ -123,6 +123,16 @@ void main() {
     });
   });
 
+  group('section 6, code generation', () {
+    test('catches generation in the kernel and an unpinned builder', () {
+      expect(codesIn('broken_codegen'), {
+        'codegen_in_kernel': 3,
+        'serialization_in_api': 2,
+        'unpinned_builders': 1,
+      });
+    });
+  });
+
   group('section 1, package types', () {
     test('a package that resolves to no type is itself a violation', () {
       final run = checker.run(fixture('unknown_type'));

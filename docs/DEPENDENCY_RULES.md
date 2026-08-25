@@ -155,7 +155,9 @@ grep -rn "package:[a-z_]*/src/" packages/ apps/   # any output is a violation
 | G1 | `core_kernel` contains no generated file and no `build.yaml`. Regeneration cost in the innermost ring spreads to the whole repository. | `codegen_in_kernel` |
 | G2 | `json_serializable` is not enabled in any `feature_api` package's `build.yaml`, and no `json_annotation` import appears there. This is the machine check for "DTOs are never declared in `_api`". | `serialization_in_api` |
 | G3 | `injectable_generator` is enabled only in `apps/*`. | `annotation_di_outside_app` |
-| G4 | Every package that has generated files has a `build.yaml` that enables the builders it needs and disables the rest explicitly. An unconfigured package makes build_runner scan every builder, which is significant waste at 75 packages. | `unpinned_builders` |
+| G4 | Every package that has generated files has a `build.yaml`, it enables at least one builder, and every builder it enables is narrowed with `generate_for`. An unconfigured package makes build_runner scan every builder, which is significant waste at 75 packages. | `unpinned_builders` |
+
+"Disables the rest explicitly" is the intent, and it is deliberately not machine-checked: naming a builder that is not a dev dependency of the package fails the build rather than tightening it, so "the rest" is only ever the rest that is actually present. What *is* checked is the half that is decidable — a `build.yaml` exists, it turns something on, and everything it turns on is narrowed.
 | G5 | Generated files are committed. `melos run gen` followed by `git diff --exit-code` is clean. | checked by `gen:check`, not by `arch_check` |
 
 The `build.yaml` shape each package type is expected to produce:

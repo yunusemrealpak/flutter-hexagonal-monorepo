@@ -1,0 +1,8 @@
+# Rule G2: json_serializable never runs in a contract package.
+targets:
+  $default:
+    builders:
+      json_serializable:
+        enabled: true
+        generate_for:
+          - lib/src/**.dart
