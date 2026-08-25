@@ -1,0 +1,12 @@
+# Section 4. One forbidden import of each kind, in the package type that forbids it.
+name: fixture_workspace
+publish_to: none
+version: 0.0.0
+
+workspace:
+  - packages/core/core_kernel
+  - packages/features/shipments/shipments_api
+  - packages/features/shipments/shipments_application
+
+environment:
+  sdk: ^3.12.0

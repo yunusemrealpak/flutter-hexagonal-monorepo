@@ -1,0 +1,12 @@
+name: shipments_api
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  core_kernel: ^0.1.0
+  core_ports: ^0.1.0
+

@@ -1,0 +1,8 @@
+# On disk, and nowhere in the root pubspec's workspace: list.
+name: shipments_testing
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0

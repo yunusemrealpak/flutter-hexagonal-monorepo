@@ -1,0 +1,8 @@
+# Only json_serializable generates here, and only from lib/src.
+targets:
+  $default:
+    builders:
+      json_serializable:
+        enabled: true
+        generate_for:
+          - lib/src/**.dart

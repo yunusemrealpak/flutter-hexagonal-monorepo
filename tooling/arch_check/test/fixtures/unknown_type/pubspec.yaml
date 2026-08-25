@@ -1,0 +1,10 @@
+# Section 1. A package whose path and name resolve to no type at all.
+name: fixture_workspace
+publish_to: none
+version: 0.0.0
+
+workspace:
+  - packages/misc/helpers
+
+environment:
+  sdk: ^3.12.0

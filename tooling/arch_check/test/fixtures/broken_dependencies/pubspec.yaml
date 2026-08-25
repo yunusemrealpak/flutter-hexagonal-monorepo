@@ -1,0 +1,14 @@
+# Section 2. Four forbidden edges, one dev dependency that reached lib/.
+name: fixture_workspace
+publish_to: none
+version: 0.0.0
+
+workspace:
+  - packages/core/core_kernel
+  - packages/features/payments/payments_application
+  - packages/features/shipments/shipments_api
+  - packages/features/shipments/shipments_application
+  - tooling/leaky_tool
+
+environment:
+  sdk: ^3.12.0

@@ -1,0 +1,11 @@
+# Stops the fixtures from inheriting the workspace's analysis options.
+#
+# Each fixture package carries its own pubspec.yaml, which makes it a separate
+# analysis context, and the nearest options file walking up from one is this
+# file rather than the workspace root's. Without it, every tool that reads
+# analysis options — `dart format` included — tries to resolve
+# `package:very_good_analysis/analysis_options.yaml` from a directory that has
+# no pub resolution at all, and prints a warning for each fixture it visits.
+#
+# The fixtures are excluded from `dart analyze` at the workspace root; this
+# file only keeps the warning out of the other tools.

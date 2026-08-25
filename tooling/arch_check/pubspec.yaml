@@ -1,0 +1,28 @@
+name: arch_check
+description: >-
+  Enforces the dependency constitution against the workspace. The rules live in
+  rules.yaml, not in this package's source, so that changing a rule is a data
+  change reviewed next to the document it encodes.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+# A tooling package may depend on third-party Dart packages and on nothing in
+# packages/ or apps/ (docs/DEPENDENCY_RULES.md, rule I7). A tool that was part
+# of the workspace it checks could not be run against a workspace that is
+# broken — which is the only time it matters.
+dependencies:
+  # Rules A1-A5 are checked against a parsed AST rather than against raw text.
+  # Section 5 of the dependency rules records why: every doc comment that
+  # explains `DateTime.now()` trips a text search, and the packages most
+  # careful about the rule trip it most often.
+  analyzer: ^13.3.0
+  args: ^2.7.0
+  path: ^1.9.1
+  yaml: ^3.1.3
+
+dev_dependencies:
+  test: ^1.26.0

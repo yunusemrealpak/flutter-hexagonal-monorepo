@@ -30,6 +30,8 @@ Rules are applied per *package type*, and a package's type is derived from its p
 
 A package whose path and name do not resolve to exactly one type is itself a violation (`unknown_package_type`). There is no default.
 
+**Which name.** The matchers read the *directory* name, not the pubspec's `name:` field. Rule S5 below requires the two to be equal, so in a healthy workspace the choice is invisible; it only matters when they disagree. Believing the pubspec there would drop the package out of every type and replace one obvious violation — `name_mismatch` — with silence about the other twenty rules, so the filesystem wins and the mismatch is reported on its own.
+
 **Owning feature.** For every `feature_*` package, the owning feature is the directory name under `packages/features/`. `shipments_presentation_courier` lives in `packages/features/shipments/`, so its owning feature is `shipments` and its own `_api` is `shipments_api`.
 
 ---
@@ -97,7 +99,7 @@ A technology contract lives in the same package as its adapter, together with th
 | S1 | Every package has a barrel at `lib/<package_name>.dart`. | `missing_barrel` |
 | S2 | That barrel is the only `.dart` file directly under `lib/`. Everything else lives under `lib/src/`. | `stray_lib_file` |
 | S3 | No file imports `package:<other_package>/src/...`. Within its own package, imports are relative — see the convention in CLAUDE.md section 3 — so `package:*/src/` appearing anywhere in the source is a violation with no exceptions to weigh. | `deep_import` |
-| S4 | A barrel exports nothing that leaks an internal type it does not intend to publish. | `barrel_leak` |
+| S4 | A barrel re-exports and does nothing else: it declares no type of its own, and it does not re-export another package's `package:` URI. | `barrel_leak` |
 | S5 | The `name:` in `pubspec.yaml` equals the directory name. | `name_mismatch` |
 | S6 | The package path is registered in the root `pubspec.yaml` `workspace:` list, and the package declares `resolution: workspace`. | `unregistered_package` |
 | S7 | The dependency graph is acyclic. | `dependency_cycle` |
@@ -132,8 +134,8 @@ grep -rn "package:[a-z_]*/src/" packages/ apps/   # any output is a violation
 | A1 | `DateTime.now()` | `Clock` from `core_ports` | `ambient_clock` |
 | A2 | `Random()`, `Random.secure()` | `RandomSource` from `core_ports` | `ambient_random` |
 | A3 | `Uuid()` and equivalents | `IdGenerator` from `core_ports` | `ambient_id` |
-| A4 | `print()` | `Logger` from `core_ports` | `ambient_print` (also covered by the `avoid_print` lint) |
-| A5 | `throw` across a port implementation's public boundary | return a `Result<S, F>` with a `sealed` failure | `exception_at_port_boundary` |
+| A4 | `print()`, `debugPrint()` | `Logger` from `core_ports` | `ambient_print` (`print` is also covered by the `avoid_print` lint; `debugPrint` is not, and is the spelling a presentation package reaches for) |
+| A5 | `throw` or `rethrow` inside a member whose declared return type is a `Result` — directly, or wrapped in `Future`, `FutureOr` or `Stream` | return a `Result<S, F>` with a `sealed` failure | `exception_at_port_boundary` |
 
 **Matching.** A1–A4 are checked against parsed source, not against a text search. Two failure modes make the naive grep useless, and both were observed while writing the core packages in phase 1:
 
@@ -153,7 +155,9 @@ grep -rn "package:[a-z_]*/src/" packages/ apps/   # any output is a violation
 | G1 | `core_kernel` contains no generated file and no `build.yaml`. Regeneration cost in the innermost ring spreads to the whole repository. | `codegen_in_kernel` |
 | G2 | `json_serializable` is not enabled in any `feature_api` package's `build.yaml`, and no `json_annotation` import appears there. This is the machine check for "DTOs are never declared in `_api`". | `serialization_in_api` |
 | G3 | `injectable_generator` is enabled only in `apps/*`. | `annotation_di_outside_app` |
-| G4 | Every package that has generated files has a `build.yaml` that enables the builders it needs and disables the rest explicitly. An unconfigured package makes build_runner scan every builder, which is significant waste at 75 packages. | `unpinned_builders` |
+| G4 | Every package that has generated files has a `build.yaml`, it enables at least one builder, and every builder it enables is narrowed with `generate_for`. An unconfigured package makes build_runner scan every builder, which is significant waste at 75 packages. | `unpinned_builders` |
+
+"Disables the rest explicitly" is the intent, and it is deliberately not machine-checked: naming a builder that is not a dev dependency of the package fails the build rather than tightening it, so "the rest" is only ever the rest that is actually present. What *is* checked is the half that is decidable — a `build.yaml` exists, it turns something on, and everything it turns on is narrowed.
 | G5 | Generated files are committed. `melos run gen` followed by `git diff --exit-code` is clean. | checked by `gen:check`, not by `arch_check` |
 
 The `build.yaml` shape each package type is expected to produce:
@@ -195,7 +199,9 @@ forbidden_dependency  packages/features/payments/payments_application
   Replace the dependency with shipments_api and consume the port declared there.
 ```
 
-`--format=json` emits the same four fields per violation. Exit code is 1 when any violation is found.
+`--format=json` emits the same four fields per violation.
+
+Three exit codes, and the third one matters: **0** clean, **1** violations found, **64** the checker could not run — bad arguments, a missing root, an unreadable `rules.yaml`. A tool that exits 1 both for "the architecture is broken" and for "I could not read my own rules" teaches CI to treat the second as the first, and a rule file that fails to parse then reads as a clean workspace.
 
 ---
 

@@ -1,0 +1,15 @@
+name: shipments_application
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+dependencies:
+  core_kernel: ^0.1.0
+  dio: ^5.11.0
+  get_it: ^9.4.0
+  injectable: ^2.6.0
+  shipments_api: ^0.1.0
+

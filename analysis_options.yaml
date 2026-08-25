@@ -58,6 +58,14 @@ analyzer:
   exclude:
     - "**/*.mocks.dart"
 
+    # tooling/arch_check's fixtures are deliberately broken mini workspaces
+    # with no pub resolution of their own, so every `package:` URI in them is
+    # unresolvable and the analyzer would report dozens of errors that mean
+    # nothing. The glob is scoped to fixture directories under tooling/ so
+    # that no product source can ever fall inside it. See
+    # tooling/arch_check/test/fixtures/README.md.
+    - "tooling/*/test/fixtures/**"
+
 linter:
   rules:
     # A port is a named interface with one method more often than not — Clock,

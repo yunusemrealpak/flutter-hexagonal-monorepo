@@ -1,0 +1,8 @@
+# A build.yaml in the innermost ring: rule G1 forbids one here at all.
+targets:
+  $default:
+    builders:
+      freezed:
+        enabled: true
+        generate_for:
+          - lib/src/**.dart
