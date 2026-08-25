@@ -1,0 +1,11 @@
+# Section 5. The ambient APIs, and a throw that escaped a Result.
+name: fixture_workspace
+publish_to: none
+version: 0.0.0
+
+workspace:
+  - packages/core/core_kernel
+  - packages/features/shipments/shipments_infrastructure
+
+environment:
+  sdk: ^3.12.0

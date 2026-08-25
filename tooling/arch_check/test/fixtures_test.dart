@@ -98,6 +98,31 @@ void main() {
     });
   });
 
+  group('section 5, forbidden APIs', () {
+    test('catches the four ambient calls and the throw', () {
+      expect(codesIn('broken_apis'), {
+        'ambient_clock': 1,
+        'ambient_id': 1,
+        'ambient_print': 2,
+        'ambient_random': 1,
+        'exception_at_port_boundary': 1,
+      });
+    });
+
+    test('ignores the same calls when they appear in a doc comment', () {
+      // The fixture's class is documented with the very calls it makes, and
+      // core_ports documents `Clock` the same way. A text-scanning checker
+      // reports the packages most careful about the rule the loudest, which
+      // is why these rules are matched against the AST.
+      final run = checker.run(fixture('broken_apis'));
+      final clockHits = run.violations.where(
+        (violation) => violation.code == 'ambient_clock',
+      );
+      expect(clockHits, hasLength(1));
+      expect(clockHits.single.location.line, 13);
+    });
+  });
+
   group('section 1, package types', () {
     test('a package that resolves to no type is itself a violation', () {
       final run = checker.run(fixture('unknown_type'));

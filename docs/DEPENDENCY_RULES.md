@@ -134,8 +134,8 @@ grep -rn "package:[a-z_]*/src/" packages/ apps/   # any output is a violation
 | A1 | `DateTime.now()` | `Clock` from `core_ports` | `ambient_clock` |
 | A2 | `Random()`, `Random.secure()` | `RandomSource` from `core_ports` | `ambient_random` |
 | A3 | `Uuid()` and equivalents | `IdGenerator` from `core_ports` | `ambient_id` |
-| A4 | `print()` | `Logger` from `core_ports` | `ambient_print` (also covered by the `avoid_print` lint) |
-| A5 | `throw` across a port implementation's public boundary | return a `Result<S, F>` with a `sealed` failure | `exception_at_port_boundary` |
+| A4 | `print()`, `debugPrint()` | `Logger` from `core_ports` | `ambient_print` (`print` is also covered by the `avoid_print` lint; `debugPrint` is not, and is the spelling a presentation package reaches for) |
+| A5 | `throw` or `rethrow` inside a member whose declared return type is a `Result` — directly, or wrapped in `Future`, `FutureOr` or `Stream` | return a `Result<S, F>` with a `sealed` failure | `exception_at_port_boundary` |
 
 **Matching.** A1–A4 are checked against parsed source, not against a text search. Two failure modes make the naive grep useless, and both were observed while writing the core packages in phase 1:
 
