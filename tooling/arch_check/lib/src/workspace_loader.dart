@@ -41,6 +41,7 @@ final class WorkspaceLoader {
     final registered = _registeredPaths(root);
     final violations = <Violation>[];
     final packages = <WorkspacePackage>[];
+    final untyped = <String>{};
 
     for (final directory in _discover(root)) {
       final relativePath = relativePosix(directory.path, root);
@@ -82,6 +83,9 @@ final class WorkspaceLoader {
             remedy: rules.remedyFor('unknown_package_type'),
           ),
         );
+        // Remembered rather than forgotten. The package cannot be checked
+        // against any rule, but the packages that depend on it can be.
+        untyped.add(name);
         continue;
       }
 
@@ -105,7 +109,11 @@ final class WorkspaceLoader {
 
     packages.sort((a, b) => a.relativePath.compareTo(b.relativePath));
     return LoadResult(
-      workspace: Workspace(rootPath: root, packages: packages),
+      workspace: Workspace(
+        rootPath: root,
+        packages: packages,
+        untypedPackages: untyped,
+      ),
       violations: violations,
     );
   }
