@@ -1,76 +1,89 @@
-## Phase 2 — Platform packages
+# Phase 3 — `arch_check` and `scaffold`
 
-The driven adapters. Every port declared in phase 1 that has a real implementation gets one here, and every technology the product touches is confined to exactly one package.
+Two tooling packages. From this phase on, the dependency constitution is enforced by a program rather than by attention, and a new feature is generated with it already obeyed.
 
-### Packages added: 9
+## Scope
 
-| Package | Implements | Also declares | Technology |
-|---|---|---|---|
-| `http_dio` | — | `HttpTransport`, `TransportFailure`, `FakeHttpTransport` | `dio` |
-| `storage_drift` | `KeyValueStore` | `PeykDatabase`, two DAOs, `storeFailureFrom` | `drift`, `sqlite3` |
-| `analytics_otel` | `AnalyticsSink`, `Logger` | `ClockTimeProvider`, `otelAttributes` | `opentelemetry` |
-| `secure_store` | `SecureStore` | `secureStoreFailureFrom` | `flutter_secure_storage` |
-| `device_permissions` | `PermissionRequester` | the ask log that earns `notDetermined` | `permission_handler` |
-| `connectivity_monitor` | `NetworkStatus` | `toNetworkCondition` | `connectivity_plus` |
-| `location_service` | — | `LocationSource`, `GeoFix`, `LocationFailure`, fake | `geolocator` |
-| `media_capture` | — | `MediaCapture`, `CapturedMedia`, `CaptureFailure`, fake | `image_picker` |
-| `push_messaging` | — | `PushMessagingClient`, `PushMessageDto`, fake | `firebase_messaging` |
+| | |
+|---|---|
+| Packages added | 2 — `tooling/arch_check`, `tooling/scaffold` |
+| Workspace total | 15 packages |
+| Commits | 15 |
+| Tests | **325** across the workspace, of which **99** are new (42 in `arch_check`, 57 in `scaffold`) |
 
-Every one of them depends on `core_kernel` and/or `core_ports` and nothing else from the workspace. No platform package depends on another.
+Nothing under `packages/` changed. The two documents that describe the rules did: `docs/DEPENDENCY_RULES.md` now states the mechanical reading of four rules that were written for a human reader, and `CLAUDE.md` §7 describes a scaffolder that exists instead of one that will.
 
-### Which architectural rules become visible here
+## What became visible in this phase
 
-**Where a contract is declared.** The phase's main finding, now written into `CLAUDE.md` §1.1.1 and `DEPENDENCY_RULES.md` §2.2. `core_ports` speaks the product's words — a clock, a store, a permission — and a port enters it only when more than one feature needs the capability and none owns it. `platform/*` speaks a technology's words, and a contract lives beside its adapter. Nothing in the product asks for "an HTTP request" or "a GPS fix", so `HttpTransport`, `LocationSource`, `MediaCapture` and `PushMessagingClient` are declared where their adapters are. The dependency table already enforced the consequence without anyone having noticed: `_application` may not depend on `platform/*`, so a use case can never see an `HttpRequest` and can never end up owning a retry policy.
+**A rule that cannot be checked is a rule that is already being broken somewhere.** Writing the checker forced four sentences in the constitution to become decidable, and each one taught something:
 
-**A fake belongs with the contract it imitates.** `FakeHttpTransport` ships from `http_dio`; `InMemorySecureStore` stays in `core_testing` because `SecureStore` is declared in `core_ports`. Same rule, two answers, and the rule is what makes them consistent.
+- **S4, "a barrel leaks nothing"** → *a barrel re-exports and does nothing else*. The original wording asks about intent. The mechanical version asks two questions with answers: does the barrel declare a type, and does it republish another package's URI.
+- **A5, "`throw` across a port's public boundary"** → *a `throw` or `rethrow` in a member whose declared return type is a `Result`, or a Future/FutureOr/Stream of one*. The original needs to know what a port is; the mechanical one only needs to know what the method promised, which is the same thing said in the type system.
+- **G4, "enables the builders it needs and disables the rest explicitly"** → the second half is **not** checkable, and this is the interesting one. Naming a builder that is not a dev dependency of the package *fails* the build rather than tightening it, so "the rest" is only ever the rest that is present — which is why `push_messaging`'s `build.yaml` names `json_serializable` and not `freezed`. What is checked is what is decidable: a `build.yaml` exists, it turns something on, and everything it turns on is narrowed with `generate_for`.
+- **§1, "derived from its path and name"** → *the directory name, not the pubspec's `name:`*. They are required to be equal by S5, so the choice is invisible until they disagree — and then believing the pubspec drops the package out of every type and replaces one obvious violation with silence about the other twenty.
 
-**`platform/*` → `platform/*` bites in practice, not in theory.** Three packages need a permission and a fourth grants it. The resolution is the constitution's own: depend on the port, take it through the constructor, let a composition root supply the adapter. `location_service`, `media_capture` and `push_messaging` all take `PermissionRequester`; none of them has ever heard of `device_permissions`.
+**§5 has to be checked against an AST, and the workspace proves it.** Every occurrence of `DateTime.now()` in this repository today is inside a comment explaining why the call is banned; `core_ports/clock.dart` documents the port with the very call it exists to remove. A text-scanning checker reports the packages most careful about a rule the loudest. The `broken_apis` fixture is written the same way on purpose, so the test that counts five violations is also the test that proves comments are not scanned.
 
-**The adapter is the boundary.** Every one of these packages ends every throwing path in a `Failed`. `DioHttpTransport`, `KeychainSecureStore` and the rest carry an `on Object` catch, and each has a test that throws something the plugin never promised specifically to prove the catch is a boundary and not decoration.
+**The scaffolder's failure mode is the name it was first tried with.** Three separate lints — `sort_pub_dependencies`, `directives_ordering`, `lines_longer_than_80_chars` — break only for feature names on one side of a sort boundary or past a length. `billing_api` sorts before `core_kernel`; `faq_api` sorts after it. A hand-written template passes the first time anyone tries the tool and fails in someone's first commit. All three are computed at render time, generated Dart goes through `dart_style` before it is written, and `templates_test.dart` runs every assertion against a feature on each side of that line.
 
-**A sealed failure earns its cases by what a caller does about them.** `SecureStoreKeyInvalidated` is separate from `SecureStoreUnavailable` because the first means the credential is gone and only a fresh sign-in helps — collapsing them produces an app that offers "try again" for a secret that no longer exists. `LocationPermissionBlocked` is separate from `LocationPermissionDenied` because iOS shows no second prompt, so an app that could not tell them apart would offer a button that does nothing. `CaptureCancelled` is a failure case that is not an error at all.
+## `arch_check`
 
-**Code generation lands where §10.1 says.** `drift_dev` in `storage_drift`, `json_serializable` in `push_messaging` for a DTO, and nowhere else. Both packages carry a `build.yaml` that enables one builder and narrows `generate_for` to `lib/src`. Packages with no generated files have neither `build_runner` nor `build.yaml`.
+Reads `tooling/arch_check/rules.yaml` — every rule, every violation code and every remedy string. Sources are **parsed, not resolved**: resolution needs a working pub solution for every package, which is exactly what a workspace in trouble does not have, and every rule in the constitution is decidable from syntax.
 
-### Deviation from the specification: a ninth platform package
+| Check | Section | Codes |
+|---|---|---|
+| loader | §1 | `unknown_package_type` |
+| `DependencyCheck` | §2 | `forbidden_dependency`, `tooling_depends_on_product`, `dev_dependency_in_lib` |
+| `StructureCheck` | §3 (S1–S6, S8) | `missing_barrel`, `stray_lib_file`, `barrel_leak`, `name_mismatch`, `unregistered_package`, `deep_import`, `implementation_in_api` |
+| `ImportCheck` | §4 | `kernel_dependency`, `flutter_in_pure_dart`, `technology_in_domain`, `serialization_in_api`, `locator_outside_app`, `annotation_di_outside_app` |
+| `ApiCheck` | §5 | `ambient_clock`, `ambient_random`, `ambient_id`, `ambient_print`, `exception_at_port_boundary` |
+| `CodegenCheck` | §6 | `codegen_in_kernel`, `serialization_in_api`, `annotation_di_outside_app`, `unpinned_builders` |
+| `CycleCheck` | S7 | `dependency_cycle` |
 
-The specification lists eight. `PermissionRequester` has no natural owner among them — `media_capture` needs the camera grant, `location_service` needs location, `push_messaging` needs notifications, and one plugin covers all three. Hosting the adapter in any of them would force the other two to depend on it, which the constitution forbids. `device_permissions` is that ninth package; workspace totals are now 75 packages rather than 74.
+Every violation carries four fields — code, location, what, remedy — in both formats. Three exit codes, not two: **0** clean, **1** violations, **64** could not run. A tool that exits 1 both for "the architecture is broken" and for "I could not read my own rules" teaches CI to treat the second as the first.
 
-### Two things that had to change outside the packages
-
-**The workspace now resolves with `flutter pub get`.** Six of the nine packages wrap Flutter plugins, and a pub workspace resolves as one unit, so the root command changed for everyone. `melos run test` split into `test:dart` and `test:flutter` — a package that depends on the Flutter SDK cannot be run by `dart test`, and `flutter test` has no `--preset`, so the pr preset's exclusions are spelled out in the script while the tag definitions stay in each package's `dart_test.yaml`.
-
-**The pinned toolchain moved to Flutter 3.47.1 / Dart 3.13.1.** Flutter 3.44.2 pins `meta 1.18.0`, `test_api 0.7.11` and `matcher 0.12.19`, and in a workspace those pins are global. They propagated into a chain nothing could satisfy: flutter_test's pin held `test` at 1.31.0 → analyzer below 13 → drift_dev at 2.34.0 → `cli_util ^0.4`, against melos 8.3.0's `cli_util ^0.5`. Every tool in the repository would have had to move backwards to accommodate one SDK pin. The rejected alternative was `dependency_overrides` on the three packages — which would have left flutter_test running against a `test_api` it did not pin, in a repository whose purpose is to demonstrate rules being followed rather than worked around.
-
-### Three bugs the tests caught
-
-1. **Drift returned local `DateTime`s.** With integer storage a value written as `12:00Z` reads back as `15:00` in Istanbul — the same instant, a different object, and `DateTime.==` compares the UTC flag. `Clock` promises UTC. Fixed by `store_date_time_values_as_text: true`, which is now documented in `storage_drift`'s `build.yaml` with the reason.
-2. **`ConnectivityMonitor.changes()` dropped events.** Written as an `async*` generator, it did not subscribe to the broadcast source until its first yielded value had been consumed — reintroducing exactly the gap the port's "emits the current value on subscription" promise exists to close. Rewritten with `Stream.multi`.
-3. **`OutboxDao.recordAttempt` did not increment.** A `Value.absent()` in a companion leaves a column unchanged; the counter is now incremented in SQL, so two drains of the same outbox cannot both write the same value.
-
-### Verification
-
-`arch_check` does not exist until phase 3, so the rules were verified by hand and every commit body records which ones.
+Eight fixtures under `test/fixtures/`, each a real mini workspace with real pubspecs. `clean` obeys every rule, so any violation reported against it is a false positive and every other fixture's count means something. Each test asserts the **exact multiset** of codes rather than containment: containment lets a rule start firing everywhere and still pass, and a checker that cries wolf is worked around within a week.
 
 ```
-$ dart run melos run analyze        # dart analyze --fatal-infos --fatal-warnings .
-No issues found!
-
-$ dart run melos run gen:check      # gen + git diff --exit-code
-SUCCESS
-
-$ dart run melos run test           # pr preset, both runners
-core_kernel 28 · core_ports 5 · core_navigation 9 · core_testing 38
-http_dio 13 · storage_drift 23 · analytics_otel 16
-device_permissions 13 · secure_store 12 · connectivity_monitor 13
-location_service 19 · media_capture 13 · push_messaging 24
-                                                    226 tests, all passing
+$ dart run melos run arch:check
+arch_check: clean — 15 packages, no violations.
 ```
 
-Hand-verified per commit: the §1.1 dependency table for each package, S1/S2/S3/S5/S6, A1–A4 (`grep -rnE "DateTime\.now\(\)|Random\(|print\(" packages/platform/` is empty), G4 for the two packages with generated files, and invariant 1.2.9 at every adapter boundary.
+## `scaffold`
 
-### Known gaps
+```bash
+dart run tooling/scaffold/bin/scaffold.dart new-feature --name billing --split full
+dart run tooling/scaffold/bin/scaffold.dart new-feature --name faq --split reduced
+dart run tooling/scaffold/bin/scaffold.dart new-feature --name shipments \
+  --split full --with-testing --presentation courier,dispatcher
+```
 
-- **`arch_check` still does not exist**, so §2.2's new rule about where a contract is declared is a review responsibility until phase 3 encodes it. It is not obviously mechanical: telling "a technology's words" from "the product's words" may stay a judgement call.
-- **No adapter has run on a device.** These are compiling, tested adapters with substituted platform implementations. Phase 7's `app_harness` is where they first meet a real one, and the specification does not require iOS or Android builds before then.
-- **`FeatureFlagReader` and `DomainEventBus` have no adapter yet.** Neither maps onto a platform capability: the first wants a remote configuration service and the second is in-process. Both are phase 5 and phase 7 work.
+Each generated package gets a pubspec whose dependency list is one row of §2 and nothing more, a barrel, seed sources that compile, a test that passes, a `README.md` naming what must never live there, a `dart_test.yaml`, and an entry in the root `workspace:` list. `--codegen` adds the `build.yaml` and dev dependencies for the roles that generate; `--dry-run`, `--force` and `--root` do what they say.
+
+Its acceptance test generates five shapes into a throwaway workspace and runs `arch_check` over each as a **subprocess** — rule I7 applies to tools too, and running the real binary against the real rule file is the only way the test proves what it claims.
+
+The seeds are meant to be deleted. They exist to show the shape: a sealed failure hierarchy and a port in `_api`, a use case whose collaborators arrive through its constructor in `_application`, an adapter that returns a `Failed` instead of throwing and a DTO that never crosses into the domain in `_infrastructure`, a `RouteModule` in `_presentation`, a behavioural fake in `_testing`.
+
+## Acceptance
+
+| Criterion | Result |
+|---|---|
+| `dart analyze --fatal-infos --fatal-warnings .` | clean |
+| `dart run melos run format:check` | clean, 233 files |
+| `dart run melos run arch:check` | clean, 15 packages, 0 violations |
+| `dart run melos run gen:check` | clean |
+| `dart run melos run test` | 325 passing |
+| `arch_check` fixtures | 8 workspaces, every rule proved to fire |
+| scaffold output compiles, tests, and passes `arch_check` | yes, for both splits, multiple presentation packages, and `--codegen` |
+
+## Known gaps, and one rule to decide in phase 7
+
+**Rule S1 will meet `apps/` in phase 7.** The document says *every* package has a barrel at `lib/<package_name>.dart`, and `rules.yaml` encodes that for every type including `app`. A Flutter application conventionally has `lib/main.dart` instead. This is flagged rather than pre-decided: phase 7 either gives each app a barrel or amends §3 through the process in §9. It is not bent here.
+
+**Third-party dependencies in `core_ports`, `core_navigation` and `core_testing`.** §2's table says those may not depend on "everything else", and its closing sentence says third-party packages are unrestricted except where §4 forbids them. `rules.yaml` follows the closing sentence, and only the two rows that name third-party code in so many words — `core_kernel` and `design_tokens` — forbid it. The reading is recorded in a comment in `rules.yaml`; if the intent was stricter, that is a one-line change plus a fixture.
+
+**`--codegen` resolves a tension rather than hiding it.** The specification says the scaffolder puts the correct `build.yaml` in every package it produces; `CLAUDE.md` §7.6 says a package with no generated files has no `build.yaml` and no `build_runner` dependency, and calls that the cheapest configuration rather than a missing one. A freshly scaffolded feature generates nothing, so the default follows §7.6 and the flag serves the other reading.
+
+**Three rules stay a review responsibility** (§8 of the dependency rules): whether a cycle was resolved with contracts or with a new `shared` package, whether a mapper really maps, and whether an adapter has quietly taken on a use case's job.
+
+**`test_runner` and `dep_graph` are phase 8.** `melos run test:affected` still falls back to the whole `pr` preset, and `docs/dependency-graph.md` does not exist yet, so the "graph with no cycles" criterion is currently proved by `arch_check`'s `CycleCheck` rather than by a rendered graph.
