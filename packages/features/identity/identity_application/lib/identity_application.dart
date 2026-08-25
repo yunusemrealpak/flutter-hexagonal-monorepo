@@ -1,9 +1,11 @@
-/// The identity use cases. Pure Dart, and blind to every adapter that answers
-/// its ports.
+/// identity_application
 ///
-/// Everything this package publishes is exported here and nowhere else.
-/// Another package importing `package:identity_application/src/...` is
-/// reaching across a boundary, and arch_check reports it as one.
+/// Empty for the moment.
+///
+/// The scaffolder's seed here was written against the placeholder port in
+/// `identity_api`, and the commit that made that port real deleted it. The
+/// seed went with it rather than being left behind to break the build in
+/// every commit until this package is written.
+///
+/// The barrel stays, because a package without one violates rule S1.
 library;
-
-export 'src/load_identity.dart';
