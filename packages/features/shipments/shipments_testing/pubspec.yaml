@@ -15,7 +15,16 @@ dependencies:
   core_kernel: ^0.1.0
   core_ports: ^0.1.0
   core_testing: ^0.1.0
+  # A foreign _api, allowed since the feature_testing row gained one. This
+  # package builds fixtures for shipments_api, and shipments_api names ActorId
+  # in its own public surface — a fixture builder that could not write the
+  # type down would stop at the first cross-feature signature.
+  identity_api: ^0.1.0
   shipments_api: ^0.1.0
-
-dev_dependencies:
+  # A runtime dependency here, and a dev dependency in core_testing. The
+  # difference is what the two packages ship. core_testing ships fakes, which
+  # are plain classes with no matchers in them; this package also ships a
+  # contract kit, and a contract kit *is* tests — it calls group() and test()
+  # from lib/. Leaving `test` in dev_dependencies would make that an
+  # dev_dependency_in_lib violation, and rightly so.
   test: ^1.26.0
