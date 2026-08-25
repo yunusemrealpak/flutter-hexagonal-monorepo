@@ -1,0 +1,11 @@
+# S7. Two contract packages that depend on each other, which pub allows and the constitution does not.
+name: fixture_workspace
+publish_to: none
+version: 0.0.0
+
+workspace:
+  - packages/features/payments/payments_api
+  - packages/features/shipments/shipments_api
+
+environment:
+  sdk: ^3.12.0

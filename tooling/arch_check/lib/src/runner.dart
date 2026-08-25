@@ -1,6 +1,7 @@
 import 'checks/api_check.dart';
 import 'checks/check.dart';
 import 'checks/codegen_check.dart';
+import 'checks/cycle_check.dart';
 import 'checks/dependency_check.dart';
 import 'checks/import_check.dart';
 import 'checks/structure_check.dart';
@@ -66,6 +67,7 @@ final class ArchCheck {
     ImportCheck(),
     ApiCheck(),
     CodegenCheck(),
+    CycleCheck(),
   ];
 
   /// Checks the workspace rooted at [rootPath].

@@ -84,6 +84,18 @@ void main() {
     });
   });
 
+  group('S7, cycles', () {
+    test('reports one cycle once, as a path', () {
+      final run = checker.run(fixture('broken_cycle'));
+      expect(run.countsByCode, {'dependency_cycle': 1});
+      expect(
+        run.violations.single.what,
+        'these packages form a cycle: payments_api -> shipments_api -> '
+        'payments_api',
+      );
+    });
+  });
+
   group('section 4, forbidden imports', () {
     test('catches each import in the package type that forbids it', () {
       expect(codesIn('broken_imports'), {
