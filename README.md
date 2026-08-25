@@ -104,7 +104,7 @@ Heavy features (`identity`, `shipments`, `routing`, `delivery`, `payments`, `syn
 ├── pubspec.yaml              # pub workspace root + melos configuration
 ├── analysis_options.yaml     # very_good_analysis + generated-file relaxations
 ├── dart_test.yaml            # tags: unit/widget/golden/integration, preset: pr
-├── lefthook.yml              # pre-commit format+analyze, pre-push gen:check+arch_check
+├── lefthook.yml              # pre-commit format+analyze+arch:check, pre-push gen:check+tests
 ├── CLAUDE.md                 # the architectural constitution, in enforceable form
 ├── docs/
 │   ├── ARCHITECTURE.md

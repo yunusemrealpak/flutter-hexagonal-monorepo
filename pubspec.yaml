@@ -108,8 +108,25 @@ melos:
     arch:check:
       description: >-
         Enforce the dependency constitution in docs/DEPENDENCY_RULES.md.
-        (phase 3 — tooling/arch_check)
-      run: dart run tooling/arch_check/bin/arch_check.dart
+        Runs from a compiled snapshot, rebuilt whenever arch_check's own
+        sources or rules change.
+      # `dart run` spends about four seconds loading and compiling the tool
+      # before it reads a single file; the checking itself takes about half a
+      # second. That is tolerable for a command run by hand and not for one on
+      # the pre-commit hook, so the tool is compiled once into .dart_tool —
+      # already gitignored, so the binary never enters the repository — and
+      # every run after the first costs about forty milliseconds.
+      #
+      # The snapshot is rebuilt when anything arch_check is built from changes:
+      # its lib/, its bin/, its rules, or its pubspec. Fixtures are left out
+      # deliberately, because they are inputs to its tests rather than to it.
+      run: |
+        binary=.dart_tool/arch_check
+        sources="tooling/arch_check/lib tooling/arch_check/bin tooling/arch_check/rules.yaml tooling/arch_check/pubspec.yaml"
+        if [ ! -x "$binary" ] || [ -n "$(find $sources -newer "$binary" 2>/dev/null | head -1)" ]; then
+          dart compile exe tooling/arch_check/bin/arch_check.dart -o "$binary" > /dev/null
+        fi
+        "$binary"
 
     # -- Tests --------------------------------------------------------------
     test:

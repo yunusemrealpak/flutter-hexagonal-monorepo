@@ -76,7 +76,7 @@ The two tools are one loop, and the loop is what keeps the architecture from dri
 
 **While working.** `arch_check` is cheap enough to run whenever you have added a dependency or moved a file. It reports the rule and the fix, not just the fact.
 
-**Before each commit** (CLAUDE.md §5): `melos run gen`, `dart analyze`, `melos run arch:check`, plus the affected tests. The `pre-commit` hook formats and analyzes the staged files; `pre-push` runs `gen:check`, `arch:check` and the tests, because codegen on every commit taxes every commit for a mistake that only costs something once it reaches CI.
+**Before each commit** (CLAUDE.md §5): `melos run gen`, `dart analyze`, `melos run arch:check`, plus the affected tests. The hooks enforce the split by cost rather than by importance. `pre-commit` formats and analyzes the staged files and runs `arch:check` over the workspace — the architecture check is there because learning at push time that an existing commit breaks the constitution is a bad trade, and it is affordable because the tool runs from a compiled snapshot rather than through `dart run`, which spends four seconds loading itself before it reads a file. `pre-push` runs the code generation gate and the tests, which are the two that genuinely cannot go on every commit; it repeats `arch:check` for one path only, since `skip: [merge, rebase]` means a merge commit has never met the pre-commit hook.
 
 **Changing a rule** is a pull request that touches three things ([`docs/DEPENDENCY_RULES.md`](../docs/DEPENDENCY_RULES.md) §9):
 
