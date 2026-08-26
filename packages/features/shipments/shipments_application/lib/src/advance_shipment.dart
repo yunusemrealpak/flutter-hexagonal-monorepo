@@ -1,5 +1,6 @@
 import 'package:core_kernel/core_kernel.dart';
 import 'package:core_ports/core_ports.dart';
+import 'package:payments_api/payments_api.dart';
 import 'package:shipments_api/shipments_api.dart';
 
 import 'shipment_move.dart';
@@ -16,6 +17,25 @@ import 'shipment_move.dart';
 /// The distinction is the whole architecture in miniature: a use case
 /// orchestrates, an entity decides.
 ///
+/// **The payment guard is scenario 1's second half.** Before a hand-over is
+/// recorded, this use case asks `payments_api`'s `PaymentStatusReader` whether
+/// money is still owed. It reaches a *contract* — `payments_application` is
+/// not in this package's pubspec and never will be — while `payments_api`
+/// names `shipments_api` in return. Two features that need each other, and no
+/// cycle, because a contract package depends on no implementation.
+///
+/// The guard is asked of the *move* rather than switched on here: only
+/// `CompleteDelivery` answers `requiresSettledPayment`. Assigning, loading and
+/// returning a parcel are things an operation does to a shipment and none of
+/// them is the moment money changes hands.
+///
+/// **A payment status that cannot be read does not block the hand-over.** The
+/// parcel is at the door and the courier is standing there; refusing over a
+/// network would strand a delivery that has already happened. The collection
+/// is reconciled afterwards — `payments`' own subscriber closes it when
+/// `ShipmentDelivered` arrives — so the failure mode of guessing wrong here is
+/// a debt to chase rather than a delivery that did not happen.
+///
 /// Every collaborator arrives through the constructor. There is no locator to
 /// reach for inside a package (invariant 1.2.7), so this signature is the
 /// complete list of what this class can touch.
@@ -28,6 +48,7 @@ final class AdvanceShipment
     required this._clock,
     required this._events,
     required this._logger,
+    required this._payments,
   });
 
   final ShipmentGateway _gateway;
@@ -35,9 +56,15 @@ final class AdvanceShipment
   final Clock _clock;
   final DomainEventBus _events;
   final Logger _logger;
+  final PaymentStatusReader _payments;
 
   @override
   Future<Result<Shipment, ShipmentFailure>> call(ShipmentMove move) async {
+    if (move.requiresSettledPayment) {
+      final owed = await _owedOn(move.id);
+      if (owed != null) return Failed(owed);
+    }
+
     // Read once, and read it here rather than taking a Shipment as input. A
     // caller that passed the entity in would be passing a copy it read at some
     // earlier moment, and two screens acting on the same shipment would each
@@ -51,6 +78,35 @@ final class AdvanceShipment
       Failed(:final failure) => Failed(failure),
       Success(value: final shipment) => _persist(shipment, move, now),
     };
+  }
+
+  /// The reason a hand-over must not be recorded, or `null` when there is
+  /// none.
+  ///
+  /// Returns shipments' own failure, built from a string. `Money` is a
+  /// payments type and section 2.1 keeps a foreign model out of shipments'
+  /// vocabulary; what a caller here needs is a reason it can branch on and a
+  /// sentence it can show, and `PaymentOutstanding` carries both without
+  /// anybody downstream depending on payments to read it.
+  Future<ShipmentFailure?> _owedOn(ShipmentId shipment) async {
+    switch (await _payments.statusFor(shipment)) {
+      case Failed(:final failure):
+        // Deliberately not a refusal. The parcel is at the door; the
+        // collection is reconciled afterwards, when the delivery event
+        // reaches payments.
+        _logger.warning(
+          'completing a delivery without knowing what is owed',
+          context: {'shipment': shipment.value, 'failure': '$failure'},
+        );
+        return null;
+      case Success(value: Outstanding(:final amount)):
+        return PaymentOutstanding(
+          shipment: shipment.value,
+          amount: '$amount',
+        );
+      case Success():
+        return null;
+    }
   }
 
   Future<Result<Shipment, ShipmentFailure>> _persist(

@@ -30,12 +30,23 @@ part 'peyk_database.g.dart';
 /// | 2 | `outbox_entries` added | new table, no existing data touched |
 /// | 3 | `namespace` added to `key_value_entries`, and joined to
 ///     its primary key | full table rebuild |
+/// | 4 | three columns appended to `outbox_entries` | in place, no rebuild |
 ///
 /// Version 3 is the one that can lose data. A column with a default can be
 /// appended in place; a *primary key* cannot change without recreating the
 /// table and copying every row across. `m.alterTable` does that copy, and the
 /// migration test exists because "drift does the copy" is a claim, not a
 /// guarantee about this schema.
+///
+/// Version 4 is the cheap kind, and it is here to be contrasted with 3. The
+/// `sync` feature's `OutboxStore` port — which arrived after this table did —
+/// needs a conflict policy, a scheduled retry instant and a blocked reason per
+/// row. All three append, so sqlite adds them to the existing table without
+/// touching a byte of the rows already there. The one decision that is not
+/// mechanical is the *default*: rows queued by an older release get
+/// `lastWriteWins`, the policy that cannot lose the device's work. Defaulting
+/// to "the server wins" would have discarded whatever a courier did before
+/// the upgrade, silently.
 @DriftDatabase(
   tables: [KeyValueEntries, OutboxEntries],
   daos: [KeyValueDao, OutboxDao],
@@ -50,7 +61,7 @@ class PeykDatabase extends _$PeykDatabase {
   PeykDatabase(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -77,6 +88,22 @@ class PeykDatabase extends _$PeykDatabase {
             },
           ),
         );
+      }
+      // `from >= 2` is not redundant, and leaving it out is the bug this
+      // schema found the first time it was run. `createTable` above builds
+      // outbox_entries from *today's* class, three new columns included — so a
+      // device upgrading from version 1 already has them, and adding them
+      // again fails with "duplicate column name". Every step that creates a
+      // table has this hazard: the steps after it must not assume the table
+      // they see is the one that version originally shipped.
+      if (from >= 2 && from < 4) {
+        // Appended, not rebuilt. Written as three addColumn calls rather than
+        // one alterTable: adding a column is a statement sqlite performs in
+        // place, and routing it through a table migration would recreate
+        // outbox_entries and copy every queued row for no reason.
+        await migrator.addColumn(outboxEntries, outboxEntries.conflictPolicy);
+        await migrator.addColumn(outboxEntries, outboxEntries.nextAttemptAt);
+        await migrator.addColumn(outboxEntries, outboxEntries.blockedReason);
       }
     },
     beforeOpen: (details) async {

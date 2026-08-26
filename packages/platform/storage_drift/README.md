@@ -30,19 +30,32 @@ Two things that are easy to confuse, and the distinction is the reason the packa
 - **Domain vocabulary.** `OutboxEntries.feature` and `.operation` are opaque strings. That is what lets `sync` carry every feature's writes while depending on none of them — scenario 3 of the architecture.
 - **A thrown exception above `DriftKeyValueStore`.** Below the adapter, a DAO is allowed to throw; the adapter is the boundary where it stops.
 
-## The migration history, and why it is three versions
+## The migration history, and why it is four versions
 
 | Version | Change | Cost |
 |---|---|---|
 | 1 | `key_value_entries` as `(key, value, updated_at)` | — |
 | 2 | `outbox_entries` added | new table, existing data untouched |
 | 3 | `namespace` added and joined to the primary key | **full table rebuild** |
+| 4 | three columns appended to `outbox_entries` | in place, nothing copied |
 
 Version 3 is the one that can lose data. A column with a default can be appended in place; a primary key cannot change without recreating the table and copying every row. `m.alterTable` does the copy, and `test/migration_test.dart` exists because "drift does the copy" is a claim about drift, not a checked fact about this schema.
+
+Version 4 is the cheap kind, and it is here to be read against 3. The `sync` feature's `OutboxStore` port arrived after this table did and needs a conflict policy, a scheduled retry instant and a blocked reason per row. All three append, so sqlite adds them without touching a byte of the rows already queued. The only decision that is not mechanical is the **default**: rows from an older release get `lastWriteWins`, the policy that keeps the device's work. Defaulting to "the server wins" would have discarded whatever a courier did before the upgrade, silently.
 
 The test describes the old schema as **raw SQL**, not in terms of the current table classes. A migration test written against the new definitions proves nothing: the same mistake would be present on both sides of the comparison.
 
 `onUpgrade` is written as a sequence of `if (from < n)` steps rather than a switch on `from`. A device that skipped a release arrives several versions behind, and a switch is how you ship an app that upgrades 2→3 correctly and 1→3 not at all.
+
+### The guard the step-4 code needs, and why
+
+```dart
+if (from >= 2 && from < 4) { ... }
+```
+
+The `from >= 2` half is not redundant, and leaving it out is a bug this schema actually hit. `migrator.createTable(outboxEntries)` in the step-2 branch builds the table from **today's** class — the three version-4 columns included — so a device upgrading from version 1 already has them, and adding them again fails with `duplicate column name`.
+
+Every step that *creates* a table carries this hazard: the steps after it must not assume the table they are looking at is the one that version originally shipped.
 
 ## Timestamps are stored as text, on purpose
 

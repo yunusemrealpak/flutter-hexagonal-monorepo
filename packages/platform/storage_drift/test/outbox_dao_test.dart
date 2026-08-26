@@ -5,13 +5,19 @@ import 'package:drift/native.dart';
 import 'package:storage_drift/storage_drift.dart';
 import 'package:test/test.dart';
 
-OutboxEntry _entry(String id, {DateTime? createdAt}) => OutboxEntry(
+OutboxEntry _entry(
+  String id, {
+  DateTime? createdAt,
+  String? blockedReason,
+}) => OutboxEntry(
   id: id,
   feature: 'delivery',
   operation: 'complete',
   payload: '{"shipmentId":"SHP-1"}',
   createdAt: createdAt ?? DateTime.utc(2026, 1, 1, 9),
   attemptCount: 0,
+  conflictPolicy: 'lastWriteWins',
+  blockedReason: blockedReason,
 );
 
 void main() {
@@ -82,6 +88,47 @@ void main() {
       }
 
       expect(await dao.pending(limit: 2), hasLength(2));
+    });
+
+    test('orders rows written in the same instant by identifier', () async {
+      // Two rows queued in the same millisecond have to come back in the same
+      // order on every read. Without the tie-break the order is whatever
+      // sqlite chose, and a contract kit that passed against an in-memory map
+      // would fail here for a reason nobody could reproduce.
+      await dao.enqueue(_entry('OBX-b'));
+      await dao.enqueue(_entry('OBX-a'));
+
+      expect(
+        (await dao.pending()).map((entry) => entry.id),
+        ['OBX-a', 'OBX-b'],
+      );
+    });
+
+    test('leaves blocked work out of the pending queue', () async {
+      await dao.enqueue(_entry('OBX-1'));
+      await dao.enqueue(_entry('OBX-2', blockedReason: 'rejected'));
+
+      // One rejected entry waits for a person while everything behind it
+      // keeps draining. That is the whole reason the row is excluded rather
+      // than deleted.
+      expect((await dao.pending()).map((entry) => entry.id), ['OBX-1']);
+    });
+
+    test('returns exactly what pending leaves out', () async {
+      await dao.enqueue(_entry('OBX-1'));
+      await dao.enqueue(_entry('OBX-2', blockedReason: 'rejected'));
+
+      final blocked = await dao.blocked();
+      expect(blocked.map((entry) => entry.id), ['OBX-2']);
+      expect(blocked.single.blockedReason, 'rejected');
+      expect(blocked.single.payload, isNotEmpty);
+    });
+
+    test('reads one entry by identifier, blocked or not', () async {
+      await dao.enqueue(_entry('OBX-1', blockedReason: 'rejected'));
+
+      expect((await dao.byId('OBX-1'))?.blockedReason, 'rejected');
+      expect(await dao.byId('OBX-missing'), isNull);
     });
   });
 }

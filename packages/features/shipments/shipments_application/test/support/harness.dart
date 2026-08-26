@@ -1,6 +1,7 @@
 import 'package:core_kernel/core_kernel.dart';
 import 'package:core_testing/core_testing.dart';
 import 'package:identity_api/identity_api.dart';
+import 'package:payments_testing/payments_testing.dart';
 import 'package:shipments_application/shipments_application.dart';
 import 'package:shipments_testing/shipments_testing.dart';
 
@@ -20,6 +21,7 @@ final class Harness {
       clock: clock,
       events: events,
       logger: logger,
+      payments: payments,
     );
     resolveBarcode = ResolveBarcode(
       resolver: resolver,
@@ -33,6 +35,13 @@ final class Harness {
       advanceShipment: advanceShipment,
     );
   }
+
+  /// What payments answers about money owed on a parcel.
+  ///
+  /// Scenario 1's second half, from the shipments side: a question, an answer,
+  /// and no knowledge of how payments arrives at it. That the stand-in is one
+  /// line here is the demonstration.
+  final FakePaymentStatusReader payments = FakePaymentStatusReader();
 
   /// The instant `clock` reports, so assertions can name it.
   static final DateTime now = DateTime.utc(2026, 3, 14, 12);

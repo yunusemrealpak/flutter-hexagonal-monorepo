@@ -1,0 +1,31 @@
+name: delivery_api
+description: >-
+  The delivery contract: an attempt, the proof that closes it, the reasons it
+  can fail, and the ports that carry all three.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+# Exactly the dependency list section 2 of docs/DEPENDENCY_RULES.md allows for
+# a api package. Adding one that is not in that row is a violation,
+# not an exception — arch_check will say which rule and why.
+dependencies:
+  core_kernel: ^0.1.0
+  freezed_annotation: ^3.1.0
+  # Two foreign _api packages, and section 2.1 is the reason the list stops
+  # there. What crosses is `ActorId` and `ShipmentId` — identifiers, whose
+  # whole content is "which one". What does not cross is `Shipment`,
+  # `ShipmentSummary` or `AddressPoint`: this package never learns what is in a
+  # parcel, what it is worth or where it is going. `DeliveryGrade` is delivery's
+  # own word for the only part of that it needs.
+  identity_api: ^0.1.0
+  meta: ^1.19.0
+  shipments_api: ^0.1.0
+
+dev_dependencies:
+  build_runner: ^2.16.0
+  freezed: ^4.0.0
+  test: ^1.26.0

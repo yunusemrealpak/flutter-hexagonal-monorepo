@@ -1,0 +1,41 @@
+name: payments_application
+description: >-
+  The payments use cases. Pure Dart, and blind to every adapter that answers
+  its ports.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+# Exactly the dependency list section 2 of docs/DEPENDENCY_RULES.md allows for
+# a application package. Adding one that is not in that row is a violation,
+# not an exception — arch_check will say which rule and why.
+dependencies:
+  core_kernel: ^0.1.0
+  core_ports: ^0.1.0
+  # Four foreign _api packages, all contracts and none an implementation.
+  #
+  # delivery_api is scenario 2: this package subscribes to `DeliveryCompleted`
+  # through the DomainEventBus port and closes the matching collection.
+  # `delivery_application` is not here and never will be — the two use-case
+  # packages do not know each other exists.
+  #
+  # shipments_api is scenario 1's first half: a collection is owed against a
+  # parcel. `shipments_application` will name `payments_api` in return, and the
+  # graph stays acyclic because contracts depend on no implementation.
+  #
+  # identity_api is one identifier, and sync_api is scenario 3 — a cash
+  # collection taken in a basement has to survive the basement.
+  delivery_api: ^0.1.0
+  identity_api: ^0.1.0
+  payments_api: ^0.1.0
+  shipments_api: ^0.1.0
+  sync_api: ^0.1.0
+
+dev_dependencies:
+  core_testing: ^0.1.0
+  payments_testing: ^0.1.0
+  sync_testing: ^0.1.0
+  test: ^1.26.0

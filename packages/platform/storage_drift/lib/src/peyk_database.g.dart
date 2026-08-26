@@ -343,6 +343,32 @@ class $OutboxEntriesTable extends OutboxEntries
         requiredDuringInsert: false,
       );
   @override
+  late final GeneratedColumn<String> conflictPolicy = GeneratedColumn<String>(
+    'conflict_policy',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+    defaultValue: const Constant('lastWriteWins'),
+  );
+  @override
+  late final GeneratedColumn<DateTime> nextAttemptAt =
+      GeneratedColumn<DateTime>(
+        'next_attempt_at',
+        aliasedName,
+        true,
+        type: DriftSqlType.dateTime,
+        requiredDuringInsert: false,
+      );
+  @override
+  late final GeneratedColumn<String> blockedReason = GeneratedColumn<String>(
+    'blocked_reason',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
   List<GeneratedColumn> get $columns => [
     id,
     feature,
@@ -351,6 +377,9 @@ class $OutboxEntriesTable extends OutboxEntries
     createdAt,
     attemptCount,
     lastAttemptAt,
+    conflictPolicy,
+    nextAttemptAt,
+    blockedReason,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -391,6 +420,18 @@ class $OutboxEntriesTable extends OutboxEntries
         DriftSqlType.dateTime,
         data['${effectivePrefix}last_attempt_at'],
       ),
+      conflictPolicy: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}conflict_policy'],
+      )!,
+      nextAttemptAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}next_attempt_at'],
+      ),
+      blockedReason: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}blocked_reason'],
+      ),
     );
   }
 
@@ -428,6 +469,32 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
 
   /// When delivery was last attempted, or `null` if it never has been.
   final DateTime? lastAttemptAt;
+
+  /// What the owning feature wants done if the server has moved on, as an
+  /// opaque string.
+  ///
+  /// Added in schema version 4, with a default, so that rows queued by an
+  /// older release keep draining instead of arriving with no policy at all.
+  /// The default names the option that cannot lose the device's work; a
+  /// migration that defaulted to "the server wins" would silently discard
+  /// whatever a courier did before the upgrade.
+  final String conflictPolicy;
+
+  /// The earliest instant a further attempt should be made, or `null` while
+  /// the entry has never failed.
+  ///
+  /// Persisted rather than derived. The backoff is jittered, so recomputing it
+  /// on read would answer differently every time — and a device killed
+  /// mid-backoff would come back and retry everything at once.
+  final DateTime? nextAttemptAt;
+
+  /// Why a person has to look at this row, or `null` while it is still
+  /// draining normally.
+  ///
+  /// A blocked row stays in the table. Deleting it would destroy the record of
+  /// a delivery or a payment the operation still has to reconcile; leaving it
+  /// in the pending query would stop everything behind it.
+  final String? blockedReason;
   const OutboxEntry({
     required this.id,
     required this.feature,
@@ -436,6 +503,9 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
     required this.createdAt,
     required this.attemptCount,
     this.lastAttemptAt,
+    required this.conflictPolicy,
+    this.nextAttemptAt,
+    this.blockedReason,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -448,6 +518,13 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
     map['attempt_count'] = Variable<int>(attemptCount);
     if (!nullToAbsent || lastAttemptAt != null) {
       map['last_attempt_at'] = Variable<DateTime>(lastAttemptAt);
+    }
+    map['conflict_policy'] = Variable<String>(conflictPolicy);
+    if (!nullToAbsent || nextAttemptAt != null) {
+      map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt);
+    }
+    if (!nullToAbsent || blockedReason != null) {
+      map['blocked_reason'] = Variable<String>(blockedReason);
     }
     return map;
   }
@@ -463,6 +540,13 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
       lastAttemptAt: lastAttemptAt == null && nullToAbsent
           ? const Value.absent()
           : Value(lastAttemptAt),
+      conflictPolicy: Value(conflictPolicy),
+      nextAttemptAt: nextAttemptAt == null && nullToAbsent
+          ? const Value.absent()
+          : Value(nextAttemptAt),
+      blockedReason: blockedReason == null && nullToAbsent
+          ? const Value.absent()
+          : Value(blockedReason),
     );
   }
 
@@ -479,6 +563,9 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       attemptCount: serializer.fromJson<int>(json['attemptCount']),
       lastAttemptAt: serializer.fromJson<DateTime?>(json['lastAttemptAt']),
+      conflictPolicy: serializer.fromJson<String>(json['conflictPolicy']),
+      nextAttemptAt: serializer.fromJson<DateTime?>(json['nextAttemptAt']),
+      blockedReason: serializer.fromJson<String?>(json['blockedReason']),
     );
   }
   @override
@@ -492,6 +579,9 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'attemptCount': serializer.toJson<int>(attemptCount),
       'lastAttemptAt': serializer.toJson<DateTime?>(lastAttemptAt),
+      'conflictPolicy': serializer.toJson<String>(conflictPolicy),
+      'nextAttemptAt': serializer.toJson<DateTime?>(nextAttemptAt),
+      'blockedReason': serializer.toJson<String?>(blockedReason),
     };
   }
 
@@ -503,6 +593,9 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
     DateTime? createdAt,
     int? attemptCount,
     Value<DateTime?> lastAttemptAt = const Value.absent(),
+    String? conflictPolicy,
+    Value<DateTime?> nextAttemptAt = const Value.absent(),
+    Value<String?> blockedReason = const Value.absent(),
   }) => OutboxEntry(
     id: id ?? this.id,
     feature: feature ?? this.feature,
@@ -513,6 +606,13 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
     lastAttemptAt: lastAttemptAt.present
         ? lastAttemptAt.value
         : this.lastAttemptAt,
+    conflictPolicy: conflictPolicy ?? this.conflictPolicy,
+    nextAttemptAt: nextAttemptAt.present
+        ? nextAttemptAt.value
+        : this.nextAttemptAt,
+    blockedReason: blockedReason.present
+        ? blockedReason.value
+        : this.blockedReason,
   );
   OutboxEntry copyWithCompanion(OutboxEntriesCompanion data) {
     return OutboxEntry(
@@ -527,6 +627,15 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
       lastAttemptAt: data.lastAttemptAt.present
           ? data.lastAttemptAt.value
           : this.lastAttemptAt,
+      conflictPolicy: data.conflictPolicy.present
+          ? data.conflictPolicy.value
+          : this.conflictPolicy,
+      nextAttemptAt: data.nextAttemptAt.present
+          ? data.nextAttemptAt.value
+          : this.nextAttemptAt,
+      blockedReason: data.blockedReason.present
+          ? data.blockedReason.value
+          : this.blockedReason,
     );
   }
 
@@ -539,7 +648,10 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
           ..write('payload: $payload, ')
           ..write('createdAt: $createdAt, ')
           ..write('attemptCount: $attemptCount, ')
-          ..write('lastAttemptAt: $lastAttemptAt')
+          ..write('lastAttemptAt: $lastAttemptAt, ')
+          ..write('conflictPolicy: $conflictPolicy, ')
+          ..write('nextAttemptAt: $nextAttemptAt, ')
+          ..write('blockedReason: $blockedReason')
           ..write(')'))
         .toString();
   }
@@ -553,6 +665,9 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
     createdAt,
     attemptCount,
     lastAttemptAt,
+    conflictPolicy,
+    nextAttemptAt,
+    blockedReason,
   );
   @override
   bool operator ==(Object other) =>
@@ -564,7 +679,10 @@ class OutboxEntry extends DataClass implements Insertable<OutboxEntry> {
           other.payload == this.payload &&
           other.createdAt == this.createdAt &&
           other.attemptCount == this.attemptCount &&
-          other.lastAttemptAt == this.lastAttemptAt);
+          other.lastAttemptAt == this.lastAttemptAt &&
+          other.conflictPolicy == this.conflictPolicy &&
+          other.nextAttemptAt == this.nextAttemptAt &&
+          other.blockedReason == this.blockedReason);
 }
 
 class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
@@ -575,6 +693,9 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
   final Value<DateTime> createdAt;
   final Value<int> attemptCount;
   final Value<DateTime?> lastAttemptAt;
+  final Value<String> conflictPolicy;
+  final Value<DateTime?> nextAttemptAt;
+  final Value<String?> blockedReason;
   final Value<int> rowid;
   const OutboxEntriesCompanion({
     this.id = const Value.absent(),
@@ -584,6 +705,9 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
     this.createdAt = const Value.absent(),
     this.attemptCount = const Value.absent(),
     this.lastAttemptAt = const Value.absent(),
+    this.conflictPolicy = const Value.absent(),
+    this.nextAttemptAt = const Value.absent(),
+    this.blockedReason = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   OutboxEntriesCompanion.insert({
@@ -594,6 +718,9 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
     required DateTime createdAt,
     this.attemptCount = const Value.absent(),
     this.lastAttemptAt = const Value.absent(),
+    this.conflictPolicy = const Value.absent(),
+    this.nextAttemptAt = const Value.absent(),
+    this.blockedReason = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        feature = Value(feature),
@@ -608,6 +735,9 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
     Expression<DateTime>? createdAt,
     Expression<int>? attemptCount,
     Expression<DateTime>? lastAttemptAt,
+    Expression<String>? conflictPolicy,
+    Expression<DateTime>? nextAttemptAt,
+    Expression<String>? blockedReason,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -618,6 +748,9 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
       if (createdAt != null) 'created_at': createdAt,
       if (attemptCount != null) 'attempt_count': attemptCount,
       if (lastAttemptAt != null) 'last_attempt_at': lastAttemptAt,
+      if (conflictPolicy != null) 'conflict_policy': conflictPolicy,
+      if (nextAttemptAt != null) 'next_attempt_at': nextAttemptAt,
+      if (blockedReason != null) 'blocked_reason': blockedReason,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -630,6 +763,9 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
     Value<DateTime>? createdAt,
     Value<int>? attemptCount,
     Value<DateTime?>? lastAttemptAt,
+    Value<String>? conflictPolicy,
+    Value<DateTime?>? nextAttemptAt,
+    Value<String?>? blockedReason,
     Value<int>? rowid,
   }) {
     return OutboxEntriesCompanion(
@@ -640,6 +776,9 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
       createdAt: createdAt ?? this.createdAt,
       attemptCount: attemptCount ?? this.attemptCount,
       lastAttemptAt: lastAttemptAt ?? this.lastAttemptAt,
+      conflictPolicy: conflictPolicy ?? this.conflictPolicy,
+      nextAttemptAt: nextAttemptAt ?? this.nextAttemptAt,
+      blockedReason: blockedReason ?? this.blockedReason,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -668,6 +807,15 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
     if (lastAttemptAt.present) {
       map['last_attempt_at'] = Variable<DateTime>(lastAttemptAt.value);
     }
+    if (conflictPolicy.present) {
+      map['conflict_policy'] = Variable<String>(conflictPolicy.value);
+    }
+    if (nextAttemptAt.present) {
+      map['next_attempt_at'] = Variable<DateTime>(nextAttemptAt.value);
+    }
+    if (blockedReason.present) {
+      map['blocked_reason'] = Variable<String>(blockedReason.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -684,6 +832,9 @@ class OutboxEntriesCompanion extends UpdateCompanion<OutboxEntry> {
           ..write('createdAt: $createdAt, ')
           ..write('attemptCount: $attemptCount, ')
           ..write('lastAttemptAt: $lastAttemptAt, ')
+          ..write('conflictPolicy: $conflictPolicy, ')
+          ..write('nextAttemptAt: $nextAttemptAt, ')
+          ..write('blockedReason: $blockedReason, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -908,6 +1059,9 @@ typedef $$OutboxEntriesTableCreateCompanionBuilder =
       required DateTime createdAt,
       Value<int> attemptCount,
       Value<DateTime?> lastAttemptAt,
+      Value<String> conflictPolicy,
+      Value<DateTime?> nextAttemptAt,
+      Value<String?> blockedReason,
       Value<int> rowid,
     });
 typedef $$OutboxEntriesTableUpdateCompanionBuilder =
@@ -919,6 +1073,9 @@ typedef $$OutboxEntriesTableUpdateCompanionBuilder =
       Value<DateTime> createdAt,
       Value<int> attemptCount,
       Value<DateTime?> lastAttemptAt,
+      Value<String> conflictPolicy,
+      Value<DateTime?> nextAttemptAt,
+      Value<String?> blockedReason,
       Value<int> rowid,
     });
 
@@ -963,6 +1120,21 @@ class $$OutboxEntriesTableFilterComposer
 
   ColumnFilters<DateTime> get lastAttemptAt => $composableBuilder(
     column: $table.lastAttemptAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get conflictPolicy => $composableBuilder(
+    column: $table.conflictPolicy,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get nextAttemptAt => $composableBuilder(
+    column: $table.nextAttemptAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get blockedReason => $composableBuilder(
+    column: $table.blockedReason,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1010,6 +1182,21 @@ class $$OutboxEntriesTableOrderingComposer
     column: $table.lastAttemptAt,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get conflictPolicy => $composableBuilder(
+    column: $table.conflictPolicy,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get nextAttemptAt => $composableBuilder(
+    column: $table.nextAttemptAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get blockedReason => $composableBuilder(
+    column: $table.blockedReason,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$OutboxEntriesTableAnnotationComposer
@@ -1043,6 +1230,21 @@ class $$OutboxEntriesTableAnnotationComposer
 
   GeneratedColumn<DateTime> get lastAttemptAt => $composableBuilder(
     column: $table.lastAttemptAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get conflictPolicy => $composableBuilder(
+    column: $table.conflictPolicy,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<DateTime> get nextAttemptAt => $composableBuilder(
+    column: $table.nextAttemptAt,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<String> get blockedReason => $composableBuilder(
+    column: $table.blockedReason,
     builder: (column) => column,
   );
 }
@@ -1085,6 +1287,9 @@ class $$OutboxEntriesTableTableManager
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<int> attemptCount = const Value.absent(),
                 Value<DateTime?> lastAttemptAt = const Value.absent(),
+                Value<String> conflictPolicy = const Value.absent(),
+                Value<DateTime?> nextAttemptAt = const Value.absent(),
+                Value<String?> blockedReason = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OutboxEntriesCompanion(
                 id: id,
@@ -1094,6 +1299,9 @@ class $$OutboxEntriesTableTableManager
                 createdAt: createdAt,
                 attemptCount: attemptCount,
                 lastAttemptAt: lastAttemptAt,
+                conflictPolicy: conflictPolicy,
+                nextAttemptAt: nextAttemptAt,
+                blockedReason: blockedReason,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1105,6 +1313,9 @@ class $$OutboxEntriesTableTableManager
                 required DateTime createdAt,
                 Value<int> attemptCount = const Value.absent(),
                 Value<DateTime?> lastAttemptAt = const Value.absent(),
+                Value<String> conflictPolicy = const Value.absent(),
+                Value<DateTime?> nextAttemptAt = const Value.absent(),
+                Value<String?> blockedReason = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => OutboxEntriesCompanion.insert(
                 id: id,
@@ -1114,6 +1325,9 @@ class $$OutboxEntriesTableTableManager
                 createdAt: createdAt,
                 attemptCount: attemptCount,
                 lastAttemptAt: lastAttemptAt,
+                conflictPolicy: conflictPolicy,
+                nextAttemptAt: nextAttemptAt,
+                blockedReason: blockedReason,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0

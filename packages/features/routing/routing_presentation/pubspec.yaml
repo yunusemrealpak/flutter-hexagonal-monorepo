@@ -1,0 +1,32 @@
+name: routing_presentation
+description: >-
+  The routing UI: one courier's route, in the order it will be driven.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+# Exactly the dependency list section 2 of docs/DEPENDENCY_RULES.md allows for
+# a presentation package. Adding one that is not in that row is a violation,
+# not an exception — arch_check will say which rule and why.
+dependencies:
+  core_kernel: ^0.1.0
+  core_navigation: ^0.1.0
+  flutter:
+    sdk: flutter
+  # A foreign _api, which section 2 allows a presentation package. It is here
+  # for one type: ActorId. Whose route this screen shows is not a fact this
+  # package can assume — the same screen serves a courier looking at their own
+  # afternoon and a dispatcher looking at somebody else's — so the subject
+  # arrives through the constructor, typed. That is section 2.1's rule about
+  # what may cross: an identifier crosses, a model does not.
+  identity_api: ^0.1.0
+  routing_api: ^0.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  routing_testing: ^0.1.0
