@@ -22,6 +22,19 @@ dependencies:
   # CourierReference and ShipmentReference — readers published by delivery_api,
   # the one layer allowed to see those packages.
   delivery_api: ^0.1.0
+  # Declared even though it arrives transitively through the platform package
+  # above, and the reason is the test runner. `melos run test` decides which
+  # runner a package needs by looking for this entry, so without it the package
+  # is handed to `dart test` — which cannot load `flutter_test` and fails at
+  # import time. The SDK dependency is real either way; writing it down is what
+  # makes it visible to a tool as well as to a reader.
+  #
+  # The feature_infrastructure row permits it: section 2's list is about
+  # workspace packages, and the SDK is a separate axis — `allow_sdks: [flutter]`
+  # in rules.yaml, whose question is whether this package binds a Flutter
+  # engine. It does.
+  flutter:
+    sdk: flutter
   http_dio: ^0.1.0
   json_annotation: ^4.12.0
   # The platform package that turns a device into a position. It brings the
