@@ -288,41 +288,43 @@ At the **end** of a phase: verify the acceptance criteria in the spec, push, ope
 
 This section is the handoff between sessions. It is rewritten at every phase boundary and it is the only part of this file that is expected to go stale — everything above is the constitution. Read it after section 9, then check it against `git log` before trusting it.
 
-**Branch:** `phase/05-cross-cutting`. **Last tag:** `phase-04`. **Working tree:** clean, `arch_check` clean across 46 packages.
+**Branch:** `phase/05-cross-cutting`, pushed and open as a pull request. **Last tag:** `phase-04`. **Working tree:** clean; `arch_check` clean across 46 packages; `dart run melos run test` green (1293 tests); `dart run melos run gen` leaves the tree unchanged.
 
-`sync_testing` also gained `FakeSyncFacade` — the queue fake both `delivery_application` and `payments_application` write through. It belongs there rather than in each feature for the reason a fake always belongs beside its contract.
+### Phase 5 is code-complete
 
-### Phase 5 scope
+`routing`, `delivery`, `payments`, `sync` — twenty packages, all five of each. The acceptance criterion was the seven scenarios of specification section 5 becoming visible in code, and six of the seven now are. Scenarios 5 and 7 belong to phase 7, where the three composition roots exist to bind different adapters.
 
-`routing`, `delivery`, `payments`, `sync` — twenty packages, all scaffolded in `92fe4ca`. The phase's acceptance criterion is the seven scenarios in section 5 of the specification becoming visible in code.
+| Scenario | Where it lives now |
+|---|---|
+| 1 — mutual need, no cycle | `payments_api` → `shipments_api`, `shipments_application` → `payments_api`. `AdvanceShipment` asks `PaymentStatusReader` before a hand-over; `PaymentOutstanding` refuses it. |
+| 2 — loose coupling through events | `delivery_application` publishes `DeliveryCompleted`, `payments_application`'s `CollectionReconciler` subscribes. Neither `_application` names the other. |
+| 3 — inverted dependency | `sync` knows no feature; `CompleteDeliveryCommand`, `FailDeliveryCommand` and `CollectPaymentCommand` implement `SyncCommand` in their own features' `_application`. |
+| 4 — one port, two adapters | `LocalHeuristicOptimizer` and `RemoteSolverOptimizer`, plus `LocalEncryptedProofStore` and `RemoteProofStore`, and `RestPaymentsGateway` bare and behind `DeviceBackedPaymentsGateway`. Every one of them runs its feature's contract kit. |
+| 5 — different composition roots | phase 7. The adapters the table names all exist. |
+| 6 — permission through a contract | `shipments_presentation_dispatcher`, `delivery_presentation` and `payments_presentation` each ask `PermissionChecker`. The stand-in in all three test suites is the same four lines. |
+| 7 — one feature, two UIs | already true of `shipments` from phase 4. |
 
-### Done
+### Left to do
 
-| Feature | State | Scenario it carries |
-|---|---|---|
-| `sync` | complete — all five packages | 3 (inverted dependency) |
-| `routing` | complete — all five packages | 4 (same port, two adapters) |
-| `delivery` | complete — all five packages | 2 (events), 3, 6 (permission) |
-| `payments` | scaffold seeds only | 1 (mutual need, no cycle), 2 |
+1. **Phase-end flow** — section 6: merge the pull request **without squashing**, tag `phase-05`, push the tag.
+2. **Phase 6** — the seven light features, three packages each.
 
-`platform/storage_drift` also moved: schema version 4 appends the three columns the `OutboxStore` port needs (`d85e0c9`). The migration guard `if (from >= 2 && from < 4)` is not redundant — `createTable` in the step-2 branch builds today's table, so a device upgrading from version 1 already has those columns.
-
-### Left to do, in order
-
-1. **`payments`** — five packages. `payments_application` subscribes to `DeliveryCompleted` (scenario 2) and depends on `shipments_api` (scenario 1, one half).
-2. **Scenario 1's other half** — `shipments_application` gains a dependency on `payments_api` and consults a `PaymentStatusReader` before allowing a delivery to complete against an outstanding cash collection. This edits a phase-4 package on purpose; the point is that the two contract packages depend on each other's *contracts* and the graph stays acyclic.
-3. **Phase-end flow** — section 6: push, PR, merge without squashing, tag `phase-05`.
+`docs/ARCHITECTURE.md` is phase 8 and is where the seven scenarios get written up; the commit bodies on this branch are the raw material for it.
 
 ### Decisions already made — do not re-litigate
 
 - **An optimiser returns a permutation and nothing else.** `RoutePlan` computes the estimates. That is what makes `runRouteOptimizerContract` writable against three implementations.
-- **Identifiers cross a feature boundary; models do not.** Section 2.1 of `docs/DEPENDENCY_RULES.md` now states this. It cost a rewrite of `Stop` (`6cce4c8`) and it is the rule `delivery` and `payments` have to follow from their first commit: a `ShipmentId` may appear in their `_api`, a `ShipmentSummary` or an `AddressPoint` may not.
-- **A driven port takes the raw identifier, a driving port takes the identity.** `RouteCache.read(String courierId)` beside `RoutingFacade.planRoute(courier: ActorId)`, matching `ShipmentGateway.manifestFor` from phase 4. An adapter may not see another feature, so a driven port whose signature names `ActorId` is one its own adapter cannot implement.
-- **An `_api` publishes readers for the foreign identifiers its own surface names.** `CourierReference`, `ShipmentReference` — an anticorruption layer in the consuming feature's own contract. `delivery_api` and `payments_api` will each need one for `ShipmentId`.
-- **A presentation package has no clock, and does not need one.** Section 2 gives it `core_kernel`, `core_navigation`, contracts and Flutter — not `core_ports`. `ProofOfDelivery.from` derives a hand-over's instant from the evidence rather than being handed one, which is both the way round the rule allows and the more honest reading of when a hand-over happened. Do not solve this by injecting a `DateTime Function()`: that is a `Clock` with the name filed off.
-- **A capture arrives as a callback.** A presentation package may not depend on `platform/*`, so the camera and the signature pad reach `delivery_presentation` as functions its app supplies. `payments_presentation` will need the same shape for a card reader.
-- **`BudgetMediaCompressor` does not re-encode, on purpose.** The cheapest place to make a photograph small is the camera, where `MediaCapture` already takes a width and a quality. The port keeps the *decision* — does it fit, what happens if not — in `delivery`, where it is testable without a device. Do not "fix" this by adding an image library.
-- **`arch_check` refusing a commit is a design signal, not a rule problem.** Both times the row for `feature_infrastructure` has chafed, the cause was upstream. Widening it has never been the answer.
+- **Identifiers cross a feature boundary; models do not.** Section 2.1 of `docs/DEPENDENCY_RULES.md` states it. It cost a rewrite of `Stop` (`6cce4c8`); `delivery` and `payments` followed it from their first commit, which is why `DeliveryGrade` exists instead of a borrowed `ShipmentSummary`.
+- **A driven port takes the raw identifier, a driving port takes the identity.** `RouteCache.read(String courierId)` beside `RoutingFacade.planRoute(courier: ActorId)`. An adapter may not see another feature, so a driven port whose signature names `ActorId` is one its own adapter cannot implement.
+- **An `_api` publishes readers for the foreign identifiers its own surface names.** `CourierReference` and `ShipmentReference` now exist in four `_api` packages. An anticorruption layer in the consuming feature's own contract, which is why the `feature_infrastructure` row has never needed widening.
+- **A presentation package has no clock, and does not need one.** Section 2 gives it `core_kernel`, `core_navigation`, contracts and Flutter — not `core_ports`. `ProofOfDelivery.from` derives a hand-over's instant from the evidence. Do not solve this by injecting a `DateTime Function()`: that is a `Clock` with the name filed off.
+- **A capture arrives as a callback.** A presentation package may not depend on `platform/*`, so the camera and the signature pad reach `delivery_presentation` as functions its app supplies.
+- **`BudgetMediaCompressor` does not re-encode, on purpose.** The cheapest place to make a photograph small is the camera, where `MediaCapture` already takes a width and a quality. The port keeps the *decision* in `delivery`, where it is testable without a device. Do not "fix" this by adding an image library.
+- **`PaymentAttempt`'s identifier is its `IdempotencyKey`.** Two attempts with the same key are the same attempt, so a double charge is a state the type system cannot express. `SettlementId` is derived from courier and date for the opposite reason — two devices must agree on it.
+- **`PaymentsGateway.collect` is idempotent about money, not about rows.** Once money has moved under a key, a second copy answers with the first result; until it has, the same key carries the intention forward. A stricter reading leaves every pre-recorded collection open for ever.
+- **Cash may be recorded offline; a card may not.** The money is already in the courier's hand and the server is only being told; a card needs an acquirer to say yes. A business rule, which is why it is in `CollectOnDelivery` rather than in an adapter that could only see a timeout.
+- **An unreadable payment status does not block a hand-over.** The parcel is at the door. Guessing wrong that way costs a debt to chase; guessing wrong the other way costs a delivery, and `payments`' own subscriber closes the collection afterwards.
+- **`arch_check` refusing a commit is a design signal, not a rule problem.** Every time the row for `feature_infrastructure` has chafed, the cause was upstream. Widening it has never been the answer.
 
 ### Verification, before every commit
 
@@ -330,8 +332,9 @@ This section is the handoff between sessions. It is rewritten at every phase bou
 dart run melos run gen      # only where build_runner is a dev dependency
 dart analyze --fatal-infos --fatal-warnings .
 dart run melos run arch:check
+dart run melos run test
 ```
 
 The pre-commit hook runs format, analyze **on staged files only**, and `arch_check` over the whole workspace. Analyze on staged files is the gap: a mid-phase commit can leave an unstaged package broken and still pass. Run `dart analyze` over the workspace before a phase PR.
 
-Tests are split by runner. `dart test --preset pr` in pure Dart packages; `flutter test --exclude-tags "golden || integration || flaky"` in the Flutter ones — `routing_infrastructure` is Flutter because `location_service` brings the SDK with it, and every `_presentation` package is.
+`dart run melos run test` splits by runner automatically, and it works because every package that binds a Flutter engine declares the SDK in its own pubspec — including `routing_infrastructure` and `delivery_infrastructure`, which get it transitively through `location_service` (`d70e820`). A package that needs `flutter test` and does not say so is handed to `dart test` and fails at import time.
