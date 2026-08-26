@@ -24,6 +24,14 @@
 /// test never needs a real command is the demonstration, not a limitation of
 /// the fixture.
 ///
+/// **`FakeSyncFacade`** is the queue every feature that writes offline talks
+/// to in its own tests. It lives here rather than in each feature, for the
+/// reason a fake always belongs beside its contract: `delivery_application`
+/// and `payments_application` both enqueue, and two hand-written stubs would
+/// drift apart the first time `SyncFacade` grew a method. It records a routing
+/// key and a string, never decodes a payload, and does not drain on enqueue —
+/// the same three constraints the real queue lives under.
+///
 /// **Contract kits.** `runOutboxStoreContract` and
 /// `runCommandTransportContract`, one suite each, run against every
 /// implementation of the port.
@@ -36,6 +44,7 @@ library;
 export 'src/command_transport_contract.dart';
 export 'src/fake_clock_skew.dart';
 export 'src/fake_command_transport.dart';
+export 'src/fake_sync_facade.dart';
 export 'src/in_memory_outbox_store.dart';
 export 'src/outbox_entry_builder.dart';
 export 'src/outbox_store_contract.dart';

@@ -19,6 +19,12 @@ Scenario 5's table binds them:
 
 `app_dispatcher` runs the in-memory store on purpose: the operator is at a desk with a connection, and durability across a crash buys nothing there while a database file costs something. That is why the store lives here rather than being written twice — and it is why the contract kit matters more for this port than for most.
 
+## The facade fake the writing features share
+
+`FakeSyncFacade` is what `delivery_application` and `payments_application` queue through in their own tests. It lives here for the reason a fake always belongs beside its contract: two hand-written stubs in two features would drift apart the first time `SyncFacade` grew a method.
+
+It lives under the same three constraints as the real queue. It records a routing key and a string and **never decodes a payload** — a test that wants to know *what* was queued asserts on the command object it handed in, through `queued`. It does not drain on enqueue, because a use case that queued and then waited for the network would be an offline-first product that is not. And it can refuse, which is the case worth writing a test for: a courier's proof that could not be queued exists only in memory, and a use case reporting success anyway would be lying about it.
+
 ## The contract kits
 
 `runOutboxStoreContract` and `runCommandTransportContract`. One suite each, run against every implementation:
