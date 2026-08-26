@@ -290,6 +290,8 @@ This section is the handoff between sessions. It is rewritten at every phase bou
 
 **Branch:** `phase/05-cross-cutting`. **Last tag:** `phase-04`. **Working tree:** clean, `arch_check` clean across 46 packages.
 
+`sync_testing` also gained `FakeSyncFacade` — the queue fake both `delivery_application` and `payments_application` write through. It belongs there rather than in each feature for the reason a fake always belongs beside its contract.
+
 ### Phase 5 scope
 
 `routing`, `delivery`, `payments`, `sync` — twenty packages, all scaffolded in `92fe4ca`. The phase's acceptance criterion is the seven scenarios in section 5 of the specification becoming visible in code.
@@ -299,19 +301,17 @@ This section is the handoff between sessions. It is rewritten at every phase bou
 | Feature | State | Scenario it carries |
 |---|---|---|
 | `sync` | complete — all five packages | 3 (inverted dependency) |
-| `routing` | four of five; `routing_presentation` still a scaffold seed | 4 (same port, two adapters) |
-| `delivery` | scaffold seeds only | 2 (events), 6 (permission) |
+| `routing` | complete — all five packages | 4 (same port, two adapters) |
+| `delivery` | complete — all five packages | 2 (events), 3, 6 (permission) |
 | `payments` | scaffold seeds only | 1 (mutual need, no cycle), 2 |
 
 `platform/storage_drift` also moved: schema version 4 appends the three columns the `OutboxStore` port needs (`d85e0c9`). The migration guard `if (from >= 2 && from < 4)` is not redundant — `createTable` in the step-2 branch builds today's table, so a device upgrading from version 1 already has those columns.
 
 ### Left to do, in order
 
-1. **`routing_presentation`** — controller, sealed state, screen, `RouteModule`. Follow `sync_presentation` for shape.
-2. **`delivery`** — five packages. `DeliveryCompleted` is published on the `DomainEventBus` here; that is half of scenario 2.
-3. **`payments`** — five packages. `payments_application` subscribes to `DeliveryCompleted` (scenario 2) and depends on `shipments_api` (scenario 1, one half).
-4. **Scenario 1's other half** — `shipments_application` gains a dependency on `payments_api` and consults a `PaymentStatusReader` before allowing a delivery to complete against an outstanding cash collection. This edits a phase-4 package on purpose; the point is that the two contract packages depend on each other's *contracts* and the graph stays acyclic.
-5. **Phase-end flow** — section 6: push, PR, merge without squashing, tag `phase-05`.
+1. **`payments`** — five packages. `payments_application` subscribes to `DeliveryCompleted` (scenario 2) and depends on `shipments_api` (scenario 1, one half).
+2. **Scenario 1's other half** — `shipments_application` gains a dependency on `payments_api` and consults a `PaymentStatusReader` before allowing a delivery to complete against an outstanding cash collection. This edits a phase-4 package on purpose; the point is that the two contract packages depend on each other's *contracts* and the graph stays acyclic.
+3. **Phase-end flow** — section 6: push, PR, merge without squashing, tag `phase-05`.
 
 ### Decisions already made — do not re-litigate
 
@@ -319,6 +319,9 @@ This section is the handoff between sessions. It is rewritten at every phase bou
 - **Identifiers cross a feature boundary; models do not.** Section 2.1 of `docs/DEPENDENCY_RULES.md` now states this. It cost a rewrite of `Stop` (`6cce4c8`) and it is the rule `delivery` and `payments` have to follow from their first commit: a `ShipmentId` may appear in their `_api`, a `ShipmentSummary` or an `AddressPoint` may not.
 - **A driven port takes the raw identifier, a driving port takes the identity.** `RouteCache.read(String courierId)` beside `RoutingFacade.planRoute(courier: ActorId)`, matching `ShipmentGateway.manifestFor` from phase 4. An adapter may not see another feature, so a driven port whose signature names `ActorId` is one its own adapter cannot implement.
 - **An `_api` publishes readers for the foreign identifiers its own surface names.** `CourierReference`, `ShipmentReference` — an anticorruption layer in the consuming feature's own contract. `delivery_api` and `payments_api` will each need one for `ShipmentId`.
+- **A presentation package has no clock, and does not need one.** Section 2 gives it `core_kernel`, `core_navigation`, contracts and Flutter — not `core_ports`. `ProofOfDelivery.from` derives a hand-over's instant from the evidence rather than being handed one, which is both the way round the rule allows and the more honest reading of when a hand-over happened. Do not solve this by injecting a `DateTime Function()`: that is a `Clock` with the name filed off.
+- **A capture arrives as a callback.** A presentation package may not depend on `platform/*`, so the camera and the signature pad reach `delivery_presentation` as functions its app supplies. `payments_presentation` will need the same shape for a card reader.
+- **`BudgetMediaCompressor` does not re-encode, on purpose.** The cheapest place to make a photograph small is the camera, where `MediaCapture` already takes a width and a quality. The port keeps the *decision* — does it fit, what happens if not — in `delivery`, where it is testable without a device. Do not "fix" this by adding an image library.
 - **`arch_check` refusing a commit is a design signal, not a rule problem.** Both times the row for `feature_infrastructure` has chafed, the cause was upstream. Widening it has never been the answer.
 
 ### Verification, before every commit
