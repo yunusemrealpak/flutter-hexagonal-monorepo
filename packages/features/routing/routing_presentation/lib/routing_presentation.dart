@@ -5,5 +5,6 @@
 /// reaching across a boundary, and arch_check reports it as one.
 library;
 
-export 'src/routing_routes.dart';
-export 'src/routing_screen.dart';
+// Nothing yet: this package's contents arrive in the commit that gives it
+// something to hold. A barrel with no export is a package with no public
+// surface, which is exactly what this one has until then.

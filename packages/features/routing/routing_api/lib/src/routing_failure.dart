@@ -1,37 +1,62 @@
 import 'package:core_kernel/core_kernel.dart';
+import 'package:freezed_annotation/freezed_annotation.dart';
 
-/// Everything that can go wrong on the routing ports.
+part 'routing_failure.freezed.dart';
+
+/// Everything that can go wrong on a routing port, or inside a route plan.
 ///
 /// Sealed, so a caller that handles the cases exhaustively keeps compiling
-/// only for as long as it still handles all of them. Declared here rather
-/// than in an adapter, because a failure is part of a contract: the package
-/// that owns the port owns what failing it means.
-sealed class RoutingFailure extends Failure {
-  /// Const so that a failure can be built in a const context.
-  const RoutingFailure();
-}
+/// only for as long as it still handles all of them.
+@freezed
+sealed class RoutingFailure extends Failure with _$RoutingFailure {
+  const RoutingFailure._();
 
-/// Nothing is stored under the identifier that was asked for.
-final class RoutingNotFound extends RoutingFailure {
-  /// Creates the failure for [id].
-  const RoutingNotFound(this.id);
+  /// A value object refused the input it was given.
+  const factory RoutingFailure.malformedValue({
+    required String field,
+    required String reason,
+  }) = MalformedRouteValue;
 
-  /// The identifier that produced nothing.
-  final String id;
+  /// A stop's address never resolved to a point on the map.
+  ///
+  /// The single most important failure in this package. An optimiser cannot
+  /// order stops it cannot place, and the honest answer is to say which stop
+  /// rather than to guess a position — a route planned around a guessed
+  /// coordinate sends a courier to the wrong street with full confidence.
+  const factory RoutingFailure.stopNotGeocoded({
+    required String stopId,
+    required String address,
+  }) = StopNotGeocoded;
 
-  @override
-  String toString() => 'RoutingNotFound($id)';
-}
+  /// The constraints cannot all be satisfied at once.
+  ///
+  /// A `maxStops` below the number of stops, two `mustStartAt` naming
+  /// different stops, a `mustEndAt` naming a stop that is not in the list.
+  /// Reporting it is the optimiser's job; deciding what to do about it is the
+  /// caller's, which is why it is a failure rather than a silently relaxed
+  /// constraint.
+  const factory RoutingFailure.constraintUnsatisfiable({
+    required String constraint,
+    required String reason,
+  }) = ConstraintUnsatisfiable;
 
-/// The outside world could not be reached, so nothing is known either way.
-///
-/// Distinct from [RoutingNotFound] on purpose: "absent" and "unknown" call
-/// for different behaviour in the caller, and collapsing them is how a retry
-/// becomes a deletion.
-final class RoutingUnavailable extends RoutingFailure {
-  /// Creates the failure.
-  const RoutingUnavailable();
+  /// A sequence does not describe the stops it was given.
+  ///
+  /// A stop missing, a stop twice, a stop that is not on the plan. Any of the
+  /// three would produce a route a courier cannot drive, and the resequence
+  /// path is where a dispatcher's drag-and-drop reaches the domain.
+  const factory RoutingFailure.sequenceDoesNotMatch({
+    required String reason,
+  }) = SequenceDoesNotMatch;
 
-  @override
-  String toString() => 'RoutingUnavailable()';
+  /// Nothing is planned for this courier.
+  const factory RoutingFailure.noPlan(String courier) = NoPlan;
+
+  /// The device's position could not be read.
+  const factory RoutingFailure.positionUnavailable({String? detail}) =
+      PositionUnavailable;
+
+  /// The optimiser, the traffic service or the cache could not be reached.
+  const factory RoutingFailure.routingUnavailable({String? detail}) =
+      RoutingUnavailable;
 }
