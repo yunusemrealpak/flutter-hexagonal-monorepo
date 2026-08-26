@@ -281,3 +281,54 @@ Before **each commit**: `dart run melos run gen`, `dart analyze`, `arch_check`, 
 At the **end** of a phase: verify the acceptance criteria in the spec, push, open the pull request, merge without squashing, tag `phase-NN`, and push the tag.
 
 **When a rule feels like it needs bending: stop and report it instead of bending it.**
+
+---
+
+## 10. Where the work stands
+
+This section is the handoff between sessions. It is rewritten at every phase boundary and it is the only part of this file that is expected to go stale — everything above is the constitution. Read it after section 9, then check it against `git log` before trusting it.
+
+**Branch:** `phase/05-cross-cutting`. **Last tag:** `phase-04`. **Working tree:** clean, `arch_check` clean across 46 packages.
+
+### Phase 5 scope
+
+`routing`, `delivery`, `payments`, `sync` — twenty packages, all scaffolded in `92fe4ca`. The phase's acceptance criterion is the seven scenarios in section 5 of the specification becoming visible in code.
+
+### Done
+
+| Feature | State | Scenario it carries |
+|---|---|---|
+| `sync` | complete — all five packages | 3 (inverted dependency) |
+| `routing` | four of five; `routing_presentation` still a scaffold seed | 4 (same port, two adapters) |
+| `delivery` | scaffold seeds only | 2 (events), 6 (permission) |
+| `payments` | scaffold seeds only | 1 (mutual need, no cycle), 2 |
+
+`platform/storage_drift` also moved: schema version 4 appends the three columns the `OutboxStore` port needs (`d85e0c9`). The migration guard `if (from >= 2 && from < 4)` is not redundant — `createTable` in the step-2 branch builds today's table, so a device upgrading from version 1 already has those columns.
+
+### Left to do, in order
+
+1. **`routing_presentation`** — controller, sealed state, screen, `RouteModule`. Follow `sync_presentation` for shape.
+2. **`delivery`** — five packages. `DeliveryCompleted` is published on the `DomainEventBus` here; that is half of scenario 2.
+3. **`payments`** — five packages. `payments_application` subscribes to `DeliveryCompleted` (scenario 2) and depends on `shipments_api` (scenario 1, one half).
+4. **Scenario 1's other half** — `shipments_application` gains a dependency on `payments_api` and consults a `PaymentStatusReader` before allowing a delivery to complete against an outstanding cash collection. This edits a phase-4 package on purpose; the point is that the two contract packages depend on each other's *contracts* and the graph stays acyclic.
+5. **Phase-end flow** — section 6: push, PR, merge without squashing, tag `phase-05`.
+
+### Decisions already made — do not re-litigate
+
+- **An optimiser returns a permutation and nothing else.** `RoutePlan` computes the estimates. That is what makes `runRouteOptimizerContract` writable against three implementations.
+- **Identifiers cross a feature boundary; models do not.** Section 2.1 of `docs/DEPENDENCY_RULES.md` now states this. It cost a rewrite of `Stop` (`6cce4c8`) and it is the rule `delivery` and `payments` have to follow from their first commit: a `ShipmentId` may appear in their `_api`, a `ShipmentSummary` or an `AddressPoint` may not.
+- **A driven port takes the raw identifier, a driving port takes the identity.** `RouteCache.read(String courierId)` beside `RoutingFacade.planRoute(courier: ActorId)`, matching `ShipmentGateway.manifestFor` from phase 4. An adapter may not see another feature, so a driven port whose signature names `ActorId` is one its own adapter cannot implement.
+- **An `_api` publishes readers for the foreign identifiers its own surface names.** `CourierReference`, `ShipmentReference` — an anticorruption layer in the consuming feature's own contract. `delivery_api` and `payments_api` will each need one for `ShipmentId`.
+- **`arch_check` refusing a commit is a design signal, not a rule problem.** Both times the row for `feature_infrastructure` has chafed, the cause was upstream. Widening it has never been the answer.
+
+### Verification, before every commit
+
+```bash
+dart run melos run gen      # only where build_runner is a dev dependency
+dart analyze --fatal-infos --fatal-warnings .
+dart run melos run arch:check
+```
+
+The pre-commit hook runs format, analyze **on staged files only**, and `arch_check` over the whole workspace. Analyze on staged files is the gap: a mid-phase commit can leave an unstaged package broken and still pass. Run `dart analyze` over the workspace before a phase PR.
+
+Tests are split by runner. `dart test --preset pr` in pure Dart packages; `flutter test --exclude-tags "golden || integration || flaky"` in the Flutter ones — `routing_infrastructure` is Flutter because `location_service` brings the SDK with it, and every `_presentation` package is.
