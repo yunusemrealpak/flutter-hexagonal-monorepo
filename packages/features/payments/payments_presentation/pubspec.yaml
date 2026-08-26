@@ -1,6 +1,6 @@
 name: payments_presentation
 description: >-
-  The payments UI.
+  The payments UI: the screen a courier takes money on.
 publish_to: none
 version: 0.1.0
 resolution: workspace
@@ -17,8 +17,18 @@ dependencies:
   core_navigation: ^0.1.0
   flutter:
     sdk: flutter
+  # A foreign _api, which section 2 allows a presentation package. Scenario 6
+  # again: the screen asks PermissionChecker before it offers the action that
+  # takes money, and never learns how identity decides. SessionReader is the
+  # other half — the screen needs to know who is collecting.
+  identity_api: ^0.1.0
   payments_api: ^0.1.0
+  # The other foreign _api, and for one type: which parcel the money is owed
+  # against. An identifier crosses a feature boundary and a model does not.
+  shipments_api: ^0.1.0
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  identity_testing: ^0.1.0
+  payments_testing: ^0.1.0
