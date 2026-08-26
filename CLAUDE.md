@@ -288,43 +288,42 @@ At the **end** of a phase: verify the acceptance criteria in the spec, push, ope
 
 This section is the handoff between sessions. It is rewritten at every phase boundary and it is the only part of this file that is expected to go stale — everything above is the constitution. Read it after section 9, then check it against `git log` before trusting it.
 
-**Branch:** `phase/05-cross-cutting`, pushed and open as a pull request. **Last tag:** `phase-04`. **Working tree:** clean; `arch_check` clean across 46 packages; `dart run melos run test` green (1293 tests); `dart run melos run gen` leaves the tree unchanged.
+**Branch:** `phase/06-light-features`. **Last tag:** `phase-05`. **Working tree:** clean; `arch_check` clean across 68 packages; `dart run melos run test` green (1578 tests); `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace.
 
-### Phase 5 is code-complete
+### Phase 6 is code-complete
 
-`routing`, `delivery`, `payments`, `sync` — twenty packages, all five of each. The acceptance criterion was the seven scenarios of specification section 5 becoming visible in code, and six of the seven now are. Scenarios 5 and 7 belong to phase 7, where the three composition roots exist to bind different adapters.
+Seven light features, twenty-two packages. Six are three packages each — `_api`, `_core`, `_presentation` — and `messaging` is four, because its fakes are consumed by two other packages.
 
-| Scenario | Where it lives now |
-|---|---|
-| 1 — mutual need, no cycle | `payments_api` → `shipments_api`, `shipments_application` → `payments_api`. `AdvanceShipment` asks `PaymentStatusReader` before a hand-over; `PaymentOutstanding` refuses it. |
-| 2 — loose coupling through events | `delivery_application` publishes `DeliveryCompleted`, `payments_application`'s `CollectionReconciler` subscribes. Neither `_application` names the other. |
-| 3 — inverted dependency | `sync` knows no feature; `CompleteDeliveryCommand`, `FailDeliveryCommand` and `CollectPaymentCommand` implement `SyncCommand` in their own features' `_application`. |
-| 4 — one port, two adapters | `LocalHeuristicOptimizer` and `RemoteSolverOptimizer`, plus `LocalEncryptedProofStore` and `RemoteProofStore`, and `RestPaymentsGateway` bare and behind `DeviceBackedPaymentsGateway`. Every one of them runs its feature's contract kit. |
-| 5 — different composition roots | phase 7. The adapters the table names all exist. |
-| 6 — permission through a contract | `shipments_presentation_dispatcher`, `delivery_presentation` and `payments_presentation` each ask `PermissionChecker`. The stand-in in all three test suites is the same four lines. |
-| 7 — one feature, two UIs | already true of `shipments` from phase 4. |
+| Feature | What it is for | What it demonstrates |
+|---|---|---|
+| `settings` | language, palette, sync policy | the reduced split itself: both halves of a hexagon in one package, the wall kept by hand |
+| `notifications` | push and the in-app inbox | `feature_core` may depend on `platform/*`, which `feature_application` may not — `AlertChannel` beside `PushMessagingClient` |
+| `incidents` | recording and escalating exceptions | scenario 2 in a light feature: a watcher on `ShipmentFailed`, and a taxonomy this feature owns rather than borrows |
+| `vehicle_inventory` | loading and unloading reconciliation | scenario 4 in miniature: two adapters for one manifest port, composed rather than swapped |
+| `messaging` | courier↔operation threads, offline | a queue a person can see, and why it is *not* `sync`'s outbox |
+| `documents` | waybills and receipts | a derived identifier, and the capped cache that follows from it |
+| `reporting` | operation metrics, dispatcher only | a read model: accumulating from events rather than reacting to them |
+
+### What phase 6 added to the constitution
+
+`docs/DEPENDENCY_RULES.md` §2.1 now has a paragraph on `feature_core` being the widest row and the three disciplines its packages keep by hand. Every `_core` README repeats them for its own package. The one place the discipline genuinely cannot be kept — `IncidentDto` rebuilding foreign identifiers directly — is named in `incidents_core`'s README as the one part of a later split that would not be a pure `git mv`.
 
 ### Left to do
 
-1. **Phase-end flow** — section 6: merge the pull request **without squashing**, tag `phase-05`, push the tag.
-2. **Phase 6** — the seven light features, three packages each.
+1. **Phase-end flow** — section 6: push, open the pull request, merge **without squashing**, tag `phase-06`, push the tag.
+2. **Phase 7** — `design_tokens`, `design_system`, then the three composition roots. Scenarios 5 and 7 of the specification close there; the adapters they name all exist.
 
-`docs/ARCHITECTURE.md` is phase 8 and is where the seven scenarios get written up; the commit bodies on this branch are the raw material for it.
+### Decisions made in phase 6 — do not re-litigate
 
-### Decisions already made — do not re-litigate
-
-- **An optimiser returns a permutation and nothing else.** `RoutePlan` computes the estimates. That is what makes `runRouteOptimizerContract` writable against three implementations.
-- **Identifiers cross a feature boundary; models do not.** Section 2.1 of `docs/DEPENDENCY_RULES.md` states it. It cost a rewrite of `Stop` (`6cce4c8`); `delivery` and `payments` followed it from their first commit, which is why `DeliveryGrade` exists instead of a borrowed `ShipmentSummary`.
-- **A driven port takes the raw identifier, a driving port takes the identity.** `RouteCache.read(String courierId)` beside `RoutingFacade.planRoute(courier: ActorId)`. An adapter may not see another feature, so a driven port whose signature names `ActorId` is one its own adapter cannot implement.
-- **An `_api` publishes readers for the foreign identifiers its own surface names.** `CourierReference` and `ShipmentReference` now exist in four `_api` packages. An anticorruption layer in the consuming feature's own contract, which is why the `feature_infrastructure` row has never needed widening.
-- **A presentation package has no clock, and does not need one.** Section 2 gives it `core_kernel`, `core_navigation`, contracts and Flutter — not `core_ports`. `ProofOfDelivery.from` derives a hand-over's instant from the evidence. Do not solve this by injecting a `DateTime Function()`: that is a `Clock` with the name filed off.
-- **A capture arrives as a callback.** A presentation package may not depend on `platform/*`, so the camera and the signature pad reach `delivery_presentation` as functions its app supplies.
-- **`BudgetMediaCompressor` does not re-encode, on purpose.** The cheapest place to make a photograph small is the camera, where `MediaCapture` already takes a width and a quality. The port keeps the *decision* in `delivery`, where it is testable without a device. Do not "fix" this by adding an image library.
-- **`PaymentAttempt`'s identifier is its `IdempotencyKey`.** Two attempts with the same key are the same attempt, so a double charge is a state the type system cannot express. `SettlementId` is derived from courier and date for the opposite reason — two devices must agree on it.
-- **`PaymentsGateway.collect` is idempotent about money, not about rows.** Once money has moved under a key, a second copy answers with the first result; until it has, the same key carries the intention forward. A stricter reading leaves every pre-recorded collection open for ever.
-- **Cash may be recorded offline; a card may not.** The money is already in the courier's hand and the server is only being told; a card needs an acquirer to say yes. A business rule, which is why it is in `CollectOnDelivery` rather than in an adapter that could only see a timeout.
-- **An unreadable payment status does not block a hand-over.** The parcel is at the door. Guessing wrong that way costs a debt to chase; guessing wrong the other way costs a delivery, and `payments`' own subscriber closes the collection afterwards.
-- **`arch_check` refusing a commit is a design signal, not a rule problem.** Every time the row for `feature_infrastructure` has chafed, the cause was upstream. Widening it has never been the answer.
+- **A reduced split is a starting point, not a discount.** The shape is identical to a full split; only the compiler is missing. The test for whether a `_core` package is honest is mechanical: no use case imports an adapter, and no adapter imports a use case.
+- **A driven port speaks in raw identifiers even where the row would allow more.** `KeyValuePreferencesStore` could take an `ActorId` and does not, because such an adapter could not move into an `_infrastructure` package.
+- **A `_testing` package exists only when another package consumes its fakes.** Only `messaging` qualified: `messaging_core` runs its store contract kit and `messaging_presentation` drives its facade fake. Six more `_testing` packages would have been six packages imported once each.
+- **`messaging` keeps its own queue instead of using `sync`'s outbox.** The test, written down in `messaging_core`'s README: if a person can see the queued thing, it belongs beside the thing they can see; if it is a write nobody looks at again, it belongs in `sync`.
+- **An identifier is derived when two parties must agree on it and minted when they must not.** `DocumentId` and `ThreadId` are derived; `IncidentId`, `LoadCountId` and `MessageId` are minted. A parcel can go wrong twice and a van is counted twice a day; there is only ever one current waybill.
+- **A count is derived, never stored.** `LoadCount.missing`, `OperationTally.delivered` and their neighbours are computed on read. A stored counter beside the thing it counts is a state that can disagree with itself, silently, in the record somebody uses to argue.
+- **A corrupt store is reported everywhere except `documents`.** That archive is the only store in the workspace whose contents can be produced again; every other feature's stored state is the only copy there is.
+- **`incidents` does not borrow `NonDeliveryReason`.** Delivery's union answers why a visit ended without a hand-over; `IncidentCategory` answers how fast somebody has to act. `ShipmentFailed.reason` stays a `String`, and its doc comment — which claimed the taxonomy belonged to incidents — was corrected in the commit that made the claim checkable.
+- **Reporting attributes a day by domain time and asks no clock.** `RecordOutcome` having no `Clock` in its constructor is the proof. `ReportingDay.parse` guards against `DateTime.tryParse` being both lenient and local.
 
 ### Verification, before every commit
 
@@ -335,6 +334,8 @@ dart run melos run arch:check
 dart run melos run test
 ```
 
-The pre-commit hook runs format, analyze **on staged files only**, and `arch_check` over the whole workspace. Analyze on staged files is the gap: a mid-phase commit can leave an unstaged package broken and still pass. Run `dart analyze` over the workspace before a phase PR.
+The pre-commit hook runs format, analyze **on staged files only**, and `arch_check` over the whole workspace. Analyze on staged files is the gap: a mid-phase commit can leave an unstaged package broken and still pass. Run `dart analyze` over the workspace before a phase PR — phase 6 opened by finding a `sort_pub_dependencies` info in `routing_infrastructure` that had survived phase 5 exactly that way.
 
-`dart run melos run test` splits by runner automatically, and it works because every package that binds a Flutter engine declares the SDK in its own pubspec — including `routing_infrastructure` and `delivery_infrastructure`, which get it transitively through `location_service` (`d70e820`). A package that needs `flutter test` and does not say so is handed to `dart test` and fails at import time.
+`dart run melos run test` splits by runner automatically, and it works because every package that binds a Flutter engine declares the SDK in its own pubspec. Of the phase 6 packages, only `notifications_core` needs it — it reaches a device through `push_messaging` — while `vehicle_inventory_core`, `messaging_core` and `documents_core` use `http_dio`, which brings no Flutter SDK with it and so still runs under `dart test`.
+
+**One flake seen:** `storage_drift` failed once under `melos run test` and passed on its own and on every re-run. It is a pre-existing package, untouched by phase 6, and the failure did not reproduce; if it recurs, suspect concurrent access to the temporary SQLite files rather than the code.
