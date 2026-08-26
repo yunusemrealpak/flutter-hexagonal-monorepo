@@ -16,8 +16,22 @@ dependencies:
   core_kernel: ^0.1.0
   core_ports: ^0.1.0
   delivery_api: ^0.1.0
+  # Three foreign _api packages, all of them contracts and none of them an
+  # implementation.
+  #
+  # identity_api and shipments_api are here for two identifiers: an attempt
+  # names the courier who made it and the parcel it was about.
+  #
+  # sync_api is scenario 3, and the arrow is the interesting part. This package
+  # depends on the queue's contract so that a completed delivery survives a
+  # basement; `sync` depends on no feature at all and never learns that
+  # `CompleteDeliveryCommand` exists — it sees a routing key and a string.
+  identity_api: ^0.1.0
+  shipments_api: ^0.1.0
+  sync_api: ^0.1.0
 
 dev_dependencies:
   core_testing: ^0.1.0
   delivery_testing: ^0.1.0
+  sync_testing: ^0.1.0
   test: ^1.26.0
