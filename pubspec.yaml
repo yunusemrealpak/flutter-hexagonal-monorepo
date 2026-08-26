@@ -31,6 +31,10 @@ workspace:
   - packages/features/incidents/incidents_api
   - packages/features/incidents/incidents_core
   - packages/features/incidents/incidents_presentation
+  - packages/features/messaging/messaging_api
+  - packages/features/messaging/messaging_core
+  - packages/features/messaging/messaging_presentation
+  - packages/features/messaging/messaging_testing
   - packages/features/notifications/notifications_api
   - packages/features/notifications/notifications_core
   - packages/features/notifications/notifications_presentation
