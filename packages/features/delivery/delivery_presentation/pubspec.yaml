@@ -1,6 +1,6 @@
 name: delivery_presentation
 description: >-
-  The delivery UI.
+  The delivery UI: the screen a courier taps done on.
 publish_to: none
 version: 0.1.0
 resolution: workspace
@@ -18,7 +18,19 @@ dependencies:
   delivery_api: ^0.1.0
   flutter:
     sdk: flutter
+  # A foreign _api, which section 2 allows a presentation package. This is
+  # scenario 6: the screen asks identity_api's PermissionChecker before it
+  # offers the action that records a hand-over, and never learns how identity
+  # decides. SessionReader is the other half — the screen needs to know whose
+  # afternoon it is, and asks for the narrowest port that answers.
+  identity_api: ^0.1.0
+  # The other foreign _api, and for one type: which parcel this visit is
+  # about. An identifier crosses a feature boundary and a model does not —
+  # section 2.1 — so nothing here names a Shipment.
+  shipments_api: ^0.1.0
 
 dev_dependencies:
+  delivery_testing: ^0.1.0
   flutter_test:
     sdk: flutter
+  identity_testing: ^0.1.0
