@@ -1,0 +1,32 @@
+name: messaging_presentation
+description: >-
+  The messaging UI: the thread a courier reads and writes in, queued messages
+  and all.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+# Exactly the dependency list section 2 of docs/DEPENDENCY_RULES.md allows for
+# a presentation package. Adding one that is not in that row is a violation,
+# not an exception — arch_check will say which rule and why.
+dependencies:
+  core_kernel: ^0.1.0
+  core_navigation: ^0.1.0
+  flutter:
+    sdk: flutter
+  identity_api: ^0.1.0
+  messaging_api: ^0.1.0
+  shipments_api: ^0.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # The fakes this package's tests drive. A dev dependency used only by test/,
+  # which section 2.0 puts outside the dependency rules — and the reason
+  # messaging has a _testing package: the fakes are consumed by two packages
+  # that are not the one that declares them.
+  messaging_testing: ^0.1.0

@@ -1,0 +1,26 @@
+name: incidents_api
+description: >-
+  The incidents contract: what an exception on a round is recorded as, when it
+  escalates, and the port that keeps the record.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+# Exactly the dependency list section 2 of docs/DEPENDENCY_RULES.md allows for
+# a api package. Adding one that is not in that row is a violation,
+# not an exception — arch_check will say which rule and why.
+dependencies:
+  core_kernel: ^0.1.0
+  # Two foreign _api packages, for two identifiers and nothing else.
+  # `IncidentCategory` is declared here rather than borrowed from delivery's
+  # `NonDeliveryReason`: section 2.1 lets an identifier cross and keeps a model
+  # at home, and a reason with a note, a date and a retry rule on it is a
+  # model.
+  identity_api: ^0.1.0
+  shipments_api: ^0.1.0
+
+dev_dependencies:
+  test: ^1.26.0

@@ -1,0 +1,39 @@
+name: notifications_core
+description: >-
+  The notifications use cases and the adapters that answer them: an inbox on
+  device storage, and an alert channel over the push provider.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+# Exactly the dependency list section 2 of docs/DEPENDENCY_RULES.md allows for
+# a core package. Adding one that is not in that row is a violation,
+# not an exception — arch_check will say which rule and why.
+dependencies:
+  core_kernel: ^0.1.0
+  core_ports: ^0.1.0
+  # Declared even though it arrives transitively through push_messaging, and
+  # the reason is the test runner. `melos run test` decides which runner a
+  # package needs by looking for this entry, so without it the package is
+  # handed to `dart test` — which cannot load a Flutter binding and fails at
+  # import time.
+  flutter:
+    sdk: flutter
+  # For ActorId, which NotificationsFacade speaks in. Neither adapter imports
+  # it: both driven ports take a String, and keeping that true by hand is what
+  # makes this feature splittable later.
+  identity_api: ^0.1.0
+  notifications_api: ^0.1.0
+  # The technology contract behind AlertChannel. This edge is the half of the
+  # feature_core row that feature_application does not have — a use case may
+  # never see platform/*, and the adapter in this package may.
+  push_messaging: ^0.1.0
+
+dev_dependencies:
+  core_testing: ^0.1.0
+  flutter_test:
+    sdk: flutter

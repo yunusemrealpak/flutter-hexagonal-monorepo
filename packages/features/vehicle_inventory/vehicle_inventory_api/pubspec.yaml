@@ -1,0 +1,24 @@
+name: vehicle_inventory_api
+description: >-
+  The vehicle inventory contract: what should be in the van, what was actually
+  scanned, and the difference somebody has to explain.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+# Exactly the dependency list section 2 of docs/DEPENDENCY_RULES.md allows for
+# a api package. Adding one that is not in that row is a violation,
+# not an exception — arch_check will say which rule and why.
+dependencies:
+  core_kernel: ^0.1.0
+  # Two foreign _api packages, for two identifiers. What does not cross is
+  # `ShipmentSummary`: this feature counts parcels, and never learns where one
+  # is going or what is in it.
+  identity_api: ^0.1.0
+  shipments_api: ^0.1.0
+
+dev_dependencies:
+  test: ^1.26.0

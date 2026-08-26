@@ -1,0 +1,25 @@
+name: settings_api
+description: >-
+  The settings contract: the language, palette and synchronisation policy a
+  person may choose, and the two ports that read and record them.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+# Exactly the dependency list section 2 of docs/DEPENDENCY_RULES.md allows for
+# a api package. Adding one that is not in that row is a violation,
+# not an exception — arch_check will say which rule and why.
+dependencies:
+  core_kernel: ^0.1.0
+  # One foreign _api, for one identifier. `SettingsFacade` speaks in `ActorId`
+  # because every caller already holds a session; `PreferencesStore` speaks in
+  # `String` because an adapter must not have to see identity to write a row.
+  # Section 2.1: an identifier crosses, a model does not.
+  identity_api: ^0.1.0
+  meta: ^1.19.0
+
+dev_dependencies:
+  test: ^1.26.0

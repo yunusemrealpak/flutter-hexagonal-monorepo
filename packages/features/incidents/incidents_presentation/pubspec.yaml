@@ -1,0 +1,30 @@
+name: incidents_presentation
+description: >-
+  The incidents UI: the board a dispatcher works down, and the form a courier
+  reports from.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+# Exactly the dependency list section 2 of docs/DEPENDENCY_RULES.md allows for
+# a presentation package. Adding one that is not in that row is a violation,
+# not an exception — arch_check will say which rule and why.
+dependencies:
+  core_kernel: ^0.1.0
+  core_navigation: ^0.1.0
+  flutter:
+    sdk: flutter
+  # For ActorId and PermissionChecker. Scenario 6 for the fourth time: this
+  # package asks whether the signed-in actor may report, and learns nothing
+  # about roles or grants.
+  identity_api: ^0.1.0
+  incidents_api: ^0.1.0
+  shipments_api: ^0.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

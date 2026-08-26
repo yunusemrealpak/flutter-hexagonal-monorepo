@@ -16,7 +16,6 @@ environment:
 dependencies:
   core_kernel: ^0.1.0
   core_ports: ^0.1.0
-  http_dio: ^0.1.0
   # Declared even though it arrives transitively through the platform package
   # above, and the reason is the test runner. `melos run test` decides which
   # runner a package needs by looking for this entry, so without it the package
@@ -30,6 +29,7 @@ dependencies:
   # engine. It does.
   flutter:
     sdk: flutter
+  http_dio: ^0.1.0
   json_annotation: ^4.12.0
   # The platform package that turns a device into a position. It brings the
   # Flutter SDK with it, which is what binding a device capability costs: the

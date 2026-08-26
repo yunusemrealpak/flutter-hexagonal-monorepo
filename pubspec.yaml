@@ -23,21 +23,40 @@ workspace:
   - packages/features/delivery/delivery_infrastructure
   - packages/features/delivery/delivery_presentation
   - packages/features/delivery/delivery_testing
+  - packages/features/documents/documents_api
+  - packages/features/documents/documents_core
+  - packages/features/documents/documents_presentation
   - packages/features/identity/identity_api
   - packages/features/identity/identity_application
   - packages/features/identity/identity_infrastructure
   - packages/features/identity/identity_presentation
   - packages/features/identity/identity_testing
+  - packages/features/incidents/incidents_api
+  - packages/features/incidents/incidents_core
+  - packages/features/incidents/incidents_presentation
+  - packages/features/messaging/messaging_api
+  - packages/features/messaging/messaging_core
+  - packages/features/messaging/messaging_presentation
+  - packages/features/messaging/messaging_testing
+  - packages/features/notifications/notifications_api
+  - packages/features/notifications/notifications_core
+  - packages/features/notifications/notifications_presentation
   - packages/features/payments/payments_api
   - packages/features/payments/payments_application
   - packages/features/payments/payments_infrastructure
   - packages/features/payments/payments_presentation
   - packages/features/payments/payments_testing
+  - packages/features/reporting/reporting_api
+  - packages/features/reporting/reporting_core
+  - packages/features/reporting/reporting_presentation
   - packages/features/routing/routing_api
   - packages/features/routing/routing_application
   - packages/features/routing/routing_infrastructure
   - packages/features/routing/routing_presentation
   - packages/features/routing/routing_testing
+  - packages/features/settings/settings_api
+  - packages/features/settings/settings_core
+  - packages/features/settings/settings_presentation
   - packages/features/shipments/shipments_api
   - packages/features/shipments/shipments_application
   - packages/features/shipments/shipments_infrastructure
@@ -49,6 +68,9 @@ workspace:
   - packages/features/sync/sync_infrastructure
   - packages/features/sync/sync_presentation
   - packages/features/sync/sync_testing
+  - packages/features/vehicle_inventory/vehicle_inventory_api
+  - packages/features/vehicle_inventory/vehicle_inventory_core
+  - packages/features/vehicle_inventory/vehicle_inventory_presentation
   - packages/platform/analytics_otel
   - packages/platform/connectivity_monitor
   - packages/platform/device_permissions

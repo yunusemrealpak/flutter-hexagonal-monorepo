@@ -1,0 +1,32 @@
+name: reporting_presentation
+description: >-
+  The reporting UI: the board a dispatcher watches the day on.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+# Exactly the dependency list section 2 of docs/DEPENDENCY_RULES.md allows for
+# a presentation package. Adding one that is not in that row is a violation,
+# not an exception — arch_check will say which rule and why.
+dependencies:
+  core_kernel: ^0.1.0
+  core_navigation: ^0.1.0
+  flutter:
+    sdk: flutter
+  # For PermissionChecker. Scenario 6 for the fifth time, and the one feature
+  # in phase 6 that is invisible to a courier entirely.
+  identity_api: ^0.1.0
+  reporting_api: ^0.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  # A dev dependency, and only that. Nothing under lib/ names a ShipmentId —
+  # this board counts parcels and never identifies one — but a test has to
+  # build a tally, and a tally is keyed by shipment. Section 2.0 puts a dev
+  # dependency used only by test/ outside the dependency rules.
+  shipments_api: ^0.1.0

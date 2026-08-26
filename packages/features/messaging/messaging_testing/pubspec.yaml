@@ -1,0 +1,28 @@
+name: messaging_testing
+description: >-
+  Fakes, fixtures and the contract kit that holds every message store to
+  keeping a thread in order.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+# Exactly the dependency list section 2 of docs/DEPENDENCY_RULES.md allows for
+# a testing package. Adding one that is not in that row is a violation,
+# not an exception — arch_check will say which rule and why.
+dependencies:
+  core_kernel: ^0.1.0
+  core_ports: ^0.1.0
+  core_testing: ^0.1.0
+  # Two foreign _api packages, which the feature_testing row allows, and for
+  # two identifiers: a thread is about a parcel or with a courier. No fixture
+  # builds a Shipment, and none needs to.
+  identity_api: ^0.1.0
+  messaging_api: ^0.1.0
+  shipments_api: ^0.1.0
+  # A runtime dependency, because a contract kit *is* tests: it calls group()
+  # and test() from lib/. Leaving it in dev_dependencies would make that a
+  # dev_dependency_in_lib violation, and rightly so.
+  test: ^1.26.0
