@@ -71,7 +71,17 @@ The rules in this section apply to the `dependencies:` block of a pubspec and to
 
 ### 2.1 Notes on the edges people get wrong
 
+**A `feature_api` may name a foreign `_api`'s identifiers, and nothing else.** The row permits the edge and the edge is worth having: two features with two spellings of "who a courier is" reconcile in whichever adapter noticed first. What it does not permit is borrowing a foreign *model*. An `ActorId` or a `ShipmentId` is a single value whose whole content is "which one"; an `AddressPoint` is three fields, a validation and a label — a concept `shipments` owns, which `routing` would then be carrying around.
+
+The test is mechanical. If the type has behaviour, or more than one field, it is a model and the consuming feature declares its own. If it is an identifier, it crosses.
+
+This is the rule the wider literature states as *reference other contexts by identity*, and phase 5 found it the expensive way. `routing_api` gave `Stop` an `AddressPoint`, so every stop had to answer "do you have coordinates?" on every read, `StopNotGeocoded` ended up in the contract three optimisers are held to, and `routing_infrastructure` could not build a `Stop` without reaching for `shipments_api`. Replacing it with routing's own `GeoPoint` plus a label removed all three at once — and made the invalid state unconstructible, which is what the borrowed model had been hiding.
+
 **`feature_infrastructure` may not depend on a foreign `_api`.** An adapter translates between one feature's ports and one technology. If it needs a concept from another feature, the concept belongs in its own `_api` and the *use case* — not the adapter — should be doing the crossing.
+
+The case that looks like an exception and is not: an adapter has to rebuild the identifiers its *own* contract is expressed in. `shipments_infrastructure` maps a row into `ShipmentStatus.assignedToCourier(ActorId)` and may not see `identity_api`. The answer is a reader published by the owning `_api` — `CourierReference.parse` in `shipments_api` — which is allowed to see identity, returns *shipments'* failure type, and leaves the adapter depending on nothing foreign. That is an anticorruption layer placed in the consuming feature's own contract, and it is why this row has never needed widening.
+
+**Pressure to widen this row is a symptom, not a case.** Both times it has appeared, the cause was upstream: a foreign model had crossed where an identifier should have, or a reader was missing from the owning `_api`. Fix that and the row stops chafing.
 
 **`feature_application` may not depend on `platform/*`.** Platform packages are driven adapters. An application package that reaches for one has stopped being pure Dart and has stopped being testable without a device.
 
