@@ -81,7 +81,7 @@ void main() {
       );
 
       expect(moved.sequence.first, stops.last.id);
-      final cached = unwrap(await harness.cache.read(courier));
+      final cached = unwrap(await harness.cache.read(courier.value));
       expect(cached.sequence.first, stops.last.id);
     });
 

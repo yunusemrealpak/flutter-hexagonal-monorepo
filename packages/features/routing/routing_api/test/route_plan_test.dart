@@ -25,19 +25,20 @@ void main() {
       );
     });
 
-    test('refuses a route containing a stop it cannot place', () {
-      final stops = [stopAt('a', east: 0.01), ungeocoded('b')];
-
-      final plan = RoutePlan.of(
-        id: unwrap(RoutePlanId.parse('plan-1')),
-        courier: courier(),
-        origin: depot,
-        stops: stops,
-        sequence: sequence(stops, ['a', 'b']),
-        departAt: noon,
+    test('cannot be handed a stop it could not place', () {
+      // There is no way to write this test any more, and that is the result
+      // being asserted: Stop.place is the only constructor, so a plan cannot
+      // receive a stop without coordinates. The failure branch that used to
+      // live here moved to the boundary, where it is checked once.
+      expect(
+        Stop.place(
+          id: 'b',
+          label: 'Somewhere on Bagdat Cd.',
+          latitude: null,
+          longitude: null,
+        ).isFailure,
+        isTrue,
       );
-
-      expect(plan.fold((_) => null, (f) => f), isA<StopNotGeocoded>());
     });
 
     test('an empty route finishes when it departs', () {

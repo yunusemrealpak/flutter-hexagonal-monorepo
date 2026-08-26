@@ -16,7 +16,7 @@ import 'package:routing_api/routing_api.dart';
 /// heuristic.
 ///
 /// It also demonstrates the floor of the contract. Every rule the kit checks
-/// is satisfied here in about thirty lines, which is the evidence that those
+/// is satisfied here in about twenty lines, which is the evidence that those
 /// rules are about correctness rather than about quality.
 final class FakeRouteOptimizer implements RouteOptimizerPort {
   final List<OptimisationRequest> _requests = [];
@@ -54,14 +54,10 @@ final class FakeRouteOptimizer implements RouteOptimizerPort {
     final checked = constraints.checkAgainst(request.stops);
     if (checked case Failed(:final failure)) return Failed(failure);
 
-    // Placing every stop is part of the contract rather than an
-    // implementation's private business: an optimiser that cannot place a stop
-    // has to say so, and a fake that skipped the check would let a use case's
-    // test pass against a route the real optimisers would refuse.
-    for (final stop in request.stops) {
-      if (stop.placed case Failed(:final failure)) return Failed(failure);
-    }
-
+    // There is no "can this stop be placed?" check here any more, and none in
+    // the two real optimisers either. `Stop.place` refuses a stop without
+    // coordinates, so by the time a request reaches an optimiser every stop
+    // on it has a GeoPoint. An unconstructible state needs no guard.
     final scripted = _scripted;
     _scripted = null;
 

@@ -1,5 +1,4 @@
 import 'package:core_kernel/core_kernel.dart';
-import 'package:identity_api/identity_api.dart';
 import 'package:routing_api/routing_api.dart';
 
 /// A `RouteCache` that really keeps plans, in a map.
@@ -22,12 +21,12 @@ final class InMemoryRouteCache implements RouteCache {
   List<RoutePlan> get stored => List.unmodifiable(_byCourier.values);
 
   @override
-  Future<Result<RoutePlan, RoutingFailure>> read(ActorId courier) async {
+  Future<Result<RoutePlan, RoutingFailure>> read(String courierId) async {
     final failure = _takeFailure();
     if (failure != null) return Failed(failure);
 
-    final plan = _byCourier[courier.value];
-    if (plan == null) return Failed(NoPlan(courier.value));
+    final plan = _byCourier[courierId];
+    if (plan == null) return Failed(NoPlan(courierId));
     return Success(plan);
   }
 
@@ -41,14 +40,14 @@ final class InMemoryRouteCache implements RouteCache {
   }
 
   @override
-  Future<Result<void, RoutingFailure>> clear(ActorId courier) async {
+  Future<Result<void, RoutingFailure>> clear(String courierId) async {
     final failure = _takeFailure();
     if (failure != null) return Failed(failure);
 
     // Clearing what is not there succeeds. A sign-out that ran twice is not an
     // error, and an implementation that made it one would leave a screen
     // reporting a failure for work that is already done.
-    _byCourier.remove(courier.value);
+    _byCourier.remove(courierId);
     return const Success(null);
   }
 

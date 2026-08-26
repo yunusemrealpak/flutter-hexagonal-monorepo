@@ -40,11 +40,27 @@ A window is a fact about the *place* — a pharmacy closes at six whoever is dri
 
 A window that travelled as a `RouteConstraint` could be omitted by the caller and silently ignored by the implementation, which is the failure mode where a pharmacy closes at six and the route arrives at half past.
 
-## Two failures that look like edge cases and are not
+## What crosses to another feature, and what does not
 
-**`StopNotGeocoded`.** An optimiser cannot order stops it cannot place. The honest answer names the stop; the alternative — guessing a coordinate — sends a courier to the wrong street with full confidence.
+This package names `ActorId` and `ShipmentId` — and nothing else of theirs. That is section 2.1's rule, which the wider literature states as *reference other bounded contexts by identity*: **an identifier crosses, a model does not.**
 
-**`ConstraintUnsatisfiable`.** An optimiser that quietly truncated a route to fit `maxStops` would be deciding which four parcels are not delivered today. That is not a decision this layer is entitled to make, so it reports instead of relaxing.
+`Stop` is where the repository learned it the expensive way. It used to hold shipments' `AddressPoint`: three fields, a validation and a display string — a concept `shipments` owns, answering *"where is this parcel going"*. Routing's question is *"what point do I measure from"*, and the answer to that is its own `GeoPoint`.
+
+Carrying the foreign model cost three things at once, and only the last one looked like a rule problem:
+
+| Symptom | Where it showed up |
+|---|---|
+| Every stop had to answer *"do you have coordinates?"* on every read | `Stop.placed` returned a `Result` |
+| `StopNotGeocoded` sat in the contract three optimisers are held to | `runRouteOptimizerContract` had a case for it |
+| `routing_infrastructure` could not build a stop without `shipments_api` | `arch_check: forbidden_dependency` |
+
+Replacing it with `GeoPoint` + a plain `label` removed all three. `Stop.place` is now the only constructor, so the check happens **once, at the boundary** — and a stop without coordinates became unconstructible rather than merely reported.
+
+`CourierReference` and `ShipmentReference` are the other half. They read a foreign identifier and report a bad one as a *routing* failure, so `routing_infrastructure` — which may see no foreign feature at all — can rebuild the identifiers this contract is expressed in without depending on the packages that declare them. Same shape as `CourierReference` in `shipments_api`, which has been doing this since phase 4.
+
+## `ConstraintUnsatisfiable` reports instead of relaxing
+
+An optimiser that quietly truncated a route to fit `maxStops` would be deciding which four parcels are not delivered today. That is not a decision this layer is entitled to make.
 
 ## Why `GeoPoint` is not `GeoFix`
 
@@ -54,25 +70,28 @@ A `GeoPoint` is a *place*: two coordinates and a validating factory, because a l
 
 `distanceTo` lives on `GeoPoint` rather than in an optimiser, because both implementations need it and neither should own it. Two haversines eventually disagree about the length of the same route — and that is drift a contract kit *cannot* catch, since both answers would still satisfy the port.
 
+It is also the type `Stop` holds, which is the point above: routing measures from a place it owns, not from an address another feature owns.
+
 ## Where the line around code generation is drawn
 
 | Shape | How | Why |
 |---|---|---|
 | `RoutingFailure`, `RouteConstraint` | `freezed` | Closed unions of small values. |
 | `Eta`, `OptimisationRequest` | `freezed` | Records. No identity, nothing to validate. |
-| `RoutePlan`, `Stop` | hand-written | Entities: equality by `id`, and `freezed` cannot extend `Entity`. |
+| `RoutePlan`, `Stop` | hand-written | Entities: equality by `id`, and `freezed` cannot extend `Entity`. `Stop` also refuses its own input — a generated public constructor would let a caller skip `place`. |
 | `GeoPoint`, `StopSequence`, `TravelWindow`, `TrafficProfile`, `ServiceTime`, `StopId`, `RoutePlanId` | hand-written | Every one of them refuses some of its own inputs, and a generated public constructor would let a caller skip the check. |
 
 ## What it may depend on
 
 `core_kernel`, `core_ports`, `identity_api`, `shipments_api`. Third-party: `freezed_annotation`, `meta`.
 
-`shipments_api` is the interesting one: a stop is usually a place a parcel goes, so it names a `ShipmentId` and reuses shipments' `AddressPoint`. Two features with two spellings of "where a parcel is going" is a reconciliation that ends up in whichever adapter noticed first.
+Both foreign packages are here for **one identifier each** — `ActorId` and `ShipmentId`. A route is driven by an actor and a stop is usually about a parcel, and inventing local spellings for either would put the reconciliation in whichever adapter noticed first. Nothing else of theirs appears in this package's surface, and section 2.1 says why.
 
 ## What must never live here
 
 - **An implementation of a port declared here.** Rule S8.
 - **A DTO, or `json_annotation`.** Rules I4 and G2 — the wire shape of a route belongs to `routing_infrastructure`.
+- **A foreign feature's *model*.** `AddressPoint`, `ShipmentSummary`, `Session`. Identifiers cross; concepts another feature owns do not.
 - **A `GeoFix`, a permission state, or anything else from `platform/*`.** Not reachable, and that is the point.
 - **The Flutter SDK.** Rule I2.
 

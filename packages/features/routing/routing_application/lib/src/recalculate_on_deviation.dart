@@ -59,7 +59,7 @@ final class RecalculateOnDeviation
     ProgressRequest request,
   ) async {
     final RoutePlan plan;
-    switch (await _cache.read(request.courier)) {
+    switch (await _cache.read(request.courier.value)) {
       case Failed(:final failure):
         return Failed(failure);
       case Success(:final value):

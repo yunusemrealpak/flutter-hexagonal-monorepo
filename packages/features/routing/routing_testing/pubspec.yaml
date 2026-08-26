@@ -16,13 +16,13 @@ dependencies:
   core_kernel: ^0.1.0
   core_ports: ^0.1.0
   core_testing: ^0.1.0
-  # Foreign _api packages, which the feature_testing row allows. The fixtures
-  # here build Stops, and a Stop names an ActorId and an AddressPoint — a
-  # fixture builder that could not write those types down would stop at the
-  # first cross-feature signature.
+  # One foreign _api, which the feature_testing row allows, and for one type:
+  # RouteFixtures.courier() returns an ActorId because that is what
+  # RoutePlan.courier is. Section 2.1's rule holds here too — an identifier
+  # crosses, a model does not — which is why shipments_api is not in this list
+  # any more: a Stop is built from a label and two doubles now.
   identity_api: ^0.1.0
   routing_api: ^0.1.0
-  shipments_api: ^0.1.0
   # A runtime dependency, because a contract kit *is* tests: it calls group()
   # and test() from lib/. Leaving it in dev_dependencies would make that a
   # dev_dependency_in_lib violation, and rightly so.

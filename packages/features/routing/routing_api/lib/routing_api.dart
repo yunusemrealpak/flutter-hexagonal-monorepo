@@ -24,6 +24,20 @@
 /// carries the one piece of arithmetic — a haversine distance — that both
 /// optimisers need and neither should own.
 ///
+/// **What crosses to another feature, and what does not.** This package names
+/// `ActorId` and `ShipmentId`, and nothing else of theirs. Section 2.1 of
+/// docs/DEPENDENCY_RULES.md states the rule the wider literature calls
+/// *reference other contexts by identity*: an identifier crosses, a model does
+/// not. `Stop` therefore holds routing's own `GeoPoint` and a plain label
+/// rather than shipments' `AddressPoint` — see that type's own documentation
+/// for what the borrowed model cost before it was removed.
+///
+/// `CourierReference` and `ShipmentReference` are the other half of it. They
+/// read a foreign identifier and report a bad one as a *routing* failure, so
+/// that `routing_infrastructure` — which may see no foreign feature at all —
+/// can rebuild the identifiers this contract is expressed in without
+/// depending on the packages that declare them.
+///
 /// **The driving port.** `RoutingFacade`, implemented by
 /// `routing_application`.
 ///
@@ -31,6 +45,7 @@
 /// `RouteCache`, `LocationStreamPort`, answered by `routing_infrastructure`.
 library;
 
+export 'src/courier_reference.dart';
 export 'src/eta.dart';
 export 'src/geo_point.dart';
 export 'src/location_stream_port.dart';
@@ -43,6 +58,7 @@ export 'src/route_plan_id.dart';
 export 'src/routing_facade.dart';
 export 'src/routing_failure.dart';
 export 'src/service_time.dart';
+export 'src/shipment_reference.dart';
 export 'src/stop.dart';
 export 'src/stop_id.dart';
 export 'src/stop_sequence.dart';

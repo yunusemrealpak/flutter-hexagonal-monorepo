@@ -26,7 +26,7 @@ void runRouteCacheContract(RouteCache Function() createCache) {
       final plan = RouteFixtures.plan(stops, ['a', 'b']);
 
       expect((await cache.write(plan)).isSuccess, isTrue);
-      final read = await cache.read(plan.courier);
+      final read = await cache.read(plan.courier.value);
 
       expect(read.fold((p) => p.id, (f) => throw StateError('$f')), plan.id);
     });
@@ -39,7 +39,7 @@ void runRouteCacheContract(RouteCache Function() createCache) {
       final plan = RouteFixtures.plan(stops, ['b', 'a']);
       await cache.write(plan);
 
-      final read = await cache.read(plan.courier);
+      final read = await cache.read(plan.courier.value);
       final stored = read.fold((p) => p, (f) => throw StateError('$f'));
 
       expect(stored.sequence.order, plan.sequence.order);
@@ -49,7 +49,7 @@ void runRouteCacheContract(RouteCache Function() createCache) {
       final plan = RouteFixtures.plan(stops, ['a', 'b']);
       await cache.write(plan);
 
-      final read = await cache.read(plan.courier);
+      final read = await cache.read(plan.courier.value);
       final stored = read.fold((p) => p, (f) => throw StateError('$f'));
 
       expect(
@@ -59,7 +59,7 @@ void runRouteCacheContract(RouteCache Function() createCache) {
     });
 
     test('reports a courier with no plan', () async {
-      final read = await cache.read(RouteFixtures.courier('nobody'));
+      final read = await cache.read('nobody');
 
       expect(read.fold((_) => null, (f) => f), isA<NoPlan>());
     });
@@ -71,7 +71,7 @@ void runRouteCacheContract(RouteCache Function() createCache) {
       await cache.write(first);
       await cache.write(second);
 
-      final read = await cache.read(first.courier);
+      final read = await cache.read(first.courier.value);
       expect(
         read.fold((p) => p.id.value, (f) => throw StateError('$f')),
         'plan-2',
@@ -82,7 +82,7 @@ void runRouteCacheContract(RouteCache Function() createCache) {
       final mine = RouteFixtures.plan(stops, ['a', 'b']);
       await cache.write(mine);
 
-      final theirs = await cache.read(RouteFixtures.courier('courier-2'));
+      final theirs = await cache.read('courier-2');
 
       expect(theirs.isFailure, isTrue);
     });
@@ -91,8 +91,8 @@ void runRouteCacheContract(RouteCache Function() createCache) {
       final plan = RouteFixtures.plan(stops, ['a', 'b']);
       await cache.write(plan);
 
-      expect((await cache.clear(plan.courier)).isSuccess, isTrue);
-      expect((await cache.read(plan.courier)).isFailure, isTrue);
+      expect((await cache.clear(plan.courier.value)).isSuccess, isTrue);
+      expect((await cache.read(plan.courier.value)).isFailure, isTrue);
     });
 
     test('clearing what is not there succeeds', () async {
@@ -100,7 +100,7 @@ void runRouteCacheContract(RouteCache Function() createCache) {
       // made it one would leave a screen reporting a failure for work that is
       // already done.
       expect(
-        (await cache.clear(RouteFixtures.courier('nobody'))).isSuccess,
+        (await cache.clear('nobody')).isSuccess,
         isTrue,
       );
     });
@@ -108,11 +108,11 @@ void runRouteCacheContract(RouteCache Function() createCache) {
     test('the port never throws', () async {
       // Invariant 1.2.9.
       expect(
-        (await cache.read(RouteFixtures.courier('nobody'))).isFailure,
+        (await cache.read('nobody')).isFailure,
         isTrue,
       );
       expect(
-        (await cache.clear(RouteFixtures.courier('nobody'))).isSuccess,
+        (await cache.clear('nobody')).isSuccess,
         isTrue,
       );
     });

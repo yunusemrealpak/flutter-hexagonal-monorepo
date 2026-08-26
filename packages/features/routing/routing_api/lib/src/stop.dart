@@ -4,6 +4,7 @@ import 'package:shipments_api/shipments_api.dart';
 import 'geo_point.dart';
 import 'routing_failure.dart';
 import 'service_time.dart';
+import 'shipment_reference.dart';
 import 'stop_id.dart';
 import 'travel_window.dart';
 
@@ -15,54 +16,121 @@ import 'travel_window.dart';
 /// two stops — a building with a pharmacy and a dentist in it is two
 /// deliveries, and a routing feature that merged them would drop one.
 ///
-/// [shipmentId] is a `ShipmentId`, from `shipments_api`, and that edge is the
-/// one worth noticing: a foreign `_api`, which section 2 allows, and the only
-/// vocabulary for "which parcel" that both features can agree on. It is
-/// nullable because not every stop has a parcel behind it — a depot, a fuel
-/// stop and a break are all places on a route.
+/// **A stop holds a `GeoPoint` and a label, not shipments' `AddressPoint`.**
+/// That is section 2.1's rule about what may cross a feature boundary, and
+/// this type is where the repository learned it. An `AddressPoint` is three
+/// fields, a validation and a display string — a concept `shipments` owns,
+/// answering *"where is this parcel going"*. Routing's question is *"what
+/// point do I measure from"*, and the answer to that is its own `GeoPoint`.
 ///
-/// [address] is an `AddressPoint`, also from `shipments_api`, and it may not
-/// be geocoded. [placed] is where that shows up: a stop the optimiser cannot
-/// place is reported by name rather than guessed at, because a route planned
-/// around a guessed coordinate sends a courier to the wrong street with full
-/// confidence.
+/// Carrying the foreign model instead cost three things at once, and none of
+/// them looked related. Every stop had to answer "do you have coordinates?" on
+/// every read; `StopNotGeocoded` ended up in the contract three optimisers are
+/// held to; and `routing_infrastructure` could not build a stop without
+/// reaching for `shipments_api`. Only the last one showed up as a violation.
+///
+/// [shipmentId] is a `ShipmentId` — an identifier, which is precisely the
+/// reference one bounded context is supposed to hold to another. It is
+/// nullable because not every stop has a parcel behind it: a depot, a fuel
+/// stop and a break are all places on a route.
 final class Stop extends Entity<StopId> {
-  /// Creates a stop.
-  const Stop({
+  const Stop._({
     required super.id,
-    required this.address,
+    required this.at,
+    required this.label,
+    required this.serviceTime,
     this.shipmentId,
-    this.serviceTime = ServiceTime.standard,
     this.window,
   });
 
-  /// Where it is, in the words shipments uses.
-  final AddressPoint address;
+  /// Reads a stop from the raw form a manifest or a stored row carries it in.
+  ///
+  /// The only way to make one, and the only place a stop can be refused. A
+  /// route is built from stops that already exist, so by the time an optimiser
+  /// or a plan sees one, every question about whether it is usable has been
+  /// answered — which is what makes the invalid state unconstructible rather
+  /// than merely reported.
+  ///
+  /// Missing coordinates are a `StopNotGeocoded` naming the stop. Guessing a
+  /// position instead would send a courier to the wrong street with full
+  /// confidence.
+  static Result<Stop, RoutingFailure> place({
+    required String id,
+    required String label,
+    required double? latitude,
+    required double? longitude,
+    String? shipmentId,
+    ServiceTime serviceTime = ServiceTime.standard,
+    TravelWindow? window,
+  }) {
+    final StopId stopId;
+    switch (StopId.parse(id)) {
+      case Failed(:final failure):
+        return Failed(failure);
+      case Success(:final value):
+        stopId = value;
+    }
 
-  /// Which parcel it is about, where one is.
-  final ShipmentId? shipmentId;
+    final trimmed = label.trim();
+    if (trimmed.isEmpty) {
+      return Failed(
+        MalformedRouteValue(
+          field: 'stop.label',
+          reason: 'is empty for ${stopId.value}',
+        ),
+      );
+    }
+
+    if (latitude == null || longitude == null) {
+      return Failed(StopNotGeocoded(stopId: stopId.value, address: trimmed));
+    }
+
+    final GeoPoint at;
+    switch (GeoPoint.at(latitude: latitude, longitude: longitude)) {
+      case Failed(:final failure):
+        return Failed(failure);
+      case Success(:final value):
+        at = value;
+    }
+
+    final ShipmentId? parcel;
+    switch (ShipmentReference.parseOptional(shipmentId)) {
+      case Failed(:final failure):
+        return Failed(failure);
+      case Success(:final value):
+        parcel = value;
+    }
+
+    return Success(
+      Stop._(
+        id: stopId,
+        at: at,
+        label: trimmed,
+        serviceTime: serviceTime,
+        shipmentId: parcel,
+        window: window,
+      ),
+    );
+  }
+
+  /// Where it is.
+  final GeoPoint at;
+
+  /// What a courier reads on a stop list.
+  ///
+  /// A plain string, and deliberately not a structured address: routing does
+  /// not sort by street, search by postcode or validate a door number. It
+  /// draws this and drives to [at].
+  final String label;
 
   /// How long the courier will be there once they arrive.
   final ServiceTime serviceTime;
 
+  /// Which parcel it is about, where one is.
+  final ShipmentId? shipmentId;
+
   /// When the place will accept a delivery, or `null` for anytime.
   final TravelWindow? window;
-
-  /// The point on the map, or a failure naming this stop.
-  ///
-  /// Returns a `Result` rather than a nullable point, because every caller
-  /// that needs a coordinate needs to *report* the one it could not get, and a
-  /// null forces each of them to invent the same message.
-  Result<GeoPoint, RoutingFailure> get placed {
-    final latitude = address.latitude;
-    final longitude = address.longitude;
-    if (latitude == null || longitude == null) {
-      return Failed(
-        StopNotGeocoded(stopId: id.value, address: address.formatted),
-      );
-    }
-    return GeoPoint.at(latitude: latitude, longitude: longitude);
-  }
 
   /// Whether a courier arriving at [instant] has missed this stop's window.
   ///
@@ -71,18 +139,15 @@ final class Stop extends Entity<StopId> {
   bool isLateAt(DateTime instant) => window?.isLateAt(instant) ?? false;
 
   /// Returns a copy with the given fields replaced.
-  Stop copyWith({
-    AddressPoint? address,
-    ServiceTime? serviceTime,
-    TravelWindow? window,
-  }) => Stop(
+  Stop copyWith({ServiceTime? serviceTime, TravelWindow? window}) => Stop._(
     id: id,
-    address: address ?? this.address,
-    shipmentId: shipmentId,
+    at: at,
+    label: label,
     serviceTime: serviceTime ?? this.serviceTime,
+    shipmentId: shipmentId,
     window: window ?? this.window,
   );
 
   @override
-  String toString() => 'Stop(${id.value}, ${address.formatted})';
+  String toString() => 'Stop(${id.value}, $label)';
 }

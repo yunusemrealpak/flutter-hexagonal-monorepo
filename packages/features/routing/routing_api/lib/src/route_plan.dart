@@ -45,9 +45,11 @@ final class RoutePlan extends Entity<RoutePlanId> {
 
   /// Builds a plan from an ordering, computing the estimates.
   ///
-  /// Fails when [sequence] does not describe [stops] exactly, and when a stop
-  /// on the route has no coordinates — both are routes a courier cannot drive,
-  /// and both are better reported than approximated.
+  /// The one thing it can refuse is a sequence that does not describe [stops]
+  /// exactly. It used to be able to refuse an unplaceable stop as well, and no
+  /// longer can: `Stop.place` is the only way to make one and it will not
+  /// produce a stop without coordinates. An invalid state that cannot be
+  /// constructed does not need a failure branch.
   static Result<RoutePlan, RoutingFailure> of({
     required RoutePlanId id,
     required ActorId courier,
@@ -60,24 +62,22 @@ final class RoutePlan extends Entity<RoutePlanId> {
     final checked = StopSequence.over(stops, sequence.order);
     if (checked case Failed(:final failure)) return Failed(failure);
 
-    final byId = {for (final stop in stops) stop.id: stop};
-    final estimates = _estimate(
-      origin: origin,
-      order: sequence.order,
-      byId: byId,
-      departAt: departAt.toUtc(),
-      traffic: traffic,
-    );
-    if (estimates case Failed(:final failure)) return Failed(failure);
-
-    return estimates.map(
-      (etas) => RoutePlan._(
+    return Success(
+      RoutePlan._(
         id: id,
         courier: courier,
         origin: origin,
         stops: List<Stop>.unmodifiable(stops),
         sequence: sequence,
-        etas: List<Eta>.unmodifiable(etas),
+        etas: List<Eta>.unmodifiable(
+          _estimate(
+            origin: origin,
+            order: sequence.order,
+            byId: {for (final stop in stops) stop.id: stop},
+            departAt: departAt.toUtc(),
+            traffic: traffic,
+          ),
+        ),
         departAt: departAt.toUtc(),
         traffic: traffic,
       ),
@@ -175,35 +175,35 @@ final class RoutePlan extends Entity<RoutePlanId> {
     required double toleranceMetres,
   }) {
     final index = sequence.positionOf(nextStop);
-    if (index < 0) {
+    final to = _pointOf(nextStop);
+    if (index < 0 || to == null) {
       return Failed(
         SequenceDoesNotMatch(reason: '${nextStop.value} is not on this route'),
       );
     }
 
-    final target = _placed(nextStop);
-    if (target case Failed(:final failure)) return Failed(failure);
+    // The leg starts at the previous stop, not at the depot. Judging every leg
+    // against the origin would report a deviation for a courier who is
+    // correctly halfway across the route.
+    final from = index == 0 ? origin : _pointOf(sequence.order[index - 1]);
+    if (from == null) {
+      return Failed(
+        SequenceDoesNotMatch(
+          reason: '${sequence.order[index - 1].value} is not on this route',
+        ),
+      );
+    }
 
-    final legStart = index == 0
-        ? Success<GeoPoint, RoutingFailure>(origin)
-        : _placed(sequence.order[index - 1]);
-    if (legStart case Failed(:final failure)) return Failed(failure);
-
-    return target.flatMap(
-      (to) => legStart.map(
-        (from) =>
-            position.distanceTo(to) > from.distanceTo(to) + toleranceMetres,
-      ),
+    return Success(
+      position.distanceTo(to) > from.distanceTo(to) + toleranceMetres,
     );
   }
 
-  Result<GeoPoint, RoutingFailure> _placed(StopId id) {
+  GeoPoint? _pointOf(StopId id) {
     for (final stop in stops) {
-      if (stop.id == id) return stop.placed;
+      if (stop.id == id) return stop.at;
     }
-    return Failed(
-      SequenceDoesNotMatch(reason: '${id.value} is not on this route'),
-    );
+    return null;
   }
 
   /// Walks the order once, accumulating arrival and departure instants.
@@ -212,7 +212,11 @@ final class RoutePlan extends Entity<RoutePlanId> {
   /// as well as being visible in the arrival, so that the next leg starts from
   /// when the courier actually left. Without that, every estimate after the
   /// first early arrival is optimistic by the length of the wait.
-  static Result<List<Eta>, RoutingFailure> _estimate({
+  ///
+  /// It returns a plain list rather than a `Result`, because there is nothing
+  /// left here that can fail: every stop carries a `GeoPoint`, so the walk is
+  /// arithmetic all the way down.
+  static List<Eta> _estimate({
     required GeoPoint origin,
     required List<StopId> order,
     required Map<StopId, Stop> byId,
@@ -225,10 +229,7 @@ final class RoutePlan extends Entity<RoutePlanId> {
 
     for (final id in order) {
       final stop = byId[id]!;
-      final placed = stop.placed;
-      if (placed case Failed(:final failure)) return Failed(failure);
-
-      final to = placed.fold((point) => point, (_) => origin);
+      final to = stop.at;
       final arrivesAt = clock.add(traffic.timeFor(from.distanceTo(to)));
       final wait = stop.window?.waitFrom(arrivesAt) ?? Duration.zero;
       final departsAt = arrivesAt.add(wait).add(stop.serviceTime.value);
@@ -246,7 +247,7 @@ final class RoutePlan extends Entity<RoutePlanId> {
       clock = departsAt;
     }
 
-    return Success(etas);
+    return etas;
   }
 
   @override

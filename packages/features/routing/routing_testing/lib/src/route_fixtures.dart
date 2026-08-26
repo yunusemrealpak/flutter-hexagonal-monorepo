@@ -1,7 +1,6 @@
 import 'package:core_kernel/core_kernel.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:routing_api/routing_api.dart';
-import 'package:shipments_api/shipments_api.dart';
 
 /// Fixtures for routing, shared by this package's contract kits and by every
 /// package that consumes them.
@@ -45,26 +44,18 @@ abstract final class RouteFixtures {
     double east = 0,
     double north = 0,
     Duration service = const Duration(minutes: 5),
+    String? shipmentId,
     TravelWindow? window,
-  }) => Stop(
-    id: _unwrap(StopId.parse(id)),
-    address: _unwrap(
-      AddressPoint.create(
-        formatted: 'Stop $id',
-        latitude: depot.latitude + north,
-        longitude: depot.longitude + east,
-      ),
+  }) => _unwrap(
+    Stop.place(
+      id: id,
+      label: 'Stop $id',
+      latitude: depot.latitude + north,
+      longitude: depot.longitude + east,
+      shipmentId: shipmentId,
+      serviceTime: _unwrap(ServiceTime.of(service)),
+      window: window,
     ),
-    serviceTime: _unwrap(ServiceTime.of(service)),
-    window: window,
-  );
-
-  /// A stop whose address never resolved to a point on the map.
-  ///
-  /// The fixture every optimiser has to refuse rather than guess at.
-  static Stop ungeocoded(String id) => Stop(
-    id: _unwrap(StopId.parse(id)),
-    address: _unwrap(AddressPoint.create(formatted: 'Somewhere on Bagdat Cd.')),
   );
 
   /// A stop identifier.

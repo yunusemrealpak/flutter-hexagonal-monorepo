@@ -1,6 +1,7 @@
 @Tags(['unit'])
 library;
 
+import 'package:core_kernel/core_kernel.dart';
 import 'package:routing_api/routing_api.dart';
 import 'package:test/test.dart';
 
@@ -210,18 +211,101 @@ void main() {
     });
   });
 
-  group('Stop', () {
-    test('reports the one it cannot place, by name', () {
-      // A route planned around a guessed coordinate sends a courier to the
-      // wrong street with full confidence.
-      final placed = ungeocoded('a').placed;
+  group('Stop.place', () {
+    Result<Stop, RoutingFailure> place({
+      String id = 'a',
+      String label = 'Bagdat Cd. 100',
+      double? latitude = 40.99,
+      double? longitude = 29.03,
+      String? shipmentId,
+    }) => Stop.place(
+      id: id,
+      label: label,
+      latitude: latitude,
+      longitude: longitude,
+      shipmentId: shipmentId,
+    );
 
-      expect(placed.isFailure, isTrue);
-      expect(placed.fold((_) => '', (f) => '$f'), contains('a'));
+    test('is the only way to make a stop', () {
+      // The constructor is private, so every stop in the workspace has been
+      // through these checks. That is what makes the questions below
+      // unanswerable anywhere else — a plan and an optimiser get a stop that
+      // is already known to be usable.
+      expect(place().isSuccess, isTrue);
+    });
+
+    test('refuses a stop with no coordinates, naming it', () {
+      // The failure the borrowed AddressPoint used to spread across three
+      // optimisers. Guessing a position instead would send a courier to the
+      // wrong street with full confidence.
+      final refused = place(latitude: null, longitude: null);
+
+      expect(refused.fold((_) => null, (f) => f), isA<StopNotGeocoded>());
+      expect(refused.fold((_) => '', (f) => '$f'), contains('a'));
+    });
+
+    test('refuses half a position', () {
+      // A latitude without a longitude is not half a location; it is a bug
+      // that would otherwise travel as far as a map pin at the equator.
+      expect(place(longitude: null).isFailure, isTrue);
+      expect(place(latitude: null).isFailure, isTrue);
+    });
+
+    test('refuses a label a courier could not read', () {
+      expect(place(label: '   ').isFailure, isTrue);
+    });
+
+    test('refuses coordinates that are not on the earth', () {
+      expect(place(latitude: 91).isFailure, isTrue);
+    });
+
+    test('carries the parcel it is about, when there is one', () {
+      final stop = unwrap(place(shipmentId: 'ship-1'));
+
+      expect(stop.shipmentId?.value, 'ship-1');
+    });
+
+    test('a stop with no parcel is an ordinary stop', () {
+      // A depot, a fuel stop and a break are all places on a route.
+      expect(unwrap(place()).shipmentId, isNull);
+    });
+
+    test('refuses a parcel reference it cannot read', () {
+      // Present but unreadable is a failure. A route that quietly dropped the
+      // link would leave a courier standing at an address with nothing to
+      // scan.
+      expect(place(shipmentId: '   ').isFailure, isTrue);
+    });
+
+    test('trims the label', () {
+      expect(unwrap(place(label: '  Bagdat Cd. 100 ')).label, 'Bagdat Cd. 100');
     });
 
     test('a stop with no window is never late', () {
       expect(stopAt('a').isLateAt(noon.add(const Duration(days: 1))), isFalse);
+    });
+  });
+
+  group('reference readers', () {
+    test('report a bad courier as a routing failure, not identity\u2019s', () {
+      // A RouteCache whose signature promises RoutingFailure may not hand one
+      // of identity's back, and translating it once here is what keeps every
+      // adapter from doing it differently.
+      final read = CourierReference.parse('   ');
+
+      expect(read.fold((_) => null, (f) => f), isA<MalformedRouteValue>());
+    });
+
+    test('read a good courier into the type the contract is written in', () {
+      expect(unwrap(CourierReference.parse('courier-1')), courier());
+    });
+
+    test('treat an absent parcel as a success carrying nothing', () {
+      expect(unwrap(ShipmentReference.parseOptional(null)), isNull);
+    });
+
+    test('report a present but unreadable parcel', () {
+      expect(ShipmentReference.parseOptional('  ').isFailure, isTrue);
     });
   });
 }

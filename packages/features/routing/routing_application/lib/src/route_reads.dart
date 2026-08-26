@@ -27,7 +27,7 @@ final class Resequence
     ResequenceRequest request,
   ) async {
     final RoutePlan plan;
-    switch (await _cache.read(request.courier)) {
+    switch (await _cache.read(request.courier.value)) {
       case Failed(:final failure):
         return Failed(failure);
       case Success(:final value):
@@ -74,7 +74,7 @@ final class NextStop
   Future<Result<StopId?, RoutingFailure>> call(
     ProgressRequest request,
   ) async {
-    final plan = await _cache.read(request.courier);
+    final plan = await _cache.read(request.courier.value);
     return plan.map((value) => value.nextStopAfter(request.visited));
   }
 }

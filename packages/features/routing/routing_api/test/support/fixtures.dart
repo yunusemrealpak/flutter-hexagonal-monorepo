@@ -1,7 +1,6 @@
 import 'package:core_kernel/core_kernel.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:routing_api/routing_api.dart';
-import 'package:shipments_api/shipments_api.dart';
 
 /// A fixed instant every test in this package measures from.
 ///
@@ -47,23 +46,15 @@ Stop stopAt(
   double north = 0,
   Duration service = const Duration(minutes: 5),
   TravelWindow? window,
-}) => Stop(
-  id: unwrap(StopId.parse(id)),
-  address: unwrap(
-    AddressPoint.create(
-      formatted: 'Stop $id',
-      latitude: depot.latitude + north,
-      longitude: depot.longitude + east,
-    ),
+}) => unwrap(
+  Stop.place(
+    id: id,
+    label: 'Stop $id',
+    latitude: depot.latitude + north,
+    longitude: depot.longitude + east,
+    serviceTime: unwrap(ServiceTime.of(service)),
+    window: window,
   ),
-  serviceTime: unwrap(ServiceTime.of(service)),
-  window: window,
-);
-
-/// A stop whose address never resolved to a point on the map.
-Stop ungeocoded(String id) => Stop(
-  id: unwrap(StopId.parse(id)),
-  address: unwrap(AddressPoint.create(formatted: 'Somewhere on Bagdat Cd.')),
 );
 
 /// A sequence over [stops], in the order given.

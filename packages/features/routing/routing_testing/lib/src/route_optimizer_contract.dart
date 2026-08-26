@@ -190,15 +190,11 @@ void runRouteOptimizerContract(RouteOptimizerPort Function() createOptimizer) {
         expect(failure, isA<ConstraintUnsatisfiable>());
       });
 
-      test('a stop that never resolved to a point on the map', () async {
-        // Guessing a coordinate would send a courier to the wrong street with
-        // full confidence. The honest answer names the stop.
-        final failure = await refusal(
-          RouteFixtures.request([stops.first, RouteFixtures.ungeocoded('x')]),
-        );
-
-        expect(failure, isA<StopNotGeocoded>());
-      });
+      // There was a case here for a stop with no coordinates, and it is gone
+      // on purpose. `Stop.place` is the only way to make one and it refuses
+      // that input, so the situation is now unconstructible rather than
+      // merely refused by three separate implementations. What replaced it is
+      // one test in routing_api, next to the factory that does the refusing.
     });
 
     group('the port never throws', () {
@@ -211,9 +207,7 @@ void runRouteOptimizerContract(RouteOptimizerPort Function() createOptimizer) {
           isTrue,
         );
         expect(
-          (await optimizer.optimise(
-            RouteFixtures.request([RouteFixtures.ungeocoded('x')]),
-          )).isFailure,
+          (await optimizer.optimise(RouteFixtures.request(stops))).isSuccess,
           isTrue,
         );
         expect(

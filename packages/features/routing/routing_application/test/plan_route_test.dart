@@ -46,7 +46,7 @@ void main() {
     test('caches the plan it produced', () async {
       final plan = unwrap(await harness.plan(stops));
 
-      final cached = unwrap(await harness.cache.read(plan.courier));
+      final cached = unwrap(await harness.cache.read(plan.courier.value));
       expect(cached.id, plan.id);
     });
 
@@ -92,15 +92,6 @@ void main() {
       );
 
       expect((await harness.plan(stops)).isFailure, isTrue);
-    });
-
-    test('reports a stop it cannot place, rather than guessing', () async {
-      final result = await harness.plan([
-        stops.first,
-        RouteFixtures.ungeocoded('x'),
-      ]);
-
-      expect(result.fold((_) => null, (f) => f), isA<StopNotGeocoded>());
     });
 
     test(
