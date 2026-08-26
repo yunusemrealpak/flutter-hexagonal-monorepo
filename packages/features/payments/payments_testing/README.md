@@ -8,7 +8,9 @@ Fakes, fixtures and the contract kits for payments.
 
 A courier taps *collect*, the request times out, the phone retries. The far side has to recognise the second copy as the same intention and answer with the first one's result. The kit's retry carries a **different instant**, so an implementation that recorded again is visible in the answer rather than invisible in a store nobody inspects.
 
-It also asserts the half people forget: *two* intentions are two movements. A gateway that deduplicated on the shipment rather than the key would pass the first three tests and then refuse a customer who legitimately pays twice for one parcel, after a return.
+It also asserts the half a stricter reading would break: an intention recorded *before* the visit can be closed at it. An operation records an expected cash amount, the courier takes it at the door, and the same key carries the intention forward. A gateway that answered with the pending row in the name of idempotency would leave every pre-recorded collection open for ever.
+
+And the half people forget: *two* intentions are two movements. A gateway that deduplicated on the shipment rather than the key would pass the first three tests and then refuse a customer who legitimately pays twice for one parcel, after a return.
 
 What is deliberately **not** in the kit is anything only one implementation can arrange — a network timeout, a 409 from a real acquirer. Those belong in each adapter's own tests. A kit with a back door stops being runnable against the other implementation, which is the whole reason to have one.
 

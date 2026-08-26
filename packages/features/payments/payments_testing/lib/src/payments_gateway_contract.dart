@@ -5,7 +5,7 @@ import 'payments_fixtures.dart';
 
 /// The behaviour every `PaymentsGateway` has to have.
 ///
-/// **The first three tests are the specification's "idempotency (critical)"**
+/// **The first four tests are the specification's "idempotency (critical)"**
 /// and they are the reason this kit exists. A courier taps *collect*, the
 /// request times out, the phone retries: the far side must recognise the
 /// second copy as the same intention and answer with the first one's result.
@@ -60,6 +60,23 @@ void runPaymentsGatewayContract(PaymentsGateway Function() createGateway) {
         reason: 'the retry must be answered with the first result',
       );
     });
+
+    test(
+      'an intention recorded before the visit can be closed at it',
+      () async {
+        // The other half of the rule, and the case a stricter reading would
+        // break: an operation records an expected cash amount against a parcel,
+        // the courier takes it at the door, and the same key carries the
+        // intention forward. A gateway that answered with the pending row would
+        // leave every pre-recorded collection open for ever.
+        await collect(PaymentsFixtures.attempt());
+
+        final closed = await collect(PaymentsFixtures.taken());
+
+        expect(closed.outcome, isA<PaymentTaken>());
+        expect(closed.id.value, 'pay-1');
+      },
+    );
 
     test('two intentions are two movements', () async {
       // The other half of the rule. An implementation that deduplicated on the

@@ -6,10 +6,15 @@ import 'payments_fixtures.dart';
 /// A `PaymentsGateway` that really takes money once.
 ///
 /// **The idempotency is the point of this fake.** `collect` stores by the
-/// attempt's key and, when it already has that key, returns what it stored
-/// rather than recording anything new. That is not a shortcut around writing a
-/// server: it is the behaviour the port promises, and a fake that recorded
-/// twice would let a use case with a double-charge bug pass its tests.
+/// attempt's key and, when money has already moved under that key, returns
+/// what it stored rather than recording anything new. That is not a shortcut
+/// around writing a server: it is the behaviour the port promises, and a fake
+/// that recorded twice would let a use case with a double-charge bug pass its
+/// tests.
+///
+/// It is idempotent about *money*, not about rows: a pending collection can
+/// still be carried forward under its own key, which is what closes a
+/// collection the operation recorded before the courier arrived.
 ///
 /// It is also the adapter `app_harness` binds — scenario 5's table says so —
 /// which is why it lives in a package apps may depend on.
@@ -59,11 +64,14 @@ final class FakePaymentsGateway implements PaymentsGateway {
     final failure = _takeFailure() ?? _takeCollectFailure();
     if (failure != null) return Failed(failure);
 
-    // The whole contract, in three lines. A second copy of one intention is
-    // answered with the first one's result, so a courier's retry in a tunnel
-    // is free and a lost acknowledgement costs nobody anything.
+    // The whole contract, in four lines. Once money has moved under a key, a
+    // second copy of that intention is answered with the first one's result —
+    // so a courier's retry in a tunnel is free and a lost acknowledgement
+    // costs nobody anything. Until it has moved, the same key carries the
+    // intention forward: an office records an expected cash amount, and the
+    // courier closes it at the door.
     final stored = _byKey[attempt.id.value];
-    if (stored != null) return Success(stored);
+    if (stored != null && stored.isSettled) return Success(stored);
 
     _byKey[attempt.id.value] = attempt;
     _keyByShipment[attempt.request.shipment.value] = attempt.id.value;
