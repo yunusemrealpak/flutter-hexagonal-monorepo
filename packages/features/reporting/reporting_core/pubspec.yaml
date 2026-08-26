@@ -1,0 +1,26 @@
+name: reporting_core
+description: >-
+  The reporting use cases, the store behind the running totals, and the watcher
+  that builds them from what other features publish.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+# Exactly the dependency list section 2 of docs/DEPENDENCY_RULES.md allows for
+# a core package. Adding one that is not in that row is a violation,
+# not an exception — arch_check will say which rule and why.
+dependencies:
+  core_kernel: ^0.1.0
+  core_ports: ^0.1.0
+  reporting_api: ^0.1.0
+  # For the three events this feature counts, and for ShipmentId. Nothing here
+  # depends on shipments_application, and shipments has never heard of
+  # reporting: both know only the DomainEventBus port.
+  shipments_api: ^0.1.0
+
+dev_dependencies:
+  core_testing: ^0.1.0
+  test: ^1.26.0

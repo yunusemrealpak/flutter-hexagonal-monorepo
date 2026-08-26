@@ -46,6 +46,9 @@ workspace:
   - packages/features/payments/payments_infrastructure
   - packages/features/payments/payments_presentation
   - packages/features/payments/payments_testing
+  - packages/features/reporting/reporting_api
+  - packages/features/reporting/reporting_core
+  - packages/features/reporting/reporting_presentation
   - packages/features/routing/routing_api
   - packages/features/routing/routing_application
   - packages/features/routing/routing_infrastructure
