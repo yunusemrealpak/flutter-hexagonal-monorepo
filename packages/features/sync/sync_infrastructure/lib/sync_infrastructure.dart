@@ -6,5 +6,4 @@
 /// reaching across a boundary, and arch_check reports it as one.
 library;
 
-export 'src/remote_sync_repository.dart';
 export 'src/sync_dto.dart';
