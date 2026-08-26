@@ -28,6 +28,9 @@ workspace:
   - packages/features/identity/identity_infrastructure
   - packages/features/identity/identity_presentation
   - packages/features/identity/identity_testing
+  - packages/features/notifications/notifications_api
+  - packages/features/notifications/notifications_core
+  - packages/features/notifications/notifications_presentation
   - packages/features/payments/payments_api
   - packages/features/payments/payments_application
   - packages/features/payments/payments_infrastructure
