@@ -58,6 +58,9 @@ workspace:
   - packages/features/sync/sync_infrastructure
   - packages/features/sync/sync_presentation
   - packages/features/sync/sync_testing
+  - packages/features/vehicle_inventory/vehicle_inventory_api
+  - packages/features/vehicle_inventory/vehicle_inventory_core
+  - packages/features/vehicle_inventory/vehicle_inventory_presentation
   - packages/platform/analytics_otel
   - packages/platform/connectivity_monitor
   - packages/platform/device_permissions
