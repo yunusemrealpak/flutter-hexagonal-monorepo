@@ -80,6 +80,24 @@ void main() {
       expect(Fixtures.unwrap(day.owed), Fixtures.lira(6000));
     });
 
+    test('is restored with the totals a store kept, not replayed', () {
+      // Unlike DeliveryAttempt, a settlement is an aggregate: replaying it
+      // would mean reading every attempt of the day back out of somewhere,
+      // which is what storing the total was for. The guard is in the store's
+      // contract kit instead.
+      final restored = Settlement.restored(
+        id: Fixtures.unwrap(SettlementId.forDay('courier-1', Fixtures.noon)),
+        courier: Fixtures.courier(),
+        day: Fixtures.noon,
+        collected: Fixtures.lira(6000),
+        refunded: Fixtures.lira(500),
+      );
+
+      expect(Fixtures.unwrap(restored.owed), Fixtures.lira(5500));
+      expect(restored.isOpen, isTrue);
+      expect(restored.day, DateTime.utc(2026, 3, 14));
+    });
+
     test('closing is one way', () {
       // A day that has been handed in and counted is a day somebody signed
       // for. A settlement that could reopen would let a late collection change

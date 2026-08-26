@@ -32,6 +32,41 @@ final class Settlement extends Entity<SettlementId> {
     required this.closedAt,
   });
 
+  /// Rebuilds a day that was read back from a store.
+  ///
+  /// **Unlike `DeliveryAttempt`, a settlement is not replayed.** An attempt is
+  /// rebuilt by starting it and then completing it, because everything it took
+  /// to get there is in the record. A settlement's totals are an *aggregate*:
+  /// replaying them would mean reading every attempt of the day back out of
+  /// somewhere, which is precisely what storing the total was for.
+  ///
+  /// So this factory takes the numbers as they were stored, and the guard is
+  /// somewhere else — `runSettlementStoreContract` asserts that a store reads
+  /// back the totals rather than the identifier alone. An adapter that dropped
+  /// them fails there rather than silently opening every morning at zero.
+  ///
+  /// [day] is normalised to midnight UTC, like `openFor`, so a stored instant
+  /// that kept a time of day does not produce a second settlement for the same
+  /// date.
+  factory Settlement.restored({
+    required SettlementId id,
+    required ActorId courier,
+    required DateTime day,
+    required Money collected,
+    required Money refunded,
+    DateTime? closedAt,
+  }) {
+    final utc = day.toUtc();
+    return Settlement._(
+      id: id,
+      courier: courier,
+      day: DateTime.utc(utc.year, utc.month, utc.day),
+      collected: collected,
+      refunded: refunded,
+      closedAt: closedAt?.toUtc(),
+    );
+  }
+
   /// Opens an empty day for [courier].
   static Result<Settlement, PaymentsFailure> openFor({
     required ActorId courier,
