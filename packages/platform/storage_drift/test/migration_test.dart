@@ -17,7 +17,8 @@ CREATE TABLE key_value_entries (
 );
 ''';
 
-/// `outbox_entries` as schema version 2 added it. Unchanged since.
+/// `outbox_entries` as schema version 2 added it, before version 4 appended
+/// the three columns the `sync` feature's port needs.
 const _schemaV2OutboxEntries = '''
 CREATE TABLE outbox_entries (
   id TEXT NOT NULL,
@@ -28,6 +29,18 @@ CREATE TABLE outbox_entries (
   attempt_count INTEGER NOT NULL DEFAULT 0,
   last_attempt_at TEXT,
   PRIMARY KEY (id)
+);
+''';
+
+/// `key_value_entries` as schema version 3 left it: namespaced, and with the
+/// namespace joined to the primary key.
+const _schemaV3KeyValueEntries = '''
+CREATE TABLE key_value_entries (
+  key TEXT NOT NULL,
+  value TEXT NOT NULL,
+  updated_at TEXT NOT NULL,
+  namespace TEXT NOT NULL DEFAULT 'default',
+  PRIMARY KEY (namespace, key)
 );
 ''';
 
@@ -104,6 +117,7 @@ INSERT INTO key_value_entries (key, value, updated_at) VALUES
           payload: '{"courierId":"CUR-9"}',
           createdAt: DateTime.utc(2026, 1, 1, 9),
           attemptCount: 0,
+          conflictPolicy: 'lastWriteWins',
         ),
       );
 
@@ -113,7 +127,7 @@ INSERT INTO key_value_entries (key, value, updated_at) VALUES
     test('leaves the database at the current schema version', () async {
       await _open(database);
 
-      expect(raw.userVersion, 3);
+      expect(raw.userVersion, 4);
     });
   });
 
@@ -149,6 +163,76 @@ INSERT INTO outbox_entries
         'v2',
       );
     });
+
+    test('gives pre-version-4 rows the policy that keeps their work', () async {
+      final raw =
+          _databaseAtVersion(
+            2,
+            ddl: [_schemaV1KeyValueEntries, _schemaV2OutboxEntries],
+          )..execute('''
+INSERT INTO outbox_entries
+  (id, feature, operation, payload, created_at, attempt_count) VALUES
+  ('OBX-7', 'delivery', 'complete', '{}', '2026-01-01T09:00:00.000Z', 2)
+''');
+      final database = PeykDatabase(NativeDatabase.opened(raw));
+      addTearDown(database.close);
+
+      await _open(database);
+
+      // The only non-mechanical decision in the 3 -> 4 step. Defaulting to
+      // "the server wins" would have discarded whatever a courier did before
+      // the upgrade, silently and with no record left behind.
+      final queued = await OutboxDao(database).pending();
+      expect(queued.single.conflictPolicy, 'lastWriteWins');
+      expect(queued.single.nextAttemptAt, isNull);
+      expect(queued.single.blockedReason, isNull);
+    });
+  });
+
+  group('migrating from schema version 3', () {
+    test('appends the outbox columns without touching the rows', () async {
+      final raw =
+          _databaseAtVersion(
+            3,
+            ddl: [_schemaV3KeyValueEntries, _schemaV2OutboxEntries],
+          )..execute('''
+INSERT INTO outbox_entries
+  (id, feature, operation, payload, created_at, attempt_count) VALUES
+  ('OBX-1', 'payments', 'collect', '{"amount":1200}', '2026-01-01T09:00:00.000Z', 3),
+  ('OBX-2', 'delivery', 'complete', '{}', '2026-01-01T10:00:00.000Z', 0)
+''');
+      final database = PeykDatabase(NativeDatabase.opened(raw));
+      addTearDown(database.close);
+
+      await _open(database);
+
+      // Three appended columns, so sqlite adds them in place. This is the
+      // cheap kind of migration, and the assertion that says so is that both
+      // payloads and both attempt counts survived unchanged.
+      final queued = await OutboxDao(database).pending();
+      expect(queued.map((row) => row.id), ['OBX-1', 'OBX-2']);
+      expect(queued.first.payload, '{"amount":1200}');
+      expect(queued.first.attemptCount, 3);
+      expect(raw.userVersion, 4);
+    });
+
+    test('reads nothing as blocked until something is', () async {
+      final raw =
+          _databaseAtVersion(
+            3,
+            ddl: [_schemaV3KeyValueEntries, _schemaV2OutboxEntries],
+          )..execute('''
+INSERT INTO outbox_entries
+  (id, feature, operation, payload, created_at, attempt_count) VALUES
+  ('OBX-1', 'payments', 'collect', '{}', '2026-01-01T09:00:00.000Z', 0)
+''');
+      final database = PeykDatabase(NativeDatabase.opened(raw));
+      addTearDown(database.close);
+
+      await _open(database);
+
+      expect(await OutboxDao(database).blocked(), isEmpty);
+    });
   });
 
   group('creating a fresh database', () {
@@ -158,7 +242,7 @@ INSERT INTO outbox_entries
 
       await _open(database);
 
-      expect(database.schemaVersion, 3);
+      expect(database.schemaVersion, 4);
       expect(await KeyValueDao(database).keysIn('default'), isEmpty);
       expect(await OutboxDao(database).pending(), isEmpty);
     });

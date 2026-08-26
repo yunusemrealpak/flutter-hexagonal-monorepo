@@ -23,12 +23,46 @@ class OutboxDao extends DatabaseAccessor<PeykDatabase> with _$OutboxDaoMixin {
   Future<void> enqueue(OutboxEntry entry) =>
       into(outboxEntries).insertOnConflictUpdate(entry);
 
-  /// The oldest [limit] entries, oldest first.
+  /// The oldest [limit] entries that are not blocked, oldest first.
+  ///
+  /// The ordering is part of the port's contract rather than a convenience:
+  /// work queued earlier describes a world the later work assumes, and a
+  /// payment drained before the delivery it belongs to reaches a server that
+  /// has not been told about the shipment. The tie-break on `id` matters for
+  /// the same reason — two rows written in the same millisecond have to come
+  /// back in the same order on every read, or a contract kit passes against a
+  /// map and fails against a table.
+  ///
+  /// Blocked rows are excluded here rather than deleted. That is what lets one
+  /// rejected entry wait for a person while everything behind it keeps
+  /// draining.
   Future<List<OutboxEntry>> pending({int limit = 50}) {
     return (select(outboxEntries)
-          ..orderBy([(row) => OrderingTerm.asc(row.createdAt)])
+          ..where((row) => row.blockedReason.isNull())
+          ..orderBy([
+            (row) => OrderingTerm.asc(row.createdAt),
+            (row) => OrderingTerm.asc(row.id),
+          ])
           ..limit(limit))
         .get();
+  }
+
+  /// Every entry a person has to look at, oldest first.
+  Future<List<OutboxEntry>> blocked() {
+    return (select(outboxEntries)
+          ..where((row) => row.blockedReason.isNotNull())
+          ..orderBy([
+            (row) => OrderingTerm.asc(row.createdAt),
+            (row) => OrderingTerm.asc(row.id),
+          ]))
+        .get();
+  }
+
+  /// One entry, or `null` when nothing is stored under [id].
+  Future<OutboxEntry?> byId(String id) {
+    return (select(
+      outboxEntries,
+    )..where((row) => row.id.equals(id))).getSingleOrNull();
   }
 
   /// Records that delivery of [id] was attempted at [attemptedAt], and

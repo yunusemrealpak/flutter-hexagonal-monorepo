@@ -43,6 +43,33 @@ class OutboxEntries extends Table {
   /// When delivery was last attempted, or `null` if it never has been.
   DateTimeColumn get lastAttemptAt => dateTime().nullable()();
 
+  /// What the owning feature wants done if the server has moved on, as an
+  /// opaque string.
+  ///
+  /// Added in schema version 4, with a default, so that rows queued by an
+  /// older release keep draining instead of arriving with no policy at all.
+  /// The default names the option that cannot lose the device's work; a
+  /// migration that defaulted to "the server wins" would silently discard
+  /// whatever a courier did before the upgrade.
+  TextColumn get conflictPolicy =>
+      text().withDefault(const Constant('lastWriteWins'))();
+
+  /// The earliest instant a further attempt should be made, or `null` while
+  /// the entry has never failed.
+  ///
+  /// Persisted rather than derived. The backoff is jittered, so recomputing it
+  /// on read would answer differently every time — and a device killed
+  /// mid-backoff would come back and retry everything at once.
+  DateTimeColumn get nextAttemptAt => dateTime().nullable()();
+
+  /// Why a person has to look at this row, or `null` while it is still
+  /// draining normally.
+  ///
+  /// A blocked row stays in the table. Deleting it would destroy the record of
+  /// a delivery or a payment the operation still has to reconcile; leaving it
+  /// in the pending query would stop everything behind it.
+  TextColumn get blockedReason => text().nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 }
