@@ -2,8 +2,11 @@
 # the file next to the pubspec being tested, so every package carries its own
 # copy; tooling/scaffold generates it per package type.
 #
-# delivery_infrastructure is pure Dart with no Flutter binding, so only the
-# tags a pure Dart package can produce are declared here.
+# delivery_infrastructure depends on the Flutter SDK, transitively through
+# location_service, so its tests run under `flutter test` rather than
+# `dart test`. The tags are still the pure Dart set: nothing here pumps a
+# widget, and a golden or a widget tag in this file would be a promise the
+# package cannot keep.
 retry: 0
 timeout: 30s
 
