@@ -1,6 +1,7 @@
 name: delivery_testing
 description: >-
-  Fakes and the contract kit for delivery, consumed by other packages' tests.
+  Fakes, fixtures and the contract kit for delivery — including the one both
+  implementations of ProofStorePort are held to.
 publish_to: none
 version: 0.1.0
 resolution: workspace
@@ -16,6 +17,14 @@ dependencies:
   core_ports: ^0.1.0
   core_testing: ^0.1.0
   delivery_api: ^0.1.0
-
-dev_dependencies:
+  # Two foreign _api packages, which the feature_testing row allows, and for
+  # two types: a fixture attempt names a courier and a shipment, because that
+  # is what DeliveryAttempt names. Section 2.1's rule holds here too — an
+  # identifier crosses, a model does not — so no fixture here builds a
+  # Shipment or a ShipmentSummary, and none needs to.
+  identity_api: ^0.1.0
+  shipments_api: ^0.1.0
+  # A runtime dependency, because a contract kit *is* tests: it calls group()
+  # and test() from lib/. Leaving it in dev_dependencies would make that a
+  # dev_dependency_in_lib violation, and rightly so.
   test: ^1.26.0
