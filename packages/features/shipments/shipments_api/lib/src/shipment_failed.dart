@@ -20,9 +20,15 @@ final class ShipmentFailed extends DomainEvent {
 
   /// Why it did not happen, in the operation's own words.
   ///
-  /// A string rather than a code, because the taxonomy of why a delivery
-  /// fails belongs to `incidents`, which owns `NonDeliveryReason`. A code
-  /// here would be a second, quietly diverging copy of it.
+  /// A string rather than a code, because the taxonomy of why a delivery fails
+  /// belongs to `delivery`, which owns `NonDeliveryReason`. A code here would
+  /// be a second, quietly diverging copy of it — and it would have to be
+  /// declared in this package, which would put delivery's vocabulary in
+  /// shipments' contract.
+  ///
+  /// What a phrase means to whoever is listening is the listener's problem.
+  /// `incidents_core` classifies it into its own `IncidentCategory` and is
+  /// honest about the guess: anything it cannot place is `unclassified`.
   final String reason;
 
   @override

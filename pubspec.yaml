@@ -28,6 +28,9 @@ workspace:
   - packages/features/identity/identity_infrastructure
   - packages/features/identity/identity_presentation
   - packages/features/identity/identity_testing
+  - packages/features/incidents/incidents_api
+  - packages/features/incidents/incidents_core
+  - packages/features/incidents/incidents_presentation
   - packages/features/notifications/notifications_api
   - packages/features/notifications/notifications_core
   - packages/features/notifications/notifications_presentation
