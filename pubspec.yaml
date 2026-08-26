@@ -23,6 +23,9 @@ workspace:
   - packages/features/delivery/delivery_infrastructure
   - packages/features/delivery/delivery_presentation
   - packages/features/delivery/delivery_testing
+  - packages/features/documents/documents_api
+  - packages/features/documents/documents_core
+  - packages/features/documents/documents_presentation
   - packages/features/identity/identity_api
   - packages/features/identity/identity_application
   - packages/features/identity/identity_infrastructure
