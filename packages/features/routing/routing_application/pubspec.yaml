@@ -1,7 +1,7 @@
 name: routing_application
 description: >-
-  The routing use cases. Pure Dart, and blind to every adapter that answers
-  its ports.
+  The routing use cases. Pure Dart, and blind to which optimiser is behind
+  them.
 publish_to: none
 version: 0.1.0
 resolution: workspace
@@ -15,6 +15,9 @@ environment:
 dependencies:
   core_kernel: ^0.1.0
   core_ports: ^0.1.0
+  # A foreign _api, which section 2 allows. A route belongs to a courier, and
+  # identity is where that vocabulary lives.
+  identity_api: ^0.1.0
   routing_api: ^0.1.0
 
 dev_dependencies:
