@@ -126,6 +126,32 @@ void main() {
       expect(proof.carries, {EvidenceKind.signature, EvidenceKind.scan});
     });
 
+    test('takes its instant from the last piece of evidence', () {
+      // For callers with no clock: a presentation package may not depend on
+      // core_ports, and rule A1 forbids it reaching for DateTime.now(). It is
+      // also the more honest answer — a hand-over happened when the evidence
+      // was captured, not when somebody pressed a button.
+      final late = Fixtures.noon.add(const Duration(minutes: 4));
+      final proof = Fixtures.unwrap(
+        ProofOfDelivery.from(
+          recipient: Fixtures.recipient(),
+          signature: Fixtures.signature(),
+          scan: Fixtures.unwrap(
+            ScanEvidence.of(symbol: '999', scannedAt: late),
+          ),
+        ),
+      );
+
+      expect(proof.capturedAt, late);
+    });
+
+    test('cannot be assembled from nothing', () {
+      expect(
+        ProofOfDelivery.from(recipient: Fixtures.recipient()),
+        isA<Failed<ProofOfDelivery, DeliveryFailure>>(),
+      );
+    });
+
     test('replaces only the photograph', () {
       // Narrow on purpose: the one thing that legitimately rewrites a captured
       // proof is compression — the same photograph, fewer bytes.

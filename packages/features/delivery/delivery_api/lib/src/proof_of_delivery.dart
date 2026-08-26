@@ -1,5 +1,7 @@
+import 'package:core_kernel/core_kernel.dart';
 import 'package:meta/meta.dart';
 
+import 'delivery_failure.dart';
 import 'evidence_kind.dart';
 import 'photo_evidence.dart';
 import 'recipient.dart';
@@ -47,6 +49,54 @@ final class ProofOfDelivery {
     photo: photo,
     scan: scan,
   );
+
+  /// Assembles a proof and takes its instant from the evidence itself.
+  ///
+  /// **For callers that have no clock.** A presentation package may depend on
+  /// `core_kernel`, `core_navigation` and contracts, and on nothing else —
+  /// section 2 — so it cannot hold a `Clock`, and rule A1 forbids it reaching
+  /// for `DateTime.now()`. Without this it would have to be handed a time
+  /// source that is a `Clock` under another name.
+  ///
+  /// Deriving the instant is also the more honest answer. A hand-over happened
+  /// when the courier captured the evidence, not when they got round to
+  /// pressing a button; the two differ by however long the recipient spent
+  /// looking for a pen.
+  ///
+  /// The latest of the pieces rather than the earliest: the proof is complete
+  /// at the moment the last of it was taken.
+  ///
+  /// Fails when there is nothing to take an instant from. That is the same
+  /// case `ProofPolicy` refuses at every grade, caught here one step earlier
+  /// because there is genuinely nothing to build.
+  static Result<ProofOfDelivery, DeliveryFailure> from({
+    required Recipient recipient,
+    SignatureCapture? signature,
+    PhotoEvidence? photo,
+    ScanEvidence? scan,
+  }) {
+    final instants = [
+      if (signature != null) signature.capturedAt,
+      if (photo != null) photo.capturedAt,
+      if (scan != null) scan.scannedAt,
+    ]..sort();
+
+    if (instants.isEmpty) {
+      return const Failed(
+        ProofInsufficient(grade: 'any', missing: ['any evidence']),
+      );
+    }
+
+    return Success(
+      ProofOfDelivery._(
+        recipient: recipient,
+        capturedAt: instants.last,
+        signature: signature,
+        photo: photo,
+        scan: scan,
+      ),
+    );
+  }
 
   /// Who took it.
   final Recipient recipient;

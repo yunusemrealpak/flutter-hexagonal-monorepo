@@ -18,6 +18,7 @@ The two foreign `_api` packages are there for two types: `ActorId` and `Shipment
 - **A DTO, or `json_annotation`.** Serialization is an infrastructure concern; rules I4 and G2 check it.
 - **`flutter`.** This package is pure Dart, which is what keeps its tests fast.
 - **A failure that is really an outcome.** A courier who found nobody home did their job: that is `NonDeliveryReason`, on the success side of the `Result`.
+- **A clock.** `ProofOfDelivery.from` derives its instant from the evidence, which is what lets a presentation package — allowed `core_kernel`, `core_navigation` and contracts, and nothing else — assemble a proof without holding a time source.
 - **Coordinates.** `GeoFencePort` asks *am I there yet* and gets back a distance, which is why delivery needs no point type of its own and borrows nobody else's.
 
 ## Code generation
