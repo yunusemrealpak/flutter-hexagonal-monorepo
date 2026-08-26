@@ -72,6 +72,24 @@ sealed class ShipmentFailure extends Failure with _$ShipmentFailure {
   /// either way.
   const factory ShipmentFailure.shipmentsUnavailable({String? detail}) =
       ShipmentsUnavailable;
+
+  /// Money is still owed on this parcel, so the hand-over cannot be recorded.
+  ///
+  /// **Shipments' word for something payments decided**, which is why the
+  /// amount is a plain string. `Money` is a payments type and section 2.1
+  /// keeps a foreign model out of this package; what a shipments caller needs
+  /// is a sentence it can show and a reason it can branch on, and it gets
+  /// both without depending on payments to read this failure.
+  ///
+  /// The check itself lives in `shipments_application`, which is allowed to
+  /// see `payments_api` and asks `PaymentStatusReader`. That is scenario 1's
+  /// second half: the two features depend on each other's *contracts*, and
+  /// the graph stays acyclic because a contract package depends on no
+  /// implementation.
+  const factory ShipmentFailure.paymentOutstanding({
+    required String shipment,
+    required String amount,
+  }) = PaymentOutstanding;
 }
 
 /// Builds an [InvalidTransition] from the two states involved.

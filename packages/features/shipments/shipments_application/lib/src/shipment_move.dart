@@ -33,6 +33,19 @@ sealed class ShipmentMove {
   /// transition would be a bus carrying six times the traffic for the sake of
   /// symmetry, and a subscriber filtering five of them out.
   DomainEvent? eventFor(Shipment moved, DateTime now);
+
+  /// Whether this move may not happen while money is still owed.
+  ///
+  /// Answered by the move rather than by the use case, for the same reason
+  /// [eventFor] is: `AdvanceShipment` is one use case serving six moves, and a
+  /// `switch` over move types inside it would be the place a seventh move got
+  /// forgotten.
+  ///
+  /// Only a hand-over is guarded. Assigning, loading and returning a parcel
+  /// are things an operation does *to* a shipment and none of them is the
+  /// moment money changes hands; blocking them on a collection would stop a
+  /// depot moving parcels because a customer had not paid yet.
+  bool get requiresSettledPayment => false;
 }
 
 /// Put the shipment on a courier's manifest.
@@ -106,6 +119,14 @@ final class CompleteDelivery extends ShipmentMove {
   @override
   Result<Shipment, ShipmentFailure> applyTo(Shipment shipment, DateTime now) =>
       shipment.completeDelivery(proofReference: proofReference, at: now);
+
+  /// The one move money can stop.
+  ///
+  /// A hand-over is the moment the operation gives up its only leverage over a
+  /// cash collection. Once the parcel is with the consignee, an outstanding
+  /// amount is a debt to chase rather than a payment to take.
+  @override
+  bool get requiresSettledPayment => true;
 
   /// Publishes `ShipmentDelivered`.
   ///

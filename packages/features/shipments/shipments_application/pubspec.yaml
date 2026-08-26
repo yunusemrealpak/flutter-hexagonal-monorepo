@@ -18,9 +18,22 @@ dependencies:
   # A foreign _api, which section 2 allows. A use case names the courier a
   # shipment is assigned to, and identity is where that vocabulary lives.
   identity_api: ^0.1.0
+  # Scenario 1's second half. `AdvanceShipment` asks payments_api's
+  # PaymentStatusReader whether money is still owed before it records a
+  # hand-over; payments_api names shipments_api in return. The two features
+  # depend on each other's *contracts*, and the graph stays acyclic because a
+  # contract package depends on no implementation — `dep_graph` shows it in
+  # phase 8.
+  #
+  # What is emphatically not here is payments_application. Neither use-case
+  # package knows the other exists.
+  payments_api: ^0.1.0
   shipments_api: ^0.1.0
 
 dev_dependencies:
   core_testing: ^0.1.0
+  # For FakePaymentStatusReader, which is the whole of what a shipments test
+  # needs in order to exercise scenario 1: a question and an answer.
+  payments_testing: ^0.1.0
   shipments_testing: ^0.1.0
   test: ^1.26.0

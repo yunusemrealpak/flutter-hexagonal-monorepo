@@ -56,7 +56,7 @@ extension ShipmentFailurePatterns on ShipmentFailure {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( InvalidTransition value)?  invalidTransition,TResult Function( NotTheAssignedCourier value)?  notTheAssignedCourier,TResult Function( ShipmentNotFound value)?  shipmentNotFound,TResult Function( MalformedShipmentId value)?  malformedShipmentId,TResult Function( MalformedBarcode value)?  malformedBarcode,TResult Function( BarcodeNotRecognised value)?  barcodeNotRecognised,TResult Function( MalformedValue value)?  malformedValue,TResult Function( ShipmentsUnavailable value)?  shipmentsUnavailable,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( InvalidTransition value)?  invalidTransition,TResult Function( NotTheAssignedCourier value)?  notTheAssignedCourier,TResult Function( ShipmentNotFound value)?  shipmentNotFound,TResult Function( MalformedShipmentId value)?  malformedShipmentId,TResult Function( MalformedBarcode value)?  malformedBarcode,TResult Function( BarcodeNotRecognised value)?  barcodeNotRecognised,TResult Function( MalformedValue value)?  malformedValue,TResult Function( ShipmentsUnavailable value)?  shipmentsUnavailable,TResult Function( PaymentOutstanding value)?  paymentOutstanding,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case InvalidTransition() when invalidTransition != null:
@@ -67,7 +67,8 @@ return malformedShipmentId(_that);case MalformedBarcode() when malformedBarcode 
 return malformedBarcode(_that);case BarcodeNotRecognised() when barcodeNotRecognised != null:
 return barcodeNotRecognised(_that);case MalformedValue() when malformedValue != null:
 return malformedValue(_that);case ShipmentsUnavailable() when shipmentsUnavailable != null:
-return shipmentsUnavailable(_that);case _:
+return shipmentsUnavailable(_that);case PaymentOutstanding() when paymentOutstanding != null:
+return paymentOutstanding(_that);case _:
   return orElse();
 
 }
@@ -85,7 +86,7 @@ return shipmentsUnavailable(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( InvalidTransition value)  invalidTransition,required TResult Function( NotTheAssignedCourier value)  notTheAssignedCourier,required TResult Function( ShipmentNotFound value)  shipmentNotFound,required TResult Function( MalformedShipmentId value)  malformedShipmentId,required TResult Function( MalformedBarcode value)  malformedBarcode,required TResult Function( BarcodeNotRecognised value)  barcodeNotRecognised,required TResult Function( MalformedValue value)  malformedValue,required TResult Function( ShipmentsUnavailable value)  shipmentsUnavailable,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( InvalidTransition value)  invalidTransition,required TResult Function( NotTheAssignedCourier value)  notTheAssignedCourier,required TResult Function( ShipmentNotFound value)  shipmentNotFound,required TResult Function( MalformedShipmentId value)  malformedShipmentId,required TResult Function( MalformedBarcode value)  malformedBarcode,required TResult Function( BarcodeNotRecognised value)  barcodeNotRecognised,required TResult Function( MalformedValue value)  malformedValue,required TResult Function( ShipmentsUnavailable value)  shipmentsUnavailable,required TResult Function( PaymentOutstanding value)  paymentOutstanding,}){
 final _that = this;
 switch (_that) {
 case InvalidTransition():
@@ -96,7 +97,8 @@ return malformedShipmentId(_that);case MalformedBarcode():
 return malformedBarcode(_that);case BarcodeNotRecognised():
 return barcodeNotRecognised(_that);case MalformedValue():
 return malformedValue(_that);case ShipmentsUnavailable():
-return shipmentsUnavailable(_that);}
+return shipmentsUnavailable(_that);case PaymentOutstanding():
+return paymentOutstanding(_that);}
 }
 /// A variant of `map` that fallback to returning `null`.
 ///
@@ -110,7 +112,7 @@ return shipmentsUnavailable(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( InvalidTransition value)?  invalidTransition,TResult? Function( NotTheAssignedCourier value)?  notTheAssignedCourier,TResult? Function( ShipmentNotFound value)?  shipmentNotFound,TResult? Function( MalformedShipmentId value)?  malformedShipmentId,TResult? Function( MalformedBarcode value)?  malformedBarcode,TResult? Function( BarcodeNotRecognised value)?  barcodeNotRecognised,TResult? Function( MalformedValue value)?  malformedValue,TResult? Function( ShipmentsUnavailable value)?  shipmentsUnavailable,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( InvalidTransition value)?  invalidTransition,TResult? Function( NotTheAssignedCourier value)?  notTheAssignedCourier,TResult? Function( ShipmentNotFound value)?  shipmentNotFound,TResult? Function( MalformedShipmentId value)?  malformedShipmentId,TResult? Function( MalformedBarcode value)?  malformedBarcode,TResult? Function( BarcodeNotRecognised value)?  barcodeNotRecognised,TResult? Function( MalformedValue value)?  malformedValue,TResult? Function( ShipmentsUnavailable value)?  shipmentsUnavailable,TResult? Function( PaymentOutstanding value)?  paymentOutstanding,}){
 final _that = this;
 switch (_that) {
 case InvalidTransition() when invalidTransition != null:
@@ -121,7 +123,8 @@ return malformedShipmentId(_that);case MalformedBarcode() when malformedBarcode 
 return malformedBarcode(_that);case BarcodeNotRecognised() when barcodeNotRecognised != null:
 return barcodeNotRecognised(_that);case MalformedValue() when malformedValue != null:
 return malformedValue(_that);case ShipmentsUnavailable() when shipmentsUnavailable != null:
-return shipmentsUnavailable(_that);case _:
+return shipmentsUnavailable(_that);case PaymentOutstanding() when paymentOutstanding != null:
+return paymentOutstanding(_that);case _:
   return null;
 
 }
@@ -138,7 +141,7 @@ return shipmentsUnavailable(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String from,  String to)?  invalidTransition,TResult Function( ActorId assigned,  ActorId attempted)?  notTheAssignedCourier,TResult Function( ShipmentId id)?  shipmentNotFound,TResult Function( String raw)?  malformedShipmentId,TResult Function( String raw,  String reason)?  malformedBarcode,TResult Function( String barcode)?  barcodeNotRecognised,TResult Function( String field,  String reason)?  malformedValue,TResult Function( String? detail)?  shipmentsUnavailable,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String from,  String to)?  invalidTransition,TResult Function( ActorId assigned,  ActorId attempted)?  notTheAssignedCourier,TResult Function( ShipmentId id)?  shipmentNotFound,TResult Function( String raw)?  malformedShipmentId,TResult Function( String raw,  String reason)?  malformedBarcode,TResult Function( String barcode)?  barcodeNotRecognised,TResult Function( String field,  String reason)?  malformedValue,TResult Function( String? detail)?  shipmentsUnavailable,TResult Function( String shipment,  String amount)?  paymentOutstanding,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case InvalidTransition() when invalidTransition != null:
 return invalidTransition(_that.from,_that.to);case NotTheAssignedCourier() when notTheAssignedCourier != null:
@@ -148,7 +151,8 @@ return malformedShipmentId(_that.raw);case MalformedBarcode() when malformedBarc
 return malformedBarcode(_that.raw,_that.reason);case BarcodeNotRecognised() when barcodeNotRecognised != null:
 return barcodeNotRecognised(_that.barcode);case MalformedValue() when malformedValue != null:
 return malformedValue(_that.field,_that.reason);case ShipmentsUnavailable() when shipmentsUnavailable != null:
-return shipmentsUnavailable(_that.detail);case _:
+return shipmentsUnavailable(_that.detail);case PaymentOutstanding() when paymentOutstanding != null:
+return paymentOutstanding(_that.shipment,_that.amount);case _:
   return orElse();
 
 }
@@ -166,7 +170,7 @@ return shipmentsUnavailable(_that.detail);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String from,  String to)  invalidTransition,required TResult Function( ActorId assigned,  ActorId attempted)  notTheAssignedCourier,required TResult Function( ShipmentId id)  shipmentNotFound,required TResult Function( String raw)  malformedShipmentId,required TResult Function( String raw,  String reason)  malformedBarcode,required TResult Function( String barcode)  barcodeNotRecognised,required TResult Function( String field,  String reason)  malformedValue,required TResult Function( String? detail)  shipmentsUnavailable,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String from,  String to)  invalidTransition,required TResult Function( ActorId assigned,  ActorId attempted)  notTheAssignedCourier,required TResult Function( ShipmentId id)  shipmentNotFound,required TResult Function( String raw)  malformedShipmentId,required TResult Function( String raw,  String reason)  malformedBarcode,required TResult Function( String barcode)  barcodeNotRecognised,required TResult Function( String field,  String reason)  malformedValue,required TResult Function( String? detail)  shipmentsUnavailable,required TResult Function( String shipment,  String amount)  paymentOutstanding,}) {final _that = this;
 switch (_that) {
 case InvalidTransition():
 return invalidTransition(_that.from,_that.to);case NotTheAssignedCourier():
@@ -176,7 +180,8 @@ return malformedShipmentId(_that.raw);case MalformedBarcode():
 return malformedBarcode(_that.raw,_that.reason);case BarcodeNotRecognised():
 return barcodeNotRecognised(_that.barcode);case MalformedValue():
 return malformedValue(_that.field,_that.reason);case ShipmentsUnavailable():
-return shipmentsUnavailable(_that.detail);}
+return shipmentsUnavailable(_that.detail);case PaymentOutstanding():
+return paymentOutstanding(_that.shipment,_that.amount);}
 }
 /// A variant of `when` that fallback to returning `null`
 ///
@@ -190,7 +195,7 @@ return shipmentsUnavailable(_that.detail);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String from,  String to)?  invalidTransition,TResult? Function( ActorId assigned,  ActorId attempted)?  notTheAssignedCourier,TResult? Function( ShipmentId id)?  shipmentNotFound,TResult? Function( String raw)?  malformedShipmentId,TResult? Function( String raw,  String reason)?  malformedBarcode,TResult? Function( String barcode)?  barcodeNotRecognised,TResult? Function( String field,  String reason)?  malformedValue,TResult? Function( String? detail)?  shipmentsUnavailable,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String from,  String to)?  invalidTransition,TResult? Function( ActorId assigned,  ActorId attempted)?  notTheAssignedCourier,TResult? Function( ShipmentId id)?  shipmentNotFound,TResult? Function( String raw)?  malformedShipmentId,TResult? Function( String raw,  String reason)?  malformedBarcode,TResult? Function( String barcode)?  barcodeNotRecognised,TResult? Function( String field,  String reason)?  malformedValue,TResult? Function( String? detail)?  shipmentsUnavailable,TResult? Function( String shipment,  String amount)?  paymentOutstanding,}) {final _that = this;
 switch (_that) {
 case InvalidTransition() when invalidTransition != null:
 return invalidTransition(_that.from,_that.to);case NotTheAssignedCourier() when notTheAssignedCourier != null:
@@ -200,7 +205,8 @@ return malformedShipmentId(_that.raw);case MalformedBarcode() when malformedBarc
 return malformedBarcode(_that.raw,_that.reason);case BarcodeNotRecognised() when barcodeNotRecognised != null:
 return barcodeNotRecognised(_that.barcode);case MalformedValue() when malformedValue != null:
 return malformedValue(_that.field,_that.reason);case ShipmentsUnavailable() when shipmentsUnavailable != null:
-return shipmentsUnavailable(_that.detail);case _:
+return shipmentsUnavailable(_that.detail);case PaymentOutstanding() when paymentOutstanding != null:
+return paymentOutstanding(_that.shipment,_that.amount);case _:
   return null;
 
 }
@@ -738,6 +744,74 @@ class _$ShipmentsUnavailableCopyWithImpl<$Res>
   return _then(ShipmentsUnavailable(
 detail: freezed == detail ? _self.detail : detail // ignore: cast_nullable_to_non_nullable
 as String?,
+  ));
+}
+
+
+}
+
+/// @nodoc
+
+
+class PaymentOutstanding extends ShipmentFailure {
+  const PaymentOutstanding({required this.shipment, required this.amount}): super._();
+  
+
+ final  String shipment;
+ final  String amount;
+
+/// Create a copy of ShipmentFailure
+/// with the given fields replaced by the non-null parameter values.
+@JsonKey(includeFromJson: false, includeToJson: false)
+@pragma('vm:prefer-inline')
+$PaymentOutstandingCopyWith<PaymentOutstanding> get copyWith => _$PaymentOutstandingCopyWithImpl<PaymentOutstanding>(this, _$identity);
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is PaymentOutstanding&&(identical(other.shipment, shipment) || other.shipment == shipment)&&(identical(other.amount, amount) || other.amount == amount));
+}
+
+
+@override
+int get hashCode => Object.hash(runtimeType,shipment,amount);
+
+@override
+String toString() {
+  return 'ShipmentFailure.paymentOutstanding(shipment: $shipment, amount: $amount)';
+}
+
+
+}
+
+/// @nodoc
+abstract mixin class $PaymentOutstandingCopyWith<$Res> implements $ShipmentFailureCopyWith<$Res> {
+  factory $PaymentOutstandingCopyWith(PaymentOutstanding value, $Res Function(PaymentOutstanding) _then) = _$PaymentOutstandingCopyWithImpl;
+@useResult
+$Res call({
+ String shipment, String amount
+});
+
+
+
+
+}
+/// @nodoc
+class _$PaymentOutstandingCopyWithImpl<$Res>
+    implements $PaymentOutstandingCopyWith<$Res> {
+  _$PaymentOutstandingCopyWithImpl(this._self, this._then);
+
+  final PaymentOutstanding _self;
+  final $Res Function(PaymentOutstanding) _then;
+
+/// Create a copy of ShipmentFailure
+/// with the given fields replaced by the non-null parameter values.
+@pragma('vm:prefer-inline') $Res call({Object? shipment = null,Object? amount = null,}) {
+  return _then(PaymentOutstanding(
+shipment: null == shipment ? _self.shipment : shipment // ignore: cast_nullable_to_non_nullable
+as String,amount: null == amount ? _self.amount : amount // ignore: cast_nullable_to_non_nullable
+as String,
   ));
 }
 

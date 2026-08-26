@@ -2,6 +2,8 @@
 library;
 
 import 'package:core_kernel/core_kernel.dart';
+import 'package:payments_api/payments_api.dart';
+import 'package:payments_testing/payments_testing.dart';
 import 'package:shipments_api/shipments_api.dart';
 import 'package:shipments_application/shipments_application.dart';
 import 'package:shipments_testing/shipments_testing.dart';
@@ -174,6 +176,112 @@ void main() {
       );
 
       expect(harness.events.published, isEmpty);
+    });
+  });
+
+  group('the payment guard — scenario 1', () {
+    Shipment atTheDoor() => seed(
+      ShipmentBuilder()
+          .withId('ship-1')
+          .assignedTo(courier)
+          .loaded()
+          .outForDelivery(),
+    );
+
+    test('a hand-over is refused while money is still owed', () async {
+      // shipments_application reaches payments_api's PaymentStatusReader, and
+      // payments_api names shipments_api in return. Two features that need
+      // each other, and no cycle: contracts depend on no implementation.
+      final shipment = atTheDoor();
+      harness.payments.owes('ship-1', PaymentsFixtures.lira(4500));
+
+      final refused = await harness.advanceShipment(
+        CompleteDelivery(id: shipment.id, proofReference: 'proof-7'),
+      );
+
+      expect(
+        (refused as Failed<Shipment, ShipmentFailure>).failure,
+        isA<PaymentOutstanding>(),
+      );
+      expect(
+        harness.gateway.stored.single.status,
+        isA<ShipmentOutForDelivery>(),
+        reason: 'the shipment must not have moved',
+      );
+      expect(harness.events.published, isEmpty);
+    });
+
+    test('the refusal says which parcel and how much', () async {
+      // Shipments' own failure, carrying a string. Money is a payments type
+      // and section 2.1 keeps a foreign model out of this vocabulary.
+      final shipment = atTheDoor();
+      harness.payments.owes('ship-1', PaymentsFixtures.lira(4500));
+
+      final refused = await harness.advanceShipment(
+        CompleteDelivery(id: shipment.id, proofReference: 'proof-7'),
+      );
+
+      final failure =
+          (refused as Failed<Shipment, ShipmentFailure>).failure
+              as PaymentOutstanding;
+      expect(failure.shipment, 'ship-1');
+      expect(failure.amount, contains('4500'));
+    });
+
+    test('a prepaid parcel is handed over without a word', () async {
+      final shipment = atTheDoor();
+
+      final delivered = await harness.advanceShipment(
+        CompleteDelivery(id: shipment.id, proofReference: 'proof-7'),
+      );
+
+      expect(delivered, isA<Success<Shipment, ShipmentFailure>>());
+      expect(harness.payments.asked, ['ship-1']);
+    });
+
+    test('nothing else asks payments anything', () async {
+      // Assigning, loading and returning a parcel are things an operation does
+      // to a shipment, and none is the moment money changes hands. Blocking
+      // them on a collection would stop a depot moving parcels.
+      final shipment = seed(ShipmentBuilder().withId('ship-1'));
+
+      await harness.advanceShipment(
+        AssignToCourier(id: shipment.id, courier: courier),
+      );
+
+      expect(harness.payments.asked, isEmpty);
+    });
+
+    test('an unreadable payment status does not strand a delivery', () async {
+      // The parcel is at the door and the courier is standing there. Refusing
+      // over a network would strand a delivery that has already happened; the
+      // collection is reconciled afterwards, when payments sees the event.
+      final shipment = atTheDoor();
+      harness.payments.failNextWith(
+        const PaymentsFailure.paymentsUnavailable(),
+      );
+
+      final delivered = await harness.advanceShipment(
+        CompleteDelivery(id: shipment.id, proofReference: 'proof-7'),
+      );
+
+      expect(delivered, isA<Success<Shipment, ShipmentFailure>>());
+      expect(harness.logger.records, isNotEmpty);
+    });
+
+    test('a settled collection does not block anything', () async {
+      final shipment = atTheDoor();
+      harness.payments.settled(
+        'ship-1',
+        PaymentsFixtures.lira(4500),
+        Harness.now,
+      );
+
+      final delivered = await harness.advanceShipment(
+        CompleteDelivery(id: shipment.id, proofReference: 'proof-7'),
+      );
+
+      expect(delivered, isA<Success<Shipment, ShipmentFailure>>());
     });
   });
 
