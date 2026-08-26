@@ -1,9 +1,10 @@
-/// Fakes and the contract kit for payments, consumed by other packages'
-/// tests.
+/// Fakes and the contract kit for payments.
 ///
 /// Everything this package publishes is exported here and nowhere else.
-/// Another package importing `package:payments_testing/src/...` is reaching
-/// across a boundary, and arch_check reports it as one.
+/// Another package importing `package:payments_testing/src/...` is
+/// reaching across a boundary, and arch_check reports it as one.
 library;
 
-export 'src/fake_payments_repository.dart';
+// Nothing yet: this package's contents arrive in the commit that gives it
+// something to hold. A barrel with no export is a package with no public
+// surface, which is exactly what this one has until then.

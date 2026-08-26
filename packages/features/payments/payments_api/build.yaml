@@ -1,0 +1,13 @@
+# freezed only, and only from lib/src. The narrowing is rule G4.
+#
+# json_serializable is absent rather than disabled: it is not a dev dependency
+# of this package, so its builder does not exist in this package's build graph
+# and naming it would fail the build instead of tightening it. Rules I4 and G2
+# forbid it here in any case — a DTO belongs in payments_infrastructure.
+targets:
+  $default:
+    builders:
+      freezed:
+        enabled: true
+        generate_for:
+          - lib/src/**.dart

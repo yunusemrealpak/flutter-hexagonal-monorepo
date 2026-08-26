@@ -1,10 +1,10 @@
-/// The payments adapters: what answers its ports, the DTOs that cross the
-/// wire, and the mappers between them.
+/// The payments adapters.
 ///
 /// Everything this package publishes is exported here and nowhere else.
 /// Another package importing `package:payments_infrastructure/src/...` is
 /// reaching across a boundary, and arch_check reports it as one.
 library;
 
-export 'src/payments_dto.dart';
-export 'src/remote_payments_repository.dart';
+// Nothing yet: this package's contents arrive in the commit that gives it
+// something to hold. A barrel with no export is a package with no public
+// surface, which is exactly what this one has until then.
