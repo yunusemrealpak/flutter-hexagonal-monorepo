@@ -24,6 +24,12 @@ The edge to `shipments_api` is one half of scenario 1. `shipments_application` w
 
 One question, one answer, like `SessionReader` beside `IdentityFacade`. Handing `shipments` the whole `PaymentsFacade` would also hand it the ability to take money; handing it a `PaymentAttempt` would let it reason about the idempotency key, the courier and the method — things it is not asking about.
 
+## `collect` is idempotent about money, not about rows
+
+Once money has moved under a key, sending the attempt again produces no second movement and the same answer. Until it has moved, the same key may be sent again to carry the intention forward — an office that recorded an expected cash amount, a courier who then took it.
+
+Both halves are cases a courier meets. A retry in a tunnel must not charge twice; a collection the operation created before the visit must still be closable when the visit happens. A gateway that refused the second in the name of the first would leave every pre-recorded collection open for ever.
+
 ## What must never live here
 
 - **An implementation of any port declared here.**
