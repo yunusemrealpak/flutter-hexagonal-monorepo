@@ -1,0 +1,20 @@
+name: delivery_api
+description: >-
+  The delivery contract: entities, value objects, ports and the sealed
+  failures they return.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+# Exactly the dependency list section 2 of docs/DEPENDENCY_RULES.md allows for
+# a api package. Adding one that is not in that row is a violation,
+# not an exception — arch_check will say which rule and why.
+dependencies:
+  core_kernel: ^0.1.0
+  core_ports: ^0.1.0
+
+dev_dependencies:
+  test: ^1.26.0
