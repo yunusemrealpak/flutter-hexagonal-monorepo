@@ -38,6 +38,9 @@ workspace:
   - packages/features/routing/routing_infrastructure
   - packages/features/routing/routing_presentation
   - packages/features/routing/routing_testing
+  - packages/features/settings/settings_api
+  - packages/features/settings/settings_core
+  - packages/features/settings/settings_presentation
   - packages/features/shipments/shipments_api
   - packages/features/shipments/shipments_application
   - packages/features/shipments/shipments_infrastructure

@@ -1,0 +1,31 @@
+name: settings_core
+description: >-
+  The settings use cases and the adapter that answers them, together. Split
+  them apart the day one of them grows a second reason to change.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+# Exactly the dependency list section 2 of docs/DEPENDENCY_RULES.md allows for
+# a core package. Adding one that is not in that row is a violation,
+# not an exception — arch_check will say which rule and why.
+#
+# This row is the widest in the constitution: a _core package may see both
+# platform/* and a foreign _api, which no other feature package may. That is
+# what the reduced split buys, and the price is that the discipline an
+# _application/_infrastructure pair gets from the compiler has to be kept by
+# hand here. See the README.
+dependencies:
+  core_kernel: ^0.1.0
+  core_ports: ^0.1.0
+  # For ActorId, which SettingsFacade speaks in. The adapter below does not
+  # import it, and that is deliberate rather than accidental — see the README.
+  identity_api: ^0.1.0
+  settings_api: ^0.1.0
+
+dev_dependencies:
+  core_testing: ^0.1.0
+  test: ^1.26.0
