@@ -26,6 +26,7 @@ final class FakePaymentsGateway implements PaymentsGateway {
   final Map<String, PaymentAttempt> _byKey = {};
   final Map<String, String> _keyByShipment = {};
   final List<PaymentsFailure> _queuedFailures = [];
+  final List<PaymentsFailure> _queuedCollectFailures = [];
 
   /// How many attempts were actually recorded, as opposed to asked for.
   ///
@@ -36,14 +37,26 @@ final class FakePaymentsGateway implements PaymentsGateway {
   /// Every key this gateway holds.
   List<String> get keys => List.unmodifiable(_byKey.keys);
 
-  /// Makes the next call return [failure].
+  /// Makes the next call — whichever it is — return [failure].
+  ///
+  /// Applies to reads as well as writes, because that is what an unreachable
+  /// server does: a courier in a tunnel cannot ask what is recorded either.
   void failNextWith(PaymentsFailure failure) => _queuedFailures.add(failure);
+
+  /// Makes the next `collect` return [failure], leaving reads alone.
+  ///
+  /// The hook a refusal needs. A declined card is not an unreachable server:
+  /// the gateway answered every question it was asked and said no to one of
+  /// them, and a test that could only fail *everything* could not tell the two
+  /// apart — which is precisely the distinction the caller has to make.
+  void refuseNextCollectionWith(PaymentsFailure failure) =>
+      _queuedCollectFailures.add(failure);
 
   @override
   Future<Result<PaymentAttempt, PaymentsFailure>> collect(
     PaymentAttempt attempt,
   ) async {
-    final failure = _takeFailure();
+    final failure = _takeFailure() ?? _takeCollectFailure();
     if (failure != null) return Failed(failure);
 
     // The whole contract, in three lines. A second copy of one intention is
@@ -92,4 +105,8 @@ final class FakePaymentsGateway implements PaymentsGateway {
 
   PaymentsFailure? _takeFailure() =>
       _queuedFailures.isEmpty ? null : _queuedFailures.removeAt(0);
+
+  PaymentsFailure? _takeCollectFailure() => _queuedCollectFailures.isEmpty
+      ? null
+      : _queuedCollectFailures.removeAt(0);
 }

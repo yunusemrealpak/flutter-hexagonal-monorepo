@@ -18,6 +18,24 @@ void main() {
     runSettlementStoreContract(InMemorySettlementStore.new);
   });
 
+  group('FakePaymentsGateway', () {
+    test('a refusal is not an unreachable server', () async {
+      // The distinction the caller has to make, so the fake has to be able to
+      // produce it: the gateway answered every question it was asked and said
+      // no to one of them.
+      final gateway = FakePaymentsGateway()
+        ..refuseNextCollectionWith(
+          const CollectionRefused(reason: 'insufficient funds'),
+        );
+
+      final read = await gateway.attemptFor('SHP-1');
+      final refused = await gateway.collect(PaymentsFixtures.taken());
+
+      expect(read.fold((a) => a, (f) => throw StateError('$f')), isNull);
+      expect(refused.fold((_) => null, (f) => f), isA<CollectionRefused>());
+    });
+  });
+
   group('FakeCashDrawer', () {
     test('refuses to release more than it holds', () async {
       // Through Money.minus, which is the same rule that refuses a negative
