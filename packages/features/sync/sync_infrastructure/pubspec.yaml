@@ -1,7 +1,7 @@
 name: sync_infrastructure
 description: >-
-  The sync adapters: what answers its ports, the DTOs that cross the wire, and
-  the mappers between them.
+  The sync adapters: the drift-backed outbox, the HTTP transport, the DTOs
+  that cross the wire and the mappers between them.
 publish_to: none
 version: 0.1.0
 resolution: workspace
@@ -15,9 +15,21 @@ environment:
 dependencies:
   core_kernel: ^0.1.0
   core_ports: ^0.1.0
+  # The technology contracts this package answers its own ports over. Nothing
+  # in sync_api mentions SQL or HTTP, and sync_application may not even see
+  # this package — section 2 forbids the edge — so the retry that comes with
+  # speaking a protocol and the schema that comes with speaking SQL both stay
+  # here, where they are technology decisions rather than business rules.
+  http_dio: ^0.1.0
+  json_annotation: ^4.12.0
+  storage_drift: ^0.1.0
   sync_api: ^0.1.0
 
 dev_dependencies:
+  build_runner: ^2.16.0
   core_testing: ^0.1.0
+  drift: ^2.34.0
+  json_serializable: ^6.14.0
+  sqlite3: ^3.5.0
   sync_testing: ^0.1.0
   test: ^1.26.0
