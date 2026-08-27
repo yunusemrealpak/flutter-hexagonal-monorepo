@@ -1,6 +1,5 @@
 import 'dart:ui';
 
-import 'peyk_intent.dart';
 import 'peyk_intent_colors.dart';
 
 /// One complete set of colours, named by role rather than by hue.
@@ -68,33 +67,34 @@ final class PeykPalette {
   /// visible on top of a primary-coloured control.
   final Color focus;
 
-  /// Colours for [PeykIntent.neutral].
+  /// Nothing is being claimed.
   final PeykIntentColors neutral;
 
-  /// Colours for [PeykIntent.info].
+  /// Something is worth reading but nothing is wrong.
   final PeykIntentColors info;
 
-  /// Colours for [PeykIntent.success].
+  /// Something finished the way it was supposed to.
   final PeykIntentColors success;
 
-  /// Colours for [PeykIntent.warning].
+  /// Something needs attention but has not failed.
   final PeykIntentColors warning;
 
-  /// Colours for [PeykIntent.danger].
+  /// Something failed, or is about to.
   final PeykIntentColors danger;
 
-  /// The colours for [intent].
+  /// Every intent triple, in declaration order.
   ///
-  /// A total function over the enum rather than a map, so that adding an
-  /// intent stops this compiling instead of returning null at one call site
-  /// somebody has to find.
-  PeykIntentColors of(PeykIntent intent) => switch (intent) {
-    PeykIntent.neutral => neutral,
-    PeykIntent.info => info,
-    PeykIntent.success => success,
-    PeykIntent.warning => warning,
-    PeykIntent.danger => danger,
-  };
+  /// What the contrast test walks. There is deliberately no accessor taking a
+  /// vocabulary enum: *which* of these a caller asks for is a component-API
+  /// question, and the enum that asks it is declared in `design_system`. This
+  /// package holds the five values and no opinion about how they are chosen.
+  List<PeykIntentColors> get intents => [
+    neutral,
+    info,
+    success,
+    warning,
+    danger,
+  ];
 
   /// The palette for a light device.
   static const PeykPalette light = PeykPalette(

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'l10n/peyk_system_localizations.dart';
 import 'peyk_gap.dart';
+import 'peyk_gap_size.dart';
 import 'peyk_text.dart';
 import 'peyk_theme.dart';
 
@@ -58,7 +59,7 @@ final class PeykOptionRow extends StatelessWidget {
                 children: [
                   Expanded(child: PeykText.body(label)),
                   if (selected) ...[
-                    const PeykGap.horizontal(PeykSpacing.sm),
+                    const PeykGap.horizontal(PeykGapSize.betweenLines),
                     ExcludeSemantics(child: PeykText.caption(strings.selected)),
                   ],
                 ],

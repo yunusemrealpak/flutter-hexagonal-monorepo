@@ -1,6 +1,7 @@
 import 'package:design_tokens/design_tokens.dart';
 import 'package:flutter/widgets.dart';
 
+import 'peyk_intent.dart';
 import 'peyk_text_tone.dart';
 import 'peyk_theme.dart';
 import 'peyk_type_style.dart';
@@ -98,7 +99,7 @@ final class PeykText extends StatelessWidget {
   Widget build(BuildContext context) {
     final palette = PeykTheme.of(context).palette;
     final color = switch ((intent, tone)) {
-      (final PeykIntent intent, _) => palette.of(intent).foreground,
+      (final PeykIntent intent, _) => palette.colorsFor(intent).foreground,
       (_, PeykTextTone.standard) => palette.onSurface,
       (_, PeykTextTone.muted) => palette.onSurfaceMuted,
       (_, PeykTextTone.onPrimary) => palette.onPrimary,

@@ -10,6 +10,16 @@ Section 2 of [`docs/DEPENDENCY_RULES.md`](../../../docs/DEPENDENCY_RULES.md) als
 
 That is worth stating plainly, because "the row allows it" is the most common reason a dependency gets added in a repository like this one. Nothing here needs a `Result` or a `ValueObject`: a component takes a `String` that has already been resolved and a `PeykIntent` that the calling feature has already decided on. An allowed dependency that nothing needs is still an edge in the graph, still a package that has to be rebuilt, and still one more thing a reader has to rule out.
 
+## The vocabulary is declared here, and the constitution decided that
+
+A presentation package has to be able to write `PeykIntent.danger` and `PeykGapSize.betweenGroups`. It cannot import `design_tokens` — section 2 does not put it on that row — and this barrel cannot re-export it, because rule S4 forbids a barrel from republishing another package's URI.
+
+So `PeykIntent`, `PeykGapSize` and `PeykTextTone` are declared here. `design_tokens` holds the five colour triples and the seven spacing values; the words for asking for one of them are this package's API.
+
+That is worth writing down because the first draft had the enum in `design_tokens`, and it compiled — right up to the first presentation package that tried to name it. The wall held, and the type it moved was in the wrong place on its own terms: *which* triple a chip wants is a question about components, not about colours.
+
+`PeykGapSize` goes one step further and names the four *situations* rather than the sizes. Seven spacing values and a screen picking among them by eye is precisely how two screens stop lining up.
+
 ## Material is an implementation detail
 
 `Scaffold`, `InkWell`, `Material` and `ThemeData` appear inside `lib/src/`. No presentation package imports `package:flutter/material.dart` anywhere in the workspace — they import `design_system` and get `PeykScreen`, `PeykButton`, `PeykListRow`.
@@ -54,7 +64,7 @@ Its default catalogue is `KeyEchoCatalogue`, which is what lets a widget test as
 
 - **A feature's word.** `PeykIntent.danger`, never `PeykIntent.overdue`. A component that took a `ShipmentStatus` would be a design system that had learnt what a shipment is.
 - **A product sentence.** See the table above.
-- **A raw number or colour reaching a caller.** Callers get components; `design_tokens` is not re-exported.
+- **A raw number or colour reaching a caller.** Callers get components and vocabulary; `design_tokens` is not re-exported, and rule S4 would not allow it if somebody tried.
 - **A `core_ports` dependency.** Not on this row, and nothing here needs a `Clock`.
 - **A font or asset file.** A design system that shipped a font would make every app that draws a button carry it.
 

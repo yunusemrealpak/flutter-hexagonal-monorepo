@@ -4,23 +4,31 @@ import 'package:flutter_test/flutter_test.dart';
 import 'contrast.dart';
 
 void main() {
-  group('PeykPalette.of', () {
-    test('is total over PeykIntent in both palettes', () {
+  // The enum that picks one of these lives in design_system — this package
+  // may not name it, and that is the split rule S4 forced. What is left here
+  // is the property the values themselves have to hold.
+  group('PeykPalette.intents', () {
+    test('lists every triple the palette declares', () {
       for (final palette in [PeykPalette.light, PeykPalette.dark]) {
-        for (final intent in PeykIntent.values) {
-          expect(palette.of(intent), isNotNull);
-        }
+        expect(
+          palette.intents,
+          containsAll([
+            palette.neutral,
+            palette.info,
+            palette.success,
+            palette.warning,
+            palette.danger,
+          ]),
+        );
       }
     });
 
-    test('returns the triple named after the intent', () {
-      const palette = PeykPalette.light;
-
-      expect(palette.of(PeykIntent.neutral), same(palette.neutral));
-      expect(palette.of(PeykIntent.info), same(palette.info));
-      expect(palette.of(PeykIntent.success), same(palette.success));
-      expect(palette.of(PeykIntent.warning), same(palette.warning));
-      expect(palette.of(PeykIntent.danger), same(palette.danger));
+    test('gives each meaning its own wash', () {
+      // Two intents rendering identically is a chip that means two things.
+      for (final palette in [PeykPalette.light, PeykPalette.dark]) {
+        final backgrounds = palette.intents.map((c) => c.background).toSet();
+        expect(backgrounds, hasLength(palette.intents.length));
+      }
     });
   });
 
@@ -61,9 +69,8 @@ void main() {
           );
         });
 
-        for (final intent in PeykIntent.values) {
-          test('${intent.name} reads on its own wash', () {
-            final colors = palette.of(intent);
+        for (final (index, colors) in palette.intents.indexed) {
+          test('intent $index reads on its own wash', () {
             expect(
               contrastRatio(colors.foreground, colors.background),
               greaterThanOrEqualTo(4.5),
@@ -76,8 +83,7 @@ void main() {
           // catch is a border that has been set to the surface colour and
           // stopped being an edge at all — which makes a row of chips read as
           // one undifferentiated block.
-          test('${intent.name} keeps an edge against the surface', () {
-            final colors = palette.of(intent);
+          test('intent $index keeps an edge against the surface', () {
             expect(
               contrastRatio(colors.border, palette.surface),
               greaterThanOrEqualTo(1.3),

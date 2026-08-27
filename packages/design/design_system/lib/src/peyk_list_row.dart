@@ -2,6 +2,7 @@ import 'package:design_tokens/design_tokens.dart';
 import 'package:flutter/material.dart';
 
 import 'peyk_gap.dart';
+import 'peyk_gap_size.dart';
 import 'peyk_text.dart';
 
 /// One line of a list: a title, an optional second line, an optional mark on
@@ -50,14 +51,14 @@ final class PeykListRow extends StatelessWidget {
                 children: [
                   PeykText.body(title, maxLines: 2),
                   if (subtitle case final String subtitle) ...[
-                    const PeykGap.vertical(PeykSpacing.xs),
+                    const PeykGap.vertical(PeykGapSize.tight),
                     PeykText.caption(subtitle, maxLines: 2),
                   ],
                 ],
               ),
             ),
             if (trailing case final Widget trailing) ...[
-              const PeykGap.horizontal(PeykSpacing.md),
+              const PeykGap.horizontal(PeykGapSize.betweenLines),
               trailing,
             ],
           ],

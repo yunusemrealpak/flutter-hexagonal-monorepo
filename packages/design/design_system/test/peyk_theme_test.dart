@@ -50,6 +50,43 @@ void main() {
     });
   });
 
+  // The totality that used to live in design_tokens, following the enum here.
+  group('PeykPalette.colorsFor', () {
+    test('is total over PeykIntent in both palettes', () {
+      for (final palette in [PeykPalette.light, PeykPalette.dark]) {
+        for (final intent in PeykIntent.values) {
+          expect(palette.colorsFor(intent), isNotNull);
+        }
+      }
+    });
+
+    test('returns the triple named after the intent', () {
+      const palette = PeykPalette.light;
+
+      expect(palette.colorsFor(PeykIntent.neutral), same(palette.neutral));
+      expect(palette.colorsFor(PeykIntent.info), same(palette.info));
+      expect(palette.colorsFor(PeykIntent.success), same(palette.success));
+      expect(palette.colorsFor(PeykIntent.warning), same(palette.warning));
+      expect(palette.colorsFor(PeykIntent.danger), same(palette.danger));
+    });
+  });
+
+  group('PeykGap', () {
+    // The reason the sizes are named for what they mean: two callers reaching
+    // for "the gap between groups" get the same number without measuring it.
+    test('every size maps to a step of the scale', () {
+      for (final size in PeykGapSize.values) {
+        expect(PeykGap.pixels(size), greaterThan(0));
+      }
+    });
+
+    test('the steps are ordered the way their names are', () {
+      final extents = PeykGapSize.values.map(PeykGap.pixels).toList();
+
+      expect(extents, orderedEquals(List.of(extents)..sort()));
+    });
+  });
+
   testWidgets('PeykTheme.of finds the palette an app installed', (
     tester,
   ) async {

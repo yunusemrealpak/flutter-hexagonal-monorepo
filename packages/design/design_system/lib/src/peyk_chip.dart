@@ -1,6 +1,7 @@
 import 'package:design_tokens/design_tokens.dart';
 import 'package:flutter/widgets.dart';
 
+import 'peyk_intent.dart';
 import 'peyk_text.dart';
 import 'peyk_theme.dart';
 
@@ -29,7 +30,7 @@ final class PeykChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colors = PeykTheme.of(context).palette.of(intent);
+    final colors = PeykTheme.of(context).palette.colorsFor(intent);
 
     return Container(
       padding: const EdgeInsets.symmetric(

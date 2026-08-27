@@ -1,8 +1,6 @@
 import 'dart:ui';
 
-import 'peyk_intent.dart';
-
-/// The three colours one [PeykIntent] is drawn from on one palette.
+/// The three colours one meaning is drawn from on one palette.
 ///
 /// A triple rather than a single colour, because every place an intent is used
 /// needs all three at once: a chip fills with [background], writes in

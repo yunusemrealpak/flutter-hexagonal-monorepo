@@ -20,15 +20,21 @@ A `ThemeExtension` is a Flutter *mechanism* for carrying values down a widget tr
 
 The line is: **a token is a value somebody chose; a theme is how it reaches a widget.** Keeping them apart is what stops this package from growing into a second component library.
 
-## Intents are named for what they mean, not what they are about
+## Intents are named for what they mean, and the enum that picks one is not here
 
-The vocabulary is `neutral`, `info`, `success`, `warning`, `danger` — never `delivered`, `overdue` or `settled`. A presentation package maps its own sealed state onto an intent, and that mapping stays with the feature that owns the state.
+The five triples are `neutral`, `info`, `success`, `warning`, `danger` — never `delivered`, `overdue` or `settled`. Naming a colour `delivered` would put a courier product's domain inside a package whose entire value is having no idea what the product does, and it would be a lie the first time a second thing in the product was green.
 
-Naming a colour `delivered` here would put a courier product's domain inside a package whose entire value is having no idea what the product does. It would also be a lie the first time a second thing in the product was green.
+**The enum a caller uses to ask for one of them lives in `design_system`.** That was not a preference; it is what the constitution left available. A presentation package must be able to write `PeykIntent.danger`, section 2 does not put `design_tokens` on the presentation row, and rule S4 forbids `design_system`'s barrel from re-exporting this package's URI. So a type callers name cannot be declared here.
+
+It turns out to be the better split on its own terms. This package holds five values; *which one a situation calls for* is a question about `design_system`'s API, and the switch that answers it belongs next to the components doing the asking. What stays here is `PeykPalette.intents` — the list the contrast test walks, and the assertion that no two meanings render as the same wash.
+
+The same reasoning governs spacing: `PeykSpacing` offers seven values, and `PeykGapSize` — in `design_system` — names the four situations that pick among them.
 
 ## The tests are the reason this package is not just a constants file
 
 [`peyk_palette_test.dart`](test/peyk_palette_test.dart) checks every foreground/background pair in both palettes against the WCAG 2.1 AA contrast ratio, and body text against AAA. A palette is a set of numbers somebody picked by eye; whether a person can read the result is the one property of those numbers that cannot be argued about.
+
+It also asserts that no two intents share a background. Two meanings rendering identically is a chip that means two things, and it is the kind of mistake a palette edit makes silently.
 
 The contrast function is written out in [`test/contrast.dart`](test/contrast.dart) rather than pulled from pub, because a dev dependency here would leave the package's pubspec claiming a relationship the constitution does not give it.
 
@@ -36,7 +42,8 @@ The contrast function is written out in [`test/contrast.dart`](test/contrast.dar
 
 - **A widget.** Not even a small one. That is `design_system`.
 - **A `ThemeData` or a `ThemeExtension`.** See above.
-- **A domain word.** `PeykIntent.success`, not `PeykIntent.delivered`.
+- **A domain word.** `success`, not `delivered`.
+- **A vocabulary enum.** See above — anything a presentation package has to name belongs in `design_system`.
 - **A third-party package.** Including in `dev_dependencies`.
 - **A colour that has not been through the contrast test.** Adding a slot means adding its assertion.
 

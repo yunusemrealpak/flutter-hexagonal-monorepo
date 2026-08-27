@@ -1,7 +1,7 @@
-import 'package:design_tokens/design_tokens.dart';
 import 'package:flutter/widgets.dart';
 
 import 'peyk_gap.dart';
+import 'peyk_gap_size.dart';
 import 'peyk_text.dart';
 
 /// A titled group of rows.
@@ -30,9 +30,9 @@ final class PeykSection extends StatelessWidget {
     mainAxisSize: MainAxisSize.min,
     children: [
       Semantics(header: true, child: PeykText.title(title)),
-      const PeykGap.vertical(PeykSpacing.md),
+      const PeykGap.vertical(PeykGapSize.betweenLines),
       for (final (index, child) in children.indexed) ...[
-        if (index > 0) const PeykGap.vertical(PeykSpacing.sm),
+        if (index > 0) const PeykGap.vertical(PeykGapSize.betweenLines),
         child,
       ],
     ],

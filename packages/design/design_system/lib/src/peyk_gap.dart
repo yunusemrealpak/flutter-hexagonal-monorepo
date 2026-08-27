@@ -1,4 +1,7 @@
+import 'package:design_tokens/design_tokens.dart';
 import 'package:flutter/widgets.dart';
+
+import 'peyk_gap_size.dart';
 
 /// A fixed gap from the spacing scale.
 ///
@@ -13,14 +16,25 @@ final class PeykGap extends StatelessWidget {
   /// A gap between two things side by side.
   const PeykGap.horizontal(this.size, {super.key}) : _vertical = false;
 
-  /// How large, in logical pixels. A `PeykSpacing` value.
-  final double size;
+  /// Which step of the scale, said as what the distance means.
+  final PeykGapSize size;
+
+  /// [size] in logical pixels.
+  static double pixels(PeykGapSize size) => switch (size) {
+    PeykGapSize.tight => PeykSpacing.xs,
+    PeykGapSize.betweenLines => PeykSpacing.sm,
+    PeykGapSize.betweenRows => PeykSpacing.lg,
+    PeykGapSize.betweenGroups => PeykSpacing.xl,
+  };
 
   final bool _vertical;
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    height: _vertical ? size : null,
-    width: _vertical ? null : size,
-  );
+  Widget build(BuildContext context) {
+    final extent = pixels(size);
+    return SizedBox(
+      height: _vertical ? extent : null,
+      width: _vertical ? null : extent,
+    );
+  }
 }

@@ -2,7 +2,6 @@
 library;
 
 import 'package:design_system/design_system.dart';
-import 'package:design_tokens/design_tokens.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 

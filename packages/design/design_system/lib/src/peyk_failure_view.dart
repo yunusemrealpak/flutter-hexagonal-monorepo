@@ -4,6 +4,8 @@ import 'package:flutter/widgets.dart';
 import 'l10n/peyk_system_localizations.dart';
 import 'peyk_button.dart';
 import 'peyk_gap.dart';
+import 'peyk_gap_size.dart';
+import 'peyk_intent.dart';
 import 'peyk_text.dart';
 
 /// What a screen shows when a read failed.
@@ -42,7 +44,7 @@ final class PeykFailureView extends StatelessWidget {
             ),
           ),
           if (onRetry case final VoidCallback onRetry) ...[
-            const PeykGap.vertical(PeykSpacing.lg),
+            const PeykGap.vertical(PeykGapSize.betweenRows),
             PeykButton(
               label: PeykSystemLocalizations.of(context).retry,
               onPressed: onRetry,

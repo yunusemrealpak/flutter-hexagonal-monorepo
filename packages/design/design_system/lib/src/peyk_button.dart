@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'l10n/peyk_system_localizations.dart';
 import 'peyk_button_tone.dart';
 import 'peyk_gap.dart';
+import 'peyk_gap_size.dart';
+import 'peyk_intent.dart';
 import 'peyk_text.dart';
 import 'peyk_text_tone.dart';
 import 'peyk_theme.dart';
@@ -100,7 +102,7 @@ final class PeykButton extends StatelessWidget {
                         color: foreground,
                       ),
                     ),
-                    const PeykGap.horizontal(PeykSpacing.sm),
+                    const PeykGap.horizontal(PeykGapSize.betweenLines),
                   ],
                   PeykText.label(
                     label,
