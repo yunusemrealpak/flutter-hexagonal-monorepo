@@ -4,6 +4,7 @@ library;
 import 'dart:async';
 
 import 'package:core_kernel/core_kernel.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
@@ -47,10 +48,12 @@ void main() {
     secret: 'hunter2',
   ).fold((c) => c, (f) => throw StateError('$f'));
 
-  Widget screen(SignInController controller) => Directionality(
-    textDirection: TextDirection.ltr,
-    child: SignInScreen(controller: controller),
-  );
+  /// The tree the components need: a palette, the design system's delegates,
+  /// and a catalogue. The default catalogue echoes keys, so an assertion below
+  /// reads as a claim about *which* string the screen asked for rather than
+  /// about an app's wording.
+  Widget screen(SignInController controller) =>
+      PeykTheme.wrap(child: SignInScreen(controller: controller));
 
   testWidgets('renders the session once it arrives', (tester) async {
     final facade = _Facade(Success(session))..gate.complete();
@@ -61,6 +64,10 @@ void main() {
     await controller.submit(credentials);
     await tester.pumpAndSettle();
 
+    expect(
+      find.textContaining(IdentityStrings.signedInAs),
+      findsOneWidget,
+    );
     expect(find.textContaining('Ali Veli'), findsOneWidget);
   });
 
@@ -89,7 +96,11 @@ void main() {
       );
     });
 
-    test('a broken binding says what to do about it', () {
+    test('a broken binding is its own message', () {
+      // Its own key rather than the shared rejection one: a person whose
+      // device changed has something to do about it, and telling them the
+      // details did not work would send them to check a password that is
+      // fine.
       expect(
         SignInScreen.describe(
           const DeviceBindingBroken(
@@ -98,11 +109,11 @@ void main() {
             actualFingerprint: 'b',
           ),
         ),
-        contains('Sign in again'),
+        IdentityStrings.failureDeviceChanged,
       );
     });
 
-    test('every failure renders something, and none of it is a type name', () {
+    test('every failure maps to a key an app is asked to answer', () {
       final failures = <IdentityFailure>[
         const InvalidCredentials(),
         const NoSession(),
@@ -115,9 +126,9 @@ void main() {
       ];
 
       for (final failure in failures) {
-        final message = SignInScreen.describe(failure);
-        expect(message, isNotEmpty);
-        expect(message, isNot(contains('Failure')));
+        // In IdentityStrings.all, so an app's catalogue coverage test is
+        // holding it: a key no app answers is a screen showing its own key.
+        expect(IdentityStrings.all, contains(SignInScreen.describe(failure)));
       }
     });
   });

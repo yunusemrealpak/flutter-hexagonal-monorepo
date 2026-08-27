@@ -46,6 +46,18 @@ final class SignInController extends ChangeNotifier {
     );
   }
 
+  /// Returns the screen to its starting state.
+  ///
+  /// What the retry on a rejected sign-in does. There is nothing to re-send:
+  /// this controller never holds the credentials it was given, deliberately —
+  /// a controller that kept them would be a controller with a password in
+  /// memory for as long as the screen is on the stack. Trying again therefore
+  /// means asking again, which is what returning to idle does.
+  void clear() {
+    if (_state is SignInPending) return;
+    _emit(const SignInIdle());
+  }
+
   void _emit(SignInState next) {
     _state = next;
     notifyListeners();

@@ -22,3 +22,4 @@ export 'src/settings_controller.dart';
 export 'src/settings_routes.dart';
 export 'src/settings_screen.dart';
 export 'src/settings_state.dart';
+export 'src/settings_strings.dart';

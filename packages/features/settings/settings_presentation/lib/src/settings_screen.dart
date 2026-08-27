@@ -1,17 +1,14 @@
 import 'dart:async';
 
+import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:settings_api/settings_api.dart';
 
 import 'settings_controller.dart';
 import 'settings_state.dart';
+import 'settings_strings.dart';
 
 /// Where somebody chooses how the product behaves.
-///
-/// Deliberately plain: no colours, no typography, no spacing scale. Those come
-/// from `design_system`, which arrives in phase 7. What this file is for is
-/// the wiring — a screen that renders a sealed state and calls a port, and
-/// knows neither a use case nor an adapter.
 final class SettingsScreen extends StatefulWidget {
   /// Creates the screen over [controller].
   const SettingsScreen({required this.controller, super.key});
@@ -22,25 +19,30 @@ final class SettingsScreen extends StatefulWidget {
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 
-  /// Turns a failure into something a person can act on.
+  /// Which string a failure should be shown as.
   ///
   /// Exhaustive over `SettingsFailure`, which is the point of it being sealed:
   /// the day settings learns a new way to fail, this stops compiling instead
   /// of showing somebody the wrong sentence.
+  @visibleForTesting
   static String describe(SettingsFailure failure) => switch (failure) {
-    PreferencesUnavailable() => 'Your settings could not be reached.',
-    PreferencesCorrupted() => 'Your settings could not be read.',
-    MalformedPreference(:final field) => 'That $field cannot be used.',
+    PreferencesUnavailable() => SettingsStrings.failureUnavailable,
+    PreferencesCorrupted() => SettingsStrings.failureCorrupted,
+    MalformedPreference() => SettingsStrings.failureMalformed,
   };
 
-  /// The languages this screen offers.
+  /// The arguments [failure] contributes to its own message.
   ///
-  /// A fixed list here is a placeholder for what an app will supply in phase
-  /// 7, when localisation exists and `ResolveLanguage` has something to
-  /// resolve against. It is a `const` rather than a parse, because a screen
-  /// that had to unwrap three `Result`s to draw a list would be hiding the
-  /// interesting failure behind an uninteresting one.
-  static const List<LanguageTag> offeredLanguages = [LanguageTag.turkish];
+  /// Separate from [describe] because the key and its arguments answer
+  /// different questions — which sentence, and what goes in the holes. Folding
+  /// them into one record would make the common case, a failure with no
+  /// arguments at all, carry an empty map at every call site.
+  @visibleForTesting
+  static Map<String, Object?> argumentsFor(SettingsFailure failure) =>
+      switch (failure) {
+        MalformedPreference(:final field) => {'field': field},
+        PreferencesUnavailable() || PreferencesCorrupted() => const {},
+      };
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
@@ -52,25 +54,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.controller,
-    builder: (context, _) => switch (widget.controller.state) {
-      SettingsIdle() || SettingsLoading() => const Text('Loading…'),
-      SettingsReady(:final preferences) => _Choices(
-        preferences: preferences,
-        controller: widget.controller,
-        busy: false,
+  Widget build(BuildContext context) {
+    final strings = PeykStrings.of(context);
+
+    return PeykScreen(
+      title: strings.resolve(SettingsStrings.title),
+      scrollable: true,
+      body: ListenableBuilder(
+        listenable: widget.controller,
+        builder: (context, _) => switch (widget.controller.state) {
+          SettingsIdle() || SettingsLoading() => const PeykLoadingView(),
+          SettingsReady(:final preferences) => _Choices(
+            preferences: preferences,
+            controller: widget.controller,
+            busy: false,
+          ),
+          SettingsSaving(:final preferences) => _Choices(
+            preferences: preferences,
+            controller: widget.controller,
+            busy: true,
+          ),
+          SettingsFailed(:final failure) => PeykFailureView(
+            message: strings.resolve(
+              SettingsScreen.describe(failure),
+              arguments: SettingsScreen.argumentsFor(failure),
+            ),
+            onRetry: () => unawaited(widget.controller.load()),
+          ),
+        },
       ),
-      SettingsSaving(:final preferences) => _Choices(
-        preferences: preferences,
-        controller: widget.controller,
-        busy: true,
-      ),
-      SettingsFailed(:final failure) => Text(
-        SettingsScreen.describe(failure),
-      ),
-    },
-  );
+    );
+  }
 }
 
 /// The three choices, and the state of the write behind them.
@@ -90,52 +104,49 @@ class _Choices extends StatelessWidget {
   final bool busy;
 
   @override
-  Widget build(BuildContext context) => Column(
-    mainAxisSize: MainAxisSize.min,
-    children: [
-      for (final language in SettingsScreen.offeredLanguages)
-        _Row(
-          label: 'language.${language.value}',
-          selected: preferences.language == language,
-          onTap: busy ? null : () => controller.chooseLanguage(language),
-        ),
-      for (final theme in ThemePreference.values)
-        _Row(
-          label: 'theme.${theme.name}',
-          selected: preferences.theme == theme,
-          onTap: busy ? null : () => controller.chooseTheme(theme),
-        ),
-      for (final policy in SyncPolicy.values)
-        _Row(
-          label: 'sync.${policy.name}',
-          selected: preferences.syncPolicy == policy,
-          onTap: busy ? null : () => controller.chooseSyncPolicy(policy),
-        ),
-    ],
-  );
-}
+  Widget build(BuildContext context) {
+    final strings = PeykStrings.of(context);
 
-/// One selectable option.
-///
-/// The label is a key rather than a sentence — `theme.dark`, not "Dark" —
-/// because the strings belong to the app's localisation, which arrives in
-/// phase 7. Writing English here would mean deleting it then, and in the
-/// meantime it would read as a decision nobody made.
-class _Row extends StatelessWidget {
-  const _Row({required this.label, required this.selected, this.onTap});
-
-  final String label;
-  final bool selected;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) => GestureDetector(
-    onTap: onTap,
-    child: Semantics(
-      selected: selected,
-      button: true,
-      enabled: onTap != null,
-      child: Text(label),
-    ),
-  );
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        PeykSection(
+          title: strings.resolve(SettingsStrings.languageSection),
+          children: [
+            for (final language in SettingsStrings.offeredLanguages)
+              PeykOptionRow(
+                label: strings.resolve(SettingsStrings.language(language)),
+                selected: preferences.language == language,
+                onTap: busy ? null : () => controller.chooseLanguage(language),
+              ),
+          ],
+        ),
+        const PeykGap.vertical(PeykGapSize.betweenGroups),
+        PeykSection(
+          title: strings.resolve(SettingsStrings.themeSection),
+          children: [
+            for (final theme in ThemePreference.values)
+              PeykOptionRow(
+                label: strings.resolve(SettingsStrings.theme(theme)),
+                selected: preferences.theme == theme,
+                onTap: busy ? null : () => controller.chooseTheme(theme),
+              ),
+          ],
+        ),
+        const PeykGap.vertical(PeykGapSize.betweenGroups),
+        PeykSection(
+          title: strings.resolve(SettingsStrings.syncSection),
+          children: [
+            for (final policy in SyncPolicy.values)
+              PeykOptionRow(
+                label: strings.resolve(SettingsStrings.syncPolicy(policy)),
+                selected: preferences.syncPolicy == policy,
+                onTap: busy ? null : () => controller.chooseSyncPolicy(policy),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
 }
