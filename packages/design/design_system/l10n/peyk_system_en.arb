@@ -1,0 +1,36 @@
+{
+  "@@locale": "en",
+
+  "retry": "Try again",
+  "@retry": {
+    "description": "The action on a failure view. Ships with the component rather than with each caller, because fourteen presentation packages would otherwise each supply their own spelling of it."
+  },
+
+  "loading": "Loading",
+  "@loading": {
+    "description": "The accessible label of the loading indicator. Read aloud, so it is a word rather than an ellipsis."
+  },
+
+  "empty": "Nothing here yet",
+  "@empty": {
+    "description": "The default line on an empty view, used when a caller has nothing more specific to say."
+  },
+
+  "dismiss": "Dismiss",
+  "@dismiss": {
+    "description": "The action that closes a banner or a sheet."
+  },
+
+  "unreadCount": "{count, plural, =0{No unread} =1{1 unread} other{{count} unread}}",
+  "@unreadCount": {
+    "description": "The accessible label of a count badge. A plural rather than a number with a word after it, because Turkish and English disagree about what happens to the noun.",
+    "placeholders": {
+      "count": { "type": "int" }
+    }
+  },
+
+  "selected": "Selected",
+  "@selected": {
+    "description": "Announced for the chosen option in a group. The visual mark alone is not available to a screen reader."
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "@@locale": "tr",
+
+  "retry": "Tekrar dene",
+  "loading": "Yükleniyor",
+  "empty": "Burada henüz bir şey yok",
+  "dismiss": "Kapat",
+  "unreadCount": "{count, plural, =0{Okunmamış yok} =1{1 okunmamış} other{{count} okunmamış}}",
+  "selected": "Seçili"
+}

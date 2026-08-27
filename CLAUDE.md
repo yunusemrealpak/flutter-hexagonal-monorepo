@@ -147,8 +147,11 @@ Running codegen across the whole workspace is not acceptable. Use the melos scri
 |---|---|---|
 | `dart run melos run gen` | changed packages and their dependents | everyday work, before every commit |
 | `dart run melos run gen:all` | the entire workspace | nightly, and after a large refactor |
-| `dart run melos run gen:check` | `gen` + `git diff --exit-code` | CI staleness gate |
+| `dart run melos run l10n` | every package with an `l10n.yaml` | after touching an `.arb` file |
+| `dart run melos run gen:check` | `gen` + `l10n` + `git diff --exit-code` | CI staleness gate |
 | `dart run melos run gen:watch` | one package | while working on that package |
+
+`flutter gen-l10n` is the one generator in §4.1 that build_runner does not drive, so it does not travel with `gen`. It has its own script, and `gen:check` runs both — a stale `.arb` has to fail the same gate a stale `.g.dart` does. Its output is written into `lib/src/` and committed, not left in the synthetic package Flutter defaults to: a generated file that exists only inside `.dart_tool` cannot be reviewed in a pull request, and cannot be seen by the affected-test selection derived from `git diff` (§4.3).
 
 Every package gets its own `build.yaml` and **enables only the builders it needs**; by default build_runner scans every builder in every package, which is significant waste across 75 packages. Narrow the builders' globs with `generate_for` as well.
 

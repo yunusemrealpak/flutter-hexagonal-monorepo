@@ -1,0 +1,40 @@
+name: design_system
+description: >-
+  The component library: a theme built from design_tokens, the widgets every
+  presentation package draws with, and the contract an app supplies its
+  translated strings through.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+# Section 2 of docs/DEPENDENCY_RULES.md allows core_kernel on this row as well.
+# It is deliberately absent: see the README. An allowed dependency that nothing
+# needs is still a dependency, and this package's whole claim is that it knows
+# nothing about the product.
+dependencies:
+  design_tokens: ^0.1.0
+  flutter:
+    sdk: flutter
+  # Pulled in by the output of `flutter gen-l10n`, which imports it for the
+  # locale resolution its delegate performs.
+  flutter_localizations:
+    sdk: flutter
+  # Required by the output of `flutter gen-l10n`, which is what carries this
+  # package's own component strings — "Try again", "Loading" — in the languages
+  # the product ships.
+  intl: ^0.20.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+# `flutter gen-l10n` refuses to write anything without this flag, even with an
+# explicit output-dir. It is the only entry in a `flutter:` block this package
+# has: there are no assets and no fonts, because a design system that shipped
+# a font file would make every app that draws a button carry it.
+flutter:
+  generate: true

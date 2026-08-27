@@ -6,6 +6,11 @@
 *.gr.dart     linguist-generated=true
 *.config.dart linguist-generated=true
 
+# `flutter gen-l10n` output. It has no suffix of its own — the file names come
+# from l10n.yaml — so the pattern matches the output-localization-file name
+# this workspace configures in design_system and in every app.
+*_localizations*.dart linguist-generated=true
+
 # Lockfiles and generated docs are noise in review as well.
 pubspec.lock            linguist-generated=true
 docs/dependency-graph.md linguist-generated=true

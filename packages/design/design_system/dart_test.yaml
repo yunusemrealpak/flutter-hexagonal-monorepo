@@ -1,0 +1,25 @@
+# Mirrors the workspace template at the repository root. The test package reads
+# the file next to the pubspec being tested, so every package carries its own
+# copy.
+#
+# design_system's suite is almost entirely widget tests: a component's contract
+# is what it puts on a screen and what it says to a screen reader, and neither
+# is observable without a binding.
+retry: 0
+timeout: 30s
+
+tags:
+  unit:
+  widget:
+    timeout: 60s
+  golden:
+    timeout: 2x
+  flaky:
+    retry: 2
+    timeout: 2x
+
+presets:
+  pr:
+    exclude_tags: golden || flaky
+  quarantine:
+    include_tags: flaky
