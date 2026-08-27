@@ -4,6 +4,7 @@ library;
 import 'dart:async';
 
 import 'package:core_kernel/core_kernel.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
@@ -97,8 +98,14 @@ InboxEntry _entry({required String id, bool read = false}) {
 ActorId get _courier =>
     (ActorId.parse('courier-7') as Success<ActorId, IdentityFailure>).value;
 
-Widget _wrap(Widget child) =>
-    Directionality(textDirection: TextDirection.ltr, child: child);
+/// The tree every component in this suite needs: a palette, the design
+/// system's own delegates, and a catalogue.
+///
+/// The default catalogue echoes keys, which is why every assertion below reads
+/// `find.text('notifications.inbox.empty')` — a claim about *which* string the
+/// screen asked for. Asserting the English would be asserting an app's
+/// wording, and this package does not have one.
+Widget _wrap(Widget child) => PeykTheme.wrap(child: child);
 
 void main() {
   late _Notifications notifications;
@@ -123,7 +130,7 @@ void main() {
     await tester.pumpWidget(_wrap(InboxScreen(controller: controller)));
     await tester.pumpAndSettle();
 
-    expect(find.text('inbox.empty'), findsOneWidget);
+    expect(find.text(NotificationsStrings.inboxEmpty), findsOneWidget);
   });
 
   testWidgets('an alert is drawn as a key and its arguments', (tester) async {
@@ -159,7 +166,7 @@ void main() {
     expect(controller.state, isA<InboxReady>());
   });
 
-  testWidgets('a failure is rendered as a sentence, not a type name', (
+  testWidgets('a failure is rendered as the key an app answers', (
     tester,
   ) async {
     notifications.failWith = const InboxUnavailable();
@@ -167,7 +174,10 @@ void main() {
     await tester.pumpWidget(_wrap(InboxScreen(controller: controller)));
     await tester.pumpAndSettle();
 
-    expect(find.text('Your alerts could not be read.'), findsOneWidget);
+    expect(
+      find.text(NotificationsStrings.failureUnavailable),
+      findsOneWidget,
+    );
   });
 
   testWidgets('the badge is absent at zero and present above it', (
@@ -177,7 +187,7 @@ void main() {
     controller.watch();
     await tester.pumpAndSettle();
 
-    expect(find.byType(Text), findsNothing);
+    expect(find.text('0'), findsNothing);
 
     notifications.announce(3);
     await tester.pumpAndSettle();
