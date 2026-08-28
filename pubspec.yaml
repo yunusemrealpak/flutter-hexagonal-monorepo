@@ -14,6 +14,7 @@ version: 0.0.0
 # added from phase 1 onwards registers its path here and declares
 # `resolution: workspace` in its own pubspec.
 workspace:
+  - apps/app_harness
   - packages/core/core_kernel
   - packages/core/core_navigation
   - packages/core/core_ports

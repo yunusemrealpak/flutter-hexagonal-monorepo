@@ -1,0 +1,22 @@
+# Mirrors the workspace template at the repository root.
+#
+# app_harness binds the Flutter SDK, so its tests run under `flutter test`
+# (melos: `test:flutter`) rather than `dart test`.
+retry: 0
+timeout: 30s
+
+tags:
+  unit:
+  widget:
+    timeout: 60s
+  golden:
+    timeout: 2x
+  flaky:
+    retry: 2
+    timeout: 2x
+
+presets:
+  pr:
+    exclude_tags: golden || flaky
+  quarantine:
+    include_tags: flaky
