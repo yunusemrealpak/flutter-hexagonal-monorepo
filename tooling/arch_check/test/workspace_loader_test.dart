@@ -17,6 +17,7 @@ void main() {
     test('finds every package under the roots and nothing else', () {
       final loaded = loader.load(fixture('clean'));
       expect(loaded.workspace.packages.map((package) => package.name), [
+        'app_shell',
         'core_kernel',
         'core_ports',
         'payments_api',
@@ -69,6 +70,7 @@ void main() {
         'shipments_testing': PackageType.featureTesting,
         'http_dio': PackageType.platform,
         'some_tool': PackageType.tooling,
+        'app_shell': PackageType.app,
       });
     });
 

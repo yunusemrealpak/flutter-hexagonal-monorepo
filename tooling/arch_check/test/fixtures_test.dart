@@ -32,7 +32,7 @@ void main() {
         isEmpty,
         reason: run.violations.map((v) => '$v').join('\n'),
       );
-      expect(run.packagesChecked, 9);
+      expect(run.packagesChecked, 10);
     });
 
     test('lets a _testing package name a foreign contract', () {
@@ -92,11 +92,34 @@ void main() {
         'barrel_leak': 2,
         'deep_import': 1,
         'implementation_in_api': 3,
-        'missing_barrel': 1,
+        'missing_barrel': 2,
         'name_mismatch': 1,
-        'stray_lib_file': 1,
+        'stray_lib_file': 2,
         'unregistered_package': 2,
       });
+    });
+
+    test('an app with no entry point is an app nothing can run', () {
+      // S1 and S2 keep their meaning on the app row; what changes is what
+      // counts as the public surface. app_broken has neither an entry point
+      // nor a barrel, and a file directly under lib/ that is not one.
+      final run = checker.run(fixture('broken_structure'));
+      final inApp = run.violations.where(
+        (violation) => violation.location.package.startsWith('apps/'),
+      );
+
+      expect(
+        inApp.map((violation) => violation.code).toSet(),
+        {'missing_barrel', 'stray_lib_file'},
+      );
+    });
+
+    test('an app may have one entry point per flavour', () {
+      // The other half, and the reason the rule was amended: `flutter run -t
+      // lib/main_dev.dart` is how a flavour is selected, so several files
+      // directly under lib/ is Flutter's shape rather than a smell. The clean
+      // fixture's app_shell has two, and neither is a barrel.
+      expect(codesIn('clean'), isEmpty);
     });
 
     test('reads a generated file for S8 by declaration, not by name', () {

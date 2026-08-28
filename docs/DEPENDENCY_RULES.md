@@ -118,7 +118,7 @@ A technology contract lives in the same package as its adapter, together with th
 
 | ID | Rule | Violation code |
 |---|---|---|
-| S1 | Every package has a barrel at `lib/<package_name>.dart`. | `missing_barrel` |
+| S1 | Every package has a barrel at `lib/<package_name>.dart`. An `app` has entry points instead — see below. | `missing_barrel` |
 | S2 | That barrel is the only `.dart` file directly under `lib/`. Everything else lives under `lib/src/`. | `stray_lib_file` |
 | S3 | No file imports `package:<other_package>/src/...`. Within its own package, imports are relative — see the convention in CLAUDE.md section 3 — so `package:*/src/` appearing anywhere in the source is a violation with no exceptions to weigh. | `deep_import` |
 | S4 | A barrel re-exports and does nothing else: it declares no type of its own, and it does not re-export another package's `package:` URI. | `barrel_leak` |
@@ -126,6 +126,12 @@ A technology contract lives in the same package as its adapter, together with th
 | S6 | The package path is registered in the root `pubspec.yaml` `workspace:` list, and the package declares `resolution: workspace`. | `unregistered_package` |
 | S7 | The dependency graph is acyclic. | `dependency_cycle` |
 | S8 | An `_api` package contains no implementation class — no class that implements or extends a port declared in the same package, and no concrete adapter. The second half is a naming heuristic and is skipped in generated files; see below. | `implementation_in_api` |
+
+**S1 and S2 mean something different in an `app`, and phase 7 is where that surfaced.** Both rules were written for a package with dependents: "the public surface is one barrel named after the package" is a promise to whoever imports it. Nothing imports an app. What an app has instead is an *entry point*, and Flutter's tooling looks for it directly under `lib/` — `flutter run` defaults to `lib/main.dart`, and a multi-flavour app selects one with `flutter run -t lib/main_prod.dart`. Several files directly under `lib/` is that ecosystem's shape rather than a smell, and the phase 7 specification asks for flavour configuration explicitly.
+
+So on the `app` row: S1 requires at least one file matching `^main(_[a-z0-9]+)*\.dart$`, S2 treats every other file directly under `lib/` as a stray exactly as before, and **S4 does not apply at all** — an entry point's whole job is to declare `main`, and "a barrel declares nothing of its own" would forbid the one thing it exists for. `rules.yaml` spells this out as `structure.entry_point`.
+
+The alternative was to put `main()` inside a barrel and let S4 slide, which would have traded a rule that is precise on nine package types for one that is vague on ten.
 
 **S8 has two halves, and only one of them reads a generated file.** "A class that implements a port declared in this package" reads a *declaration*: a builder that emitted an adapter into a contract package emitted a real violation, whoever configured it, so generated files are checked. "A concrete class whose name ends in `Impl`, `Adapter`, `Repository`, `Service` or `Client`" reads a *name*, and a generator names its own output — `freezed` emits a `_$<Type>CopyWithImpl` for every class it touches, so an `_api` package with one generated union would report a violation per generated type and go on doing it until somebody turned the rule off. The naming half is therefore skipped in generated files, for the same reason §5 exempts them from the ambient-API rules: the name is not the developer's choice. `rules.yaml` spells this out as `suffixes_skip_generated`.
 

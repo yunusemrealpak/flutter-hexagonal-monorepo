@@ -24,7 +24,7 @@ void main() {
     test('a clean workspace exits 0', () {
       final code = runCli(arguments('clean'), out: out, err: err);
       expect(code, ExitCodes.clean);
-      expect(out.toString(), contains('clean — 9 packages'));
+      expect(out.toString(), contains('clean — 10 packages'));
     });
 
     test('violations exit 1', () {
@@ -93,13 +93,13 @@ void main() {
       expect(first['code'], 'missing_barrel');
       expect(
         (first['location']! as Map<String, Object?>)['package'],
-        'packages/core/core_kernel',
+        'apps/app_broken',
       );
 
       final summary = decoded['summary']! as Map<String, Object?>;
       expect(summary['clean'], isFalse);
-      expect(summary['violationCount'], 11);
-      expect(summary['packagesChecked'], 3);
+      expect(summary['violationCount'], 13);
+      expect(summary['packagesChecked'], 4);
     });
 
     test('a clean run is still valid JSON', () {
@@ -114,8 +114,10 @@ void main() {
     test('gives every violation a code, a location, a what and a remedy', () {
       runCli(arguments('broken_structure'), out: out, err: err);
       final lines = out.toString().split('\n');
-      expect(lines.first, 'missing_barrel  packages/core/core_kernel');
-      expect(lines[1].trim(), 'there is no lib/core_kernel.dart');
+      // The app row's shape of S1: an app has no barrel to be missing, so the
+      // "what" names the entry point it has none of instead.
+      expect(lines.first, 'missing_barrel  apps/app_broken');
+      expect(lines[1].trim(), startsWith('there is no entry point under lib/'));
       expect(lines[2].trim(), startsWith('Add lib/<package_name>.dart'));
     });
 

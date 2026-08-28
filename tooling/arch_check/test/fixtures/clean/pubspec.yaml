@@ -4,6 +4,7 @@ publish_to: none
 version: 0.0.0
 
 workspace:
+  - apps/app_shell
   - packages/core/core_kernel
   - packages/core/core_ports
   - packages/features/payments/payments_api
