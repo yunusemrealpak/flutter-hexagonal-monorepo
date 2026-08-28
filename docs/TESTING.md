@@ -124,7 +124,7 @@ presets:
 | `dart test --preset quarantine` | the flaky quarantine | by hand, when triaging |
 | nightly | everything, no exclusions | 02:30 UTC |
 
-That is the template at the repository root. **A package keeps only the tags it can actually produce** — a pure Dart package declares no `widget`, `design_system` declares no `integration` — because a tag nothing carries is a filter that silently selects nothing.
+That is the template at the repository root. **A package keeps only the tags it can actually produce** — a pure Dart package declares no `widget`, `design_system` declares no `integration` — because a tag nothing carries is a filter that selects nothing, and selecting nothing is not silent: `flutter test --tags golden` exits **79**, *No tests ran*, which every runner reads as a failure. Anything that filters by tag therefore has to choose what an empty selection means before it can be trusted; the `pr` workflow's golden step chooses "nothing to run" and greps for the tag rather than asking every package.
 
 `flutter test` has no `--preset`, so the `pr` selection is spelled out as `--exclude-tags "golden || integration || flaky"` wherever a Flutter package runs. The tag *definitions* still come from each package's own `dart_test.yaml`, which is what keeps one package's timeout from becoming everybody's.
 

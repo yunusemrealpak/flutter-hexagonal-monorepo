@@ -53,6 +53,8 @@ checkout (fetch-depth 0) → fetch origin/main → Flutter 3.47.1 → restore bu
 
 **Goldens are conditional** on the affected list mentioning `design_system` or a `_presentation` package. No test carries the `golden` tag yet; the step is the mechanism, gated in advance on the packages that can break it.
 
+**And the step selects files, not packages.** `flutter test --tags golden` exits 79 — *No tests ran* — in a package that carries no such test, which is every package today. The first run of this workflow ran it across the workspace and collected seventy-five failures for a suite that does not exist yet. The step now greps for the tag, runs only where it is found, and says so and stops when it is found nowhere. The general form of the mistake is worth naming: **a gate written before the thing it gates has to have a defined answer for the empty case**, and "red" is not it.
+
 ---
 
 ## 4. `main.yml` — the merge queue, and why not `push`

@@ -292,9 +292,9 @@ At the **end** of a phase: verify the acceptance criteria in the spec, push, ope
 
 This section is the handoff between sessions. It is rewritten at every phase boundary and it is the only part of this file that is expected to go stale — everything above is the constitution. Read it after section 9, then check it against `git log` before trusting it.
 
-**Branch:** `phase/08-ci-and-docs`. **Last tag:** `phase-07`. **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,530 cases in 161 files); `melos run gen:check` and `graph:check` clean.
+**Branch:** `fix/pr-golden-selection`, off `main`. **Last tag:** `phase-08` — phase 8 is merged (PR #13, a merge commit rather than a squash). **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,530 cases in 161 files); `melos run gen:check` and `graph:check` clean.
 
-### Phase 8 is code-complete
+### Phase 8 is complete, merged and tagged
 
 Two tooling packages added — `dep_graph` and `test_runner` — the CI files written, and the four documents the specification asks for by name.
 
@@ -334,10 +334,17 @@ Three things worth not rediscovering:
 
 `codemagic.yaml` and `fastlane/Fastfile` are real and consistent and **cannot run in this repository as it stands**. There is no `apps/*/android/`, no `apps/*/ios/` and no `apps/*/config/<flavour>.json`, because the specification explicitly does not require iOS or Android builds. Both files say so at the top, and `docs/CI_CD.md` §7 repeats it. `flutter create --platforms=android,ios .` inside an app is the step that closes it.
 
+### What the merge exposed, and what is left
+
+**The first real `pr` run was red, and PR #13 was merged over it.** That is the argument for the protection rule below, not against it.
+
+The golden step ran `flutter test --tags golden` in every package with a `test/` directory. `package:test` answers *No tests ran* with exit **79**, and no test in this workspace carries the `golden` tag, so an empty selection came back as seventy-five failures — a gate whose only possible answer was red. Fixed on `fix/pr-golden-selection`: the step greps for the tag, runs only where it finds it, and says so and stops when it finds it nowhere. `test_runner` stopped reading 79 as a failure in the same commit, because the latent version of the same bug is a package that carries nothing but goldens, whose whole suite the `pr` preset excludes.
+
+The general rule, now in `docs/CI_CD.md` §3 and `docs/TESTING.md`: **a gate written before the thing it gates has to have a defined answer for the empty case**, and "red" is not it.
+
 ### Left to do
 
-1. **Phase-end flow** — section 6: push, open the pull request, merge **without squashing**, tag `phase-08`, push the tag.
-2. **After the tag** — enable the required status checks on `main` (§8 of `docs/CI_CD.md`): the `pr` workflow's `verify` job and the merge queue's ten buckets. The workflow files exist; the protection rule is a repository setting.
+1. **Enable the required status checks on `main`** (§8 of `docs/CI_CD.md`): the `pr` workflow's `verify` job and the merge queue's ten buckets. The workflow files exist; the protection rule is a repository setting, and it is what would have stopped #13 from merging red.
 
 ### Verification, before every commit
 

@@ -114,8 +114,29 @@ jobs:
         # step are the mechanism, and the images arrive with the screens that
         # need them. The condition is here so that the day one is written, it
         # is already gated on the packages that can break it.
+        #
+        # The selection is by *tagged file*, not by package, and that is what
+        # the first run of this workflow taught. `flutter test --tags golden`
+        # exits 79 — "No tests ran" — in a package that carries none, and
+        # today every package carries none, so running it across the workspace
+        # turned an empty selection into seventy-five failures. A gate whose
+        # only possible answer is red is not a gate.
         if: contains(steps.affected.outputs.list, 'design_system') || contains(steps.affected.outputs.list, '_presentation')
-        run: dart run melos exec --dir-exists=test -- flutter test --tags golden
+        run: |
+          packages=$(
+            grep -rlE "(@Tags\(|tags:).*golden" \
+              --include='*_test.dart' packages apps \
+              | sed 's#/test/.*##' | sort -u
+          )
+          if [ -z "$packages" ]; then
+            echo "No golden-tagged test in the workspace yet; nothing to run."
+            exit 0
+          fi
+          for package in $packages; do
+            echo "::group::$package"
+            (cd "$package" && flutter test --tags golden)
+            echo "::endgroup::"
+          done
 
       - name: Upload the JUnit report
         if: always()
