@@ -2,7 +2,7 @@
 library;
 
 import 'package:core_kernel/core_kernel.dart';
-import 'package:flutter/widgets.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:identity_testing/identity_testing.dart';
@@ -97,17 +97,14 @@ void main() {
       addTearDown(controller.dispose);
 
       await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: DispatcherBoardScreen(controller: controller),
-        ),
+        PeykTheme.wrap(child: DispatcherBoardScreen(controller: controller)),
       );
       await tester.pumpAndSettle();
 
-      // `textContaining('Assign')` would match the status label
-      // "awaitingAssignment" on every row, and pass for the wrong reason the
-      // day the button disappeared for an unrelated one.
-      expect(find.textContaining('selected'), findsNothing);
+      expect(
+        find.textContaining(ShipmentsDispatcherStrings.bulkAssign),
+        findsNothing,
+      );
       expect(find.text('Consignee 0'), findsOneWidget);
     });
 
@@ -120,14 +117,14 @@ void main() {
       addTearDown(controller.dispose);
 
       await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: DispatcherBoardScreen(controller: controller),
-        ),
+        PeykTheme.wrap(child: DispatcherBoardScreen(controller: controller)),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Assign 0 selected'), findsOneWidget);
+      expect(
+        find.text('${ShipmentsDispatcherStrings.bulkAssign}(count=0)'),
+        findsOneWidget,
+      );
     });
   });
 
@@ -189,6 +186,62 @@ void main() {
 
       final state = controller.state as BoardReady;
       expect(state.selected, isEmpty);
+    });
+  });
+
+  group('the two shipments screens read the same states differently', () {
+    // The half of scenario 7 that only two presentation packages can show. A
+    // status is one fact; what it *means to the person looking at it* is two,
+    // and neither package could say so if the mapping lived in shipments_api.
+    test('undeliverable is a danger here and a warning to a courier', () {
+      expect(
+        DispatcherBoardScreen.intentOf(
+          ShipmentStatus.undeliverable(
+            at: DateTime.utc(2026, 3, 4),
+            reason: 'nobody home',
+          ),
+        ),
+        PeykIntent.danger,
+      );
+    });
+
+    test('an unassigned parcel is a warning here and nothing to a courier', () {
+      // A courier never sees one — it is not on their manifest. A dispatcher
+      // sees a parcel with nobody driving it.
+      expect(
+        DispatcherBoardScreen.intentOf(
+          const ShipmentStatus.awaitingAssignment(),
+        ),
+        PeykIntent.warning,
+      );
+    });
+
+    // Written out rather than derived, because ShipmentStatus is a freezed
+    // union with no `values` to walk. This switch is what keeps the list
+    // honest: adding a state stops this test compiling.
+    test('every state has a key in the manifest', () {
+      final instant = DateTime.utc(2026, 3, 4);
+      final statuses = <ShipmentStatus>[
+        const ShipmentStatus.awaitingAssignment(),
+        ShipmentStatus.returnedToDepot(at: instant),
+        ShipmentStatus.undeliverable(reason: 'nobody home', at: instant),
+        ShipmentStatus.deliveredToConsignee(
+          proofReference: 'proof-1',
+          at: instant,
+        ),
+      ];
+
+      for (final status in statuses) {
+        expect(
+          ShipmentsDispatcherStrings.statusKeys,
+          contains(ShipmentsDispatcherStrings.status(status)),
+        );
+      }
+      expect(
+        ShipmentsDispatcherStrings.statusKeys,
+        hasLength(7),
+        reason: 'ShipmentStatus has seven constructors',
+      );
     });
   });
 }

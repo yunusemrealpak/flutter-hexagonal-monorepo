@@ -212,4 +212,86 @@ void main() {
       expect(find.text('Nothing here yet'), findsNothing);
     });
   });
+
+  group('PeykTextField', () {
+    testWidgets('always draws its label, not only its placeholder', (
+      tester,
+    ) async {
+      // A field whose only label is its placeholder loses that label the
+      // moment somebody types, and a screen reader never had it at all.
+      await tester.pumpWidget(
+        PeykTheme.wrap(
+          child: PeykTextField(
+            label: 'delivery.recipient',
+            hint: 'delivery.recipient.hint',
+            value: 'Ayşe',
+            onChanged: (_) {},
+          ),
+        ),
+      );
+
+      expect(find.text('delivery.recipient'), findsOneWidget);
+    });
+
+    testWidgets('reports every keystroke', (tester) async {
+      final seen = <String>[];
+
+      await tester.pumpWidget(
+        PeykTheme.wrap(
+          child: PeykTextField(
+            label: 'delivery.recipient',
+            value: '',
+            onChanged: seen.add,
+          ),
+        ),
+      );
+      await tester.enterText(find.byType(TextField), 'Ayşe');
+
+      expect(seen.last, 'Ayşe');
+    });
+
+    // The classic controlled-field bug: assigning the controller's text on
+    // every rebuild moves the caret to the end on every keystroke, and it is
+    // invisible until somebody edits the middle of a name.
+    testWidgets('a rebuild with the same value leaves the caret alone', (
+      tester,
+    ) async {
+      Widget field(String value) => PeykTheme.wrap(
+        child: PeykTextField(
+          label: 'delivery.recipient',
+          value: value,
+          onChanged: (_) {},
+        ),
+      );
+
+      await tester.pumpWidget(field('Ayşe Yılmaz'));
+      final controller =
+          tester.widget<TextField>(find.byType(TextField)).controller!
+            ..selection = const TextSelection.collapsed(offset: 4);
+      await tester.pump();
+
+      await tester.pumpWidget(field('Ayşe Yılmaz'));
+
+      expect(controller.selection.baseOffset, 4);
+    });
+
+    testWidgets('an error is announced when it appears', (tester) async {
+      await tester.pumpWidget(
+        PeykTheme.wrap(
+          child: PeykTextField(
+            label: 'delivery.recipient',
+            value: '',
+            error: 'delivery.recipient.required',
+            onChanged: (_) {},
+          ),
+        ),
+      );
+
+      expect(find.text('delivery.recipient.required'), findsOneWidget);
+      expect(
+        tester.getSemantics(find.text('delivery.recipient.required')),
+        isSemantics(isLiveRegion: true),
+      );
+    });
+  });
 }

@@ -26,7 +26,15 @@ Two features that happen to have the same state shape are not the same feature, 
 
 ## What it may depend on
 
-Own `_api`, other features' `_api`, `core_kernel`, `core_navigation`, `design_system` (from phase 7), and the Flutter SDK.
+Own `_api`, other features' `_api`, `core_kernel`, `core_navigation`, `design_system`, and the Flutter SDK.
+
+**Not `shipments_presentation_courier`.** The two packages share the status keys by *spelling* — both write `shipments.status.outForDelivery` — because a presentation package may not depend on another presentation package. Two declarations of one key is the price of that boundary. `ShipmentsDispatcherStrings.statusKeys` is where the seven are written down, and the test beside it exhausts the union in a `switch`, so adding a state stops that test compiling.
+
+## The two screens disagree, on purpose
+
+`DispatcherBoardScreen.intentOf` draws `undeliverable` as a danger. The courier's screen draws it as a warning. Same status, two audiences: the visit is over and the parcel goes back, which is a normal end to a round and a parcel somebody has to act on today.
+
+That is the half of scenario 7 a single presentation package cannot show, and it is the reason the mapping is here rather than in `shipments_api`.
 
 ## What must never live here
 

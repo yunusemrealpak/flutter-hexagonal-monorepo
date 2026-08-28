@@ -28,7 +28,7 @@ The use case does *not* check permissions — identity is not one of its collabo
 
 - **`delivery_application`, `delivery_infrastructure` or any `_core`.** Presentation knows the vocabulary, not the use cases and not the adapters.
 - **A second copy of the proof rule.** `AtTheDoor.missing` asks `ProofPolicy` in `delivery_api`. A copy here would tell a courier they were finished on the day the policy changed and the use case disagreed.
-- **A colour, a spacing value or a date format of its own.** Those come from `design_system` in phase 7.
+- **A colour, a spacing value or a date format of its own.** Those come from `design_system`, and a distance is the one number this package rounds before handing it over — a courier does not need centimetres, and rounding in the app would mean rounding once per app. Whether it reads "450 m" or "450m" is still the locale's question.
 
 ## Code generation
 

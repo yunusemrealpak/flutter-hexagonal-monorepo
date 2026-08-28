@@ -1,18 +1,18 @@
 import 'dart:async';
 
+import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shipments_api/shipments_api.dart';
 
 import 'dispatcher_board_controller.dart';
 import 'dispatcher_board_state.dart';
+import 'shipments_dispatcher_strings.dart';
 
 /// The dispatcher's board: every shipment, with the actions the actor may use.
 ///
-/// Deliberately plain — colours, typography and spacing come from
-/// `design_system` in phase 7, and inventing them here would mean deleting
-/// them then. What this widget shows now is the part that will not change: a
-/// screen renders a sealed state exhaustively, and it asks a *port* whether an
-/// action may be offered.
+/// **The same feature, drawn twice.** `shipments_presentation_courier` renders
+/// the same `ShipmentSummary` rows as a read-only stop list. Scenario 7 is
+/// that neither package knows the other exists.
 final class DispatcherBoardScreen extends StatefulWidget {
   /// Creates the screen over [controller].
   const DispatcherBoardScreen({required this.controller, super.key});
@@ -22,6 +22,28 @@ final class DispatcherBoardScreen extends StatefulWidget {
 
   @override
   State<DispatcherBoardScreen> createState() => _DispatcherBoardScreenState();
+
+  /// How a status should be drawn on the board.
+  ///
+  /// Not the same mapping the courier's screen makes, and the difference is
+  /// the point of the two packages existing. `undeliverable` is a warning to a
+  /// courier — the visit is over and the parcel goes back, which is a normal
+  /// outcome of a round — and a danger to a dispatcher, because on this screen
+  /// it is a parcel somebody has to do something about today.
+  ///
+  /// Two screens over one feature disagreeing about what a state *means to the
+  /// person looking at it* is exactly what a second presentation package is
+  /// for. Neither could express it if the mapping lived in `shipments_api`.
+  @visibleForTesting
+  static PeykIntent intentOf(ShipmentStatus status) => switch (status) {
+    ShipmentDeliveredToConsignee() => PeykIntent.success,
+    ShipmentUndeliverable() => PeykIntent.danger,
+    ShipmentAwaitingAssignment() => PeykIntent.warning,
+    ShipmentOutForDelivery() ||
+    ShipmentAssignedToCourier() ||
+    ShipmentLoadedOnVehicle() ||
+    ShipmentReturnedToDepot() => PeykIntent.neutral,
+  };
 }
 
 class _DispatcherBoardScreenState extends State<DispatcherBoardScreen> {
@@ -32,40 +54,59 @@ class _DispatcherBoardScreenState extends State<DispatcherBoardScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.controller,
-    builder: (context, _) => switch (widget.controller.state) {
-      BoardIdle() || BoardLoading() => const Center(
-        child: Text('Loading the board'),
-      ),
-      BoardReady(:final rows, :final selected) => Column(
-        children: [
-          // Scenario 6, in one line. The button is not rendered at all
-          // unless the port says the actor may use it. This screen has
-          // no idea that identity has roles.
-          if (widget.controller.canBulkAssign)
-            Text('Assign ${selected.length} selected'),
-          Expanded(
-            child: ListView(
-              children: [
-                for (final row in rows)
-                  _BoardRow(
-                    row: row,
-                    isSelected: selected.contains(row.id),
+  Widget build(BuildContext context) {
+    final strings = PeykStrings.of(context);
+
+    return PeykScreen(
+      title: strings.resolve(ShipmentsDispatcherStrings.title),
+      body: ListenableBuilder(
+        listenable: widget.controller,
+        builder: (context, _) => switch (widget.controller.state) {
+          BoardIdle() || BoardLoading() => const PeykLoadingView(),
+          BoardReady(:final rows) when rows.isEmpty => PeykEmptyView(
+            message: strings.resolve(ShipmentsDispatcherStrings.empty),
+          ),
+          BoardReady(:final rows, :final selected) => Column(
+            children: [
+              // Scenario 6, in one line. The button is not rendered at all
+              // unless the port says the actor may use it. This screen has no
+              // idea that identity has roles.
+              if (widget.controller.canBulkAssign)
+                PeykButton(
+                  label: strings.resolve(
+                    ShipmentsDispatcherStrings.bulkAssign,
+                    arguments: {'count': selected.length},
+                  ),
+                  // Nothing selected is nothing to assign. Disabled rather
+                  // than hidden: a button that comes and goes as rows are
+                  // ticked is a button somebody reaches for and misses.
+                  onPressed: selected.isEmpty ? null : () {},
+                  tone: PeykButtonTone.primary,
+                ),
+              Expanded(
+                child: ListView.builder(
+                  itemCount: rows.length,
+                  itemBuilder: (context, index) => _BoardRow(
+                    row: rows[index],
+                    isSelected: selected.contains(rows[index].id),
                     onToggle: widget.controller.canAssign
-                        ? () => widget.controller.toggle(row.id)
+                        ? () => widget.controller.toggle(rows[index].id)
                         : null,
                   ),
-              ],
-            ),
+                ),
+              ),
+            ],
           ),
-        ],
+          BoardFailed() => PeykFailureView(
+            message: strings.resolve(
+              ShipmentsDispatcherStrings.failureUnavailable,
+            ),
+            onRetry: () => unawaited(widget.controller.load()),
+          ),
+        },
       ),
-      BoardFailed() => const Center(
-        child: Text('The board could not be loaded.'),
-      ),
-    },
-  );
+    );
+  }
 }
 
 final class _BoardRow extends StatelessWidget {
@@ -80,18 +121,9 @@ final class _BoardRow extends StatelessWidget {
   final VoidCallback? onToggle;
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
+  Widget build(BuildContext context) => PeykOptionRow(
+    label: row.consigneeName,
+    selected: isSelected,
     onTap: onToggle,
-    child: Padding(
-      padding: const EdgeInsets.all(8),
-      child: Row(
-        children: [
-          Text(isSelected ? '[x]' : '[ ]'),
-          const SizedBox(width: 8),
-          Expanded(child: Text(row.consigneeName)),
-          Text(row.status.label),
-        ],
-      ),
-    ),
   );
 }

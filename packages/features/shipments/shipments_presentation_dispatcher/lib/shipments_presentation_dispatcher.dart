@@ -19,3 +19,4 @@ export 'src/dispatcher_board_controller.dart';
 export 'src/dispatcher_board_screen.dart';
 export 'src/dispatcher_board_state.dart';
 export 'src/shipments_dispatcher_routes.dart';
+export 'src/shipments_dispatcher_strings.dart';

@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:delivery_api/delivery_api.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shipments_api/shipments_api.dart';
 
+import 'delivery_strings.dart';
 import 'proof_capture_controller.dart';
 import 'proof_capture_state.dart';
 
@@ -21,10 +23,6 @@ import 'proof_capture_state.dart';
 /// capture, this screen offers the button, and the evidence comes back as a
 /// value from `delivery_api`. An app that has no camera passes nothing and the
 /// button is not drawn.
-///
-/// Deliberately plain: no colours, no typography, no spacing scale. Those come
-/// from `design_system`, which arrives in phase 7, and inventing them here
-/// would mean deleting them then.
 final class ProofCaptureScreen extends StatefulWidget {
   /// Creates the screen over [controller], for [shipment].
   const ProofCaptureScreen({
@@ -58,26 +56,46 @@ final class ProofCaptureScreen extends StatefulWidget {
   @override
   State<ProofCaptureScreen> createState() => _ProofCaptureScreenState();
 
-  /// Turns a failure into something a person can act on.
+  /// Which string a failure should be shown as.
   ///
-  /// Static and public so that a test can assert on the sentence without
-  /// pumping a widget tree. Exhaustive over `DeliveryFailure`, which is the
-  /// point of it being sealed: the day delivery learns a new way to fail, this
-  /// stops compiling instead of quietly showing a courier the wrong sentence.
+  /// Static and public so that a test can assert on the key without pumping a
+  /// widget tree. Exhaustive over `DeliveryFailure`, which is the point of it
+  /// being sealed: the day delivery learns a new way to fail, this stops
+  /// compiling instead of quietly showing a courier the wrong sentence.
+  @visibleForTesting
   static String describe(DeliveryFailure failure) => switch (failure) {
-    OutsideDeliveryArea(:final metresAway) =>
-      'You are ${metresAway.round()}m from the address.',
-    DeliveryPositionUnavailable() =>
-      'Your position could not be read. Move outside and try again.',
-    ProofInsufficient(:final missing) =>
-      'This parcel needs ${missing.join(' and ')}.',
-    AttemptAlreadySettled() => 'This visit has already been recorded.',
-    ProofStoreUnavailable() => 'The evidence could not be saved.',
-    ProofNotFound() => 'That evidence is not on this device.',
-    MediaTooLarge() => 'That photograph is too big. Take another.',
-    DeliveryUnavailable() => 'This could not be queued. Try again.',
-    MalformedDeliveryValue(:final field) => 'Something is wrong with $field.',
+    OutsideDeliveryArea() => DeliveryStrings.failureOutsideArea,
+    DeliveryPositionUnavailable() => DeliveryStrings.failurePositionUnavailable,
+    ProofInsufficient() => DeliveryStrings.failureProofInsufficient,
+    AttemptAlreadySettled() => DeliveryStrings.failureAlreadySettled,
+    ProofStoreUnavailable() => DeliveryStrings.failureProofStoreUnavailable,
+    ProofNotFound() => DeliveryStrings.failureProofNotFound,
+    MediaTooLarge() => DeliveryStrings.failureMediaTooLarge,
+    DeliveryUnavailable() => DeliveryStrings.failureUnavailable,
+    MalformedDeliveryValue() => DeliveryStrings.failureMalformed,
   };
+
+  /// The arguments [failure] contributes to its own message.
+  ///
+  /// The distance is rounded here and not formatted: "12 m" and "12m" are a
+  /// locale's question. What is not a locale's question is that a courier does
+  /// not need centimetres, and rounding in the app would mean rounding once
+  /// per app.
+  @visibleForTesting
+  static Map<String, Object?> argumentsFor(DeliveryFailure failure) =>
+      switch (failure) {
+        OutsideDeliveryArea(:final metresAway) => {
+          'metres': metresAway.round(),
+        },
+        ProofInsufficient(:final missing) => {'kinds': missing},
+        MalformedDeliveryValue(:final field) => {'field': field},
+        DeliveryPositionUnavailable() ||
+        AttemptAlreadySettled() ||
+        ProofStoreUnavailable() ||
+        ProofNotFound() ||
+        MediaTooLarge() ||
+        DeliveryUnavailable() => const {},
+      };
 }
 
 class _ProofCaptureScreenState extends State<ProofCaptureScreen> {
@@ -96,35 +114,51 @@ class _ProofCaptureScreenState extends State<ProofCaptureScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.controller,
-    builder: (context, _) => switch (widget.controller.state) {
-      AwaitingArrival() || Arriving() => const Center(
-        child: Text('Checking you are at the address'),
-      ),
-      final AtTheDoor state => _Door(
-        state: state,
-        canComplete: widget.controller.canComplete,
-        onRecipient: widget.controller.recipientIs,
-        onSignature: widget.onCaptureSignature == null
-            ? null
-            : () => unawaited(_capture(_Kind.signature)),
-        onPhoto: widget.onCapturePhoto == null
-            ? null
-            : () => unawaited(_capture(_Kind.photo)),
-        onComplete: () => unawaited(widget.controller.complete()),
-        onFail: () => unawaited(
-          widget.controller.couldNotDeliver(
-            const NonDeliveryReason.recipientAbsent(),
+  Widget build(BuildContext context) {
+    final strings = PeykStrings.of(context);
+
+    return PeykScreen(
+      title: strings.resolve(DeliveryStrings.title),
+      body: ListenableBuilder(
+        listenable: widget.controller,
+        builder: (context, _) => switch (widget.controller.state) {
+          AwaitingArrival() || Arriving() => const PeykLoadingView(),
+          final AtTheDoor state => _Door(
+            state: state,
+            canComplete: widget.controller.canComplete,
+            onRecipient: widget.controller.recipientIs,
+            onSignature: widget.onCaptureSignature == null
+                ? null
+                : () => unawaited(_capture(_Kind.signature)),
+            onPhoto: widget.onCapturePhoto == null
+                ? null
+                : () => unawaited(_capture(_Kind.photo)),
+            onComplete: () => unawaited(widget.controller.complete()),
+            onFail: () => unawaited(
+              widget.controller.couldNotDeliver(
+                const NonDeliveryReason.recipientAbsent(),
+              ),
+            ),
           ),
-        ),
+          Settled() => PeykEmptyView(
+            message: strings.resolve(DeliveryStrings.recorded),
+          ),
+          CaptureFailed(:final failure) => PeykFailureView(
+            message: strings.resolve(
+              ProofCaptureScreen.describe(failure),
+              arguments: ProofCaptureScreen.argumentsFor(failure),
+            ),
+            onRetry: () => unawaited(
+              widget.controller.arrive(
+                shipment: widget.shipment,
+                grade: widget.grade,
+              ),
+            ),
+          ),
+        },
       ),
-      Settled() => const Center(child: Text('Recorded')),
-      CaptureFailed(:final failure) => Center(
-        child: Text(ProofCaptureScreen.describe(failure)),
-      ),
-    },
-  );
+    );
+  }
 
   Future<void> _capture(_Kind kind) async {
     switch (kind) {
@@ -164,36 +198,91 @@ final class _Door extends StatelessWidget {
     final signature = onSignature;
     final photo = onPhoto;
     final refusal = state.refusal;
+    final strings = PeykStrings.of(context);
 
     return ListView(
       children: [
-        Text('Delivering ${state.attempt.shipment.value}'),
+        PeykText.body(
+          strings.resolve(
+            DeliveryStrings.delivering,
+            arguments: {'shipment': state.attempt.shipment.value},
+          ),
+        ),
+        const PeykGap.vertical(PeykGapSize.betweenRows),
+        // The rule, read from ProofPolicy rather than restated here. A second
+        // copy would tell a courier they were finished on the day the policy
+        // changed and the use case disagreed.
         if (state.missing.isNotEmpty)
-          // The rule, read from ProofPolicy rather than restated here. A
-          // second copy would tell a courier they were finished on the day the
-          // policy changed and the use case disagreed.
-          Text('Still needed: ${state.missing.map((k) => k.name).join(', ')}'),
-        for (final kind in state.carries) Text('Captured: ${kind.name}'),
-        EditableText(
-          controller: TextEditingController(text: state.recipientName),
-          focusNode: FocusNode(),
-          style: const TextStyle(),
-          cursorColor: const Color(0xFF000000),
-          backgroundCursorColor: const Color(0xFF000000),
+          PeykChip(
+            label: strings.resolve(
+              DeliveryStrings.stillNeeded,
+              arguments: {
+                'kinds': [
+                  for (final kind in state.missing)
+                    strings.resolve(DeliveryStrings.evidenceKind(kind)),
+                ],
+              },
+            ),
+            intent: PeykIntent.warning,
+          ),
+        for (final kind in state.carries)
+          PeykChip(
+            label: strings.resolve(
+              DeliveryStrings.captured,
+              arguments: {
+                'kind': strings.resolve(DeliveryStrings.evidenceKind(kind)),
+              },
+            ),
+            intent: PeykIntent.success,
+          ),
+        const PeykGap.vertical(PeykGapSize.betweenRows),
+        PeykTextField(
+          label: strings.resolve(DeliveryStrings.recipientLabel),
+          hint: strings.resolve(DeliveryStrings.recipientHint),
+          value: state.recipientName,
           onChanged: onRecipient,
         ),
+        const PeykGap.vertical(PeykGapSize.betweenRows),
         if (signature != null)
-          GestureDetector(onTap: signature, child: const Text('Add signature')),
+          PeykButton(
+            label: strings.resolve(DeliveryStrings.addSignature),
+            onPressed: signature,
+          ),
         if (photo != null)
-          GestureDetector(onTap: photo, child: const Text('Add photo')),
+          PeykButton(
+            label: strings.resolve(DeliveryStrings.addPhoto),
+            onPressed: photo,
+          ),
+        const PeykGap.vertical(PeykGapSize.betweenGroups),
         // Scenario 6: the action a courier without the grant never sees. The
         // use case does not check permissions — identity is not one of its
         // collaborators — so this is the last thing between them and a
         // recorded delivery.
         if (canComplete && state.isComplete)
-          GestureDetector(onTap: onComplete, child: const Text('Delivered')),
-        GestureDetector(onTap: onFail, child: const Text('Could not deliver')),
-        if (refusal != null) Text(ProofCaptureScreen.describe(refusal)),
+          PeykButton(
+            label: strings.resolve(DeliveryStrings.delivered),
+            onPressed: onComplete,
+            tone: PeykButtonTone.primary,
+          ),
+        const PeykGap.vertical(PeykGapSize.betweenLines),
+        PeykButton(
+          label: strings.resolve(DeliveryStrings.couldNotDeliver),
+          onPressed: onFail,
+          tone: PeykButtonTone.destructive,
+        ),
+        // An advisory: the refusal happened, and the door is still there to
+        // try again from. Replacing the screen would throw away a signature
+        // somebody has already collected.
+        if (refusal != null) ...[
+          const PeykGap.vertical(PeykGapSize.betweenRows),
+          PeykChip(
+            label: strings.resolve(
+              ProofCaptureScreen.describe(refusal),
+              arguments: ProofCaptureScreen.argumentsFor(refusal),
+            ),
+            intent: PeykIntent.danger,
+          ),
+        ],
       ],
     );
   }

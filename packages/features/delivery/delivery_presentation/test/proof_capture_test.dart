@@ -5,6 +5,7 @@ import 'package:core_kernel/core_kernel.dart';
 import 'package:delivery_api/delivery_api.dart';
 import 'package:delivery_presentation/delivery_presentation.dart';
 import 'package:delivery_testing/delivery_testing.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
@@ -252,8 +253,7 @@ void main() {
     }) {
       final built = _controller(facade, granted: granted);
       addTearDown(built.dispose);
-      return Directionality(
-        textDirection: TextDirection.ltr,
+      return PeykTheme.wrap(
         child: ProofCaptureScreen(
           controller: built,
           shipment: DeliveryFixtures.shipment(),
@@ -267,15 +267,18 @@ void main() {
       await tester.pumpWidget(screen(grade: DeliveryGrade.highValue));
       await tester.pump();
 
-      expect(find.textContaining('Still needed'), findsOneWidget);
+      expect(
+        find.textContaining(DeliveryStrings.stillNeeded),
+        findsOneWidget,
+      );
     });
 
     testWidgets('hides the delivered action without the grant', (tester) async {
       await tester.pumpWidget(screen(granted: const {}));
       await tester.pump();
 
-      expect(find.text('Delivered'), findsNothing);
-      expect(find.text('Could not deliver'), findsOneWidget);
+      expect(find.text(DeliveryStrings.delivered), findsNothing);
+      expect(find.text(DeliveryStrings.couldNotDeliver), findsOneWidget);
     });
 
     testWidgets('offers no camera when the app supplied none', (tester) async {
@@ -285,7 +288,7 @@ void main() {
       await tester.pumpWidget(screen());
       await tester.pump();
 
-      expect(find.text('Add photo'), findsNothing);
+      expect(find.text(DeliveryStrings.addPhoto), findsNothing);
     });
 
     testWidgets('takes the evidence the app captured', (tester) async {
@@ -294,17 +297,20 @@ void main() {
       );
       await tester.pump();
 
-      await tester.tap(find.text('Add photo'));
+      await tester.tap(find.text(DeliveryStrings.addPhoto));
       await tester.pump();
 
-      expect(find.text('Captured: photo'), findsOneWidget);
+      expect(
+        find.textContaining(DeliveryStrings.captured),
+        findsOneWidget,
+      );
     });
 
-    test('says something different for every failure', () {
-      // Nine cases, nine sentences — the reason DeliveryFailure is sealed.
-      // "You are 450m from the address" and "the evidence could not be saved"
-      // send a courier to different places.
-      final sentences = <DeliveryFailure>[
+    test('asks for a different key for every failure', () {
+      // Nine cases, nine keys — the reason DeliveryFailure is sealed. "You are
+      // 450m from the address" and "the evidence could not be saved" send a
+      // courier to different places.
+      final keys = <DeliveryFailure>[
         const OutsideDeliveryArea(metresAway: 450, allowedMetres: 100),
         const DeliveryPositionUnavailable(),
         const ProofInsufficient(grade: 'highValue', missing: ['photo']),
@@ -316,7 +322,30 @@ void main() {
         const MalformedDeliveryValue(field: 'recipient', reason: 'is empty'),
       ].map(ProofCaptureScreen.describe).toList();
 
-      expect(sentences.toSet(), hasLength(9));
+      expect(keys.toSet(), hasLength(9));
+      expect(DeliveryStrings.all, containsAll(keys));
+    });
+
+    // Rounded here rather than in the app, because a courier does not need
+    // centimetres and rounding in the app would mean rounding once per app.
+    // Whether it reads "450 m" or "450m" is still the locale's question.
+    test('a distance crosses rounded and unformatted', () {
+      expect(
+        ProofCaptureScreen.argumentsFor(
+          const OutsideDeliveryArea(metresAway: 450.4, allowedMetres: 100),
+        ),
+        {'metres': 450},
+      );
+    });
+
+    // ProofInsufficient.missing is a list of EvidenceKind names — the failure
+    // crosses a port, so it carries data rather than the enum. Rebuilding the
+    // key from the name keeps both spellings in one place.
+    test('a missing evidence kind names a key an app answers', () {
+      expect(
+        DeliveryStrings.all,
+        contains(DeliveryStrings.evidenceKindNamed('photo')),
+      );
     });
   });
 

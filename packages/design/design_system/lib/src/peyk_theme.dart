@@ -94,7 +94,15 @@ final class PeykTheme extends ThemeExtension<PeykTheme> {
     locale: locale,
     localizationsDelegates: PeykSystemLocalizations.localizationsDelegates,
     supportedLocales: PeykSystemLocalizations.supportedLocales,
-    home: PeykStrings(catalogue: catalogue, child: child),
+    // The Material ancestor is part of what "the tree these components need"
+    // means. PeykScreen brings its own Scaffold, but a component tested on its
+    // own — a field, a row, a chip — has no screen above it, and TextField
+    // asserts on the absence. Putting it here is the point of the helper: one
+    // place, rather than fourteen packages each discovering the requirement
+    // separately.
+    home: Material(
+      child: PeykStrings(catalogue: catalogue, child: child),
+    ),
   );
 
   @override

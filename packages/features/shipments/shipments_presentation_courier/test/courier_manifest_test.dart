@@ -2,6 +2,7 @@
 library;
 
 import 'package:core_kernel/core_kernel.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
@@ -59,10 +60,8 @@ void main() {
     ),
   ];
 
-  Widget screen(CourierManifestController controller) => Directionality(
-    textDirection: TextDirection.ltr,
-    child: CourierManifestScreen(controller: controller),
-  );
+  Widget screen(CourierManifestController controller) =>
+      PeykTheme.wrap(child: CourierManifestScreen(controller: controller));
 
   testWidgets('renders the stops the facade returned', (tester) async {
     final controller = CourierManifestController(
@@ -75,7 +74,14 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Ayse Yilmaz'), findsOneWidget);
-    expect(find.text('outForDelivery'), findsOneWidget);
+    expect(
+      find.text(
+        ShipmentsCourierStrings.status(
+          ShipmentStatus.outForDelivery(courier.actor.id),
+        ),
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('an empty manifest is an ordinary morning, not an error', (
@@ -92,7 +98,7 @@ void main() {
     await tester.pumpWidget(screen(controller));
     await tester.pumpAndSettle();
 
-    expect(find.text('Nothing assigned yet'), findsOneWidget);
+    expect(find.text(ShipmentsCourierStrings.empty), findsOneWidget);
   });
 
   testWidgets('a failure renders something a courier can act on', (
@@ -107,7 +113,10 @@ void main() {
     await tester.pumpWidget(screen(controller));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('No signal'), findsOneWidget);
+    expect(
+      find.text(ShipmentsCourierStrings.failureUnavailable),
+      findsOneWidget,
+    );
   });
 
   test('nobody signed in means nothing is asked for', () async {
@@ -141,6 +150,36 @@ void main() {
     expect(
       routes.routes.every((route) => route.requiresSession),
       isTrue,
+    );
+  });
+
+  // The mapping the design system deliberately cannot make, and the half of
+  // scenario 7 that only two presentation packages can show: the courier's
+  // screen and the dispatcher's board disagree about what undeliverable
+  // means, because it means different things to the two people looking at it.
+  // The visit is over and the parcel goes back — normal to a courier, and to a
+  // dispatcher a parcel somebody has to do something about today.
+  test('a delivered parcel is drawn as success', () {
+    expect(
+      CourierManifestScreen.intentOf(
+        ShipmentStatus.deliveredToConsignee(
+          at: DateTime.utc(2026, 3, 4),
+          proofReference: 'proof-1',
+        ),
+      ),
+      PeykIntent.success,
+    );
+  });
+
+  test('an undeliverable parcel is a warning on a courier list', () {
+    expect(
+      CourierManifestScreen.intentOf(
+        ShipmentStatus.undeliverable(
+          at: DateTime.utc(2026, 3, 4),
+          reason: 'nobody home',
+        ),
+      ),
+      PeykIntent.warning,
     );
   });
 }

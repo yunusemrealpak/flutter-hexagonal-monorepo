@@ -1,11 +1,13 @@
 import 'dart:async';
 
+import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:payments_api/payments_api.dart';
 import 'package:shipments_api/shipments_api.dart';
 
 import 'collection_controller.dart';
 import 'collection_state.dart';
+import 'payments_strings.dart';
 
 /// Where a courier takes money at a door.
 ///
@@ -16,9 +18,6 @@ import 'collection_state.dart';
 /// **The amount is drawn, not typed.** It comes from `PaymentStatus`, so a
 /// courier cannot collect a different number from the one the operation is
 /// owed.
-///
-/// Deliberately plain: no colours, no typography, no spacing scale. Those come
-/// from `design_system`, which arrives in phase 7.
 final class CollectionScreen extends StatefulWidget {
   /// Creates the screen over [controller], for [shipment].
   const CollectionScreen({
@@ -36,52 +35,78 @@ final class CollectionScreen extends StatefulWidget {
   @override
   State<CollectionScreen> createState() => _CollectionScreenState();
 
-  /// Turns an amount into something a person reads.
+  /// The arguments an amount contributes to whichever key draws it.
   ///
-  /// Minor units become a decimal here and nowhere else, using the currency's
-  /// own scale — a currency with three minor-unit digits or none would break
-  /// any code that assumed a hundred. It is the same reason `Currency` carries
-  /// the scale rather than a bare code.
-  ///
-  /// No locale and no symbol placement: `design_system` and the app's
-  /// localisation arrive in phase 7, and inventing a half-answer here would
-  /// mean deleting it then.
-  static String render(Money amount) {
-    final digits = amount.currency.minorUnitDigits;
-    if (digits == 0) return '${amount.minorUnits} ${amount.currency.code}';
+  /// Three of them, and no formatting. Turning minor units into money needs a
+  /// locale — where the separator goes, which side the symbol is on, whether
+  /// there is a space before it — and only the app has one. What crosses is
+  /// the number, the code, and the currency's own minor-unit digit count: a
+  /// currency with three of those or none would break any formatter that
+  /// assumed a hundred, which is the same reason `Currency` carries the scale
+  /// rather than a bare code.
+  @visibleForTesting
+  static Map<String, Object?> amountArguments(Money amount) => {
+    'minorUnits': amount.minorUnits,
+    'currency': amount.currency.code,
+    'scale': amount.currency.minorUnitDigits,
+  };
 
-    final scale = _powerOfTen(digits);
-    final major = amount.minorUnits ~/ scale;
-    final minor = (amount.minorUnits % scale).toString().padLeft(digits, '0');
-    return '$major.$minor ${amount.currency.code}';
-  }
-
-  /// Turns a failure into something a person can act on.
+  /// Which string a failure should be shown as.
   ///
   /// Exhaustive over `PaymentsFailure`, which is the point of it being sealed:
   /// the day payments learns a new way to fail, this stops compiling instead
   /// of quietly showing a courier the wrong sentence.
+  @visibleForTesting
   static String describe(PaymentsFailure failure) => switch (failure) {
-    CollectionRefused(:final reason) => 'Refused: $reason',
-    CashDrawerUnavailable() => 'The cash record could not be updated.',
-    PaymentsUnavailable() => 'This could not be recorded. Try again.',
-    AlreadySettled() => 'This payment has already been taken.',
-    NoCollectionFor() => 'There is nothing to collect on this parcel.',
-    RefundNotPossible(:final reason) => 'Cannot refund: $reason',
-    SettlementUnavailable() => "Your day's total could not be read.",
-    SettlementClosed() => 'Your day is already handed in.',
-    CurrencyMismatch(:final expected, :final actual) =>
-      'This is in $actual and the collection is in $expected.',
-    MalformedPaymentValue(:final field) => 'Something is wrong with $field.',
+    CollectionRefused() => PaymentsStrings.failureRefused,
+    CashDrawerUnavailable() => PaymentsStrings.failureCashDrawerUnavailable,
+    PaymentsUnavailable() => PaymentsStrings.failureUnavailable,
+    AlreadySettled() => PaymentsStrings.failureAlreadySettled,
+    NoCollectionFor() => PaymentsStrings.failureNothingToCollect,
+    RefundNotPossible() => PaymentsStrings.failureRefundNotPossible,
+    SettlementUnavailable() => PaymentsStrings.failureSettlementUnavailable,
+    SettlementClosed() => PaymentsStrings.failureSettlementClosed,
+    CurrencyMismatch() => PaymentsStrings.failureCurrencyMismatch,
+    MalformedPaymentValue() => PaymentsStrings.failureMalformed,
   };
 
-  static int _powerOfTen(int digits) {
-    var value = 1;
-    for (var i = 0; i < digits; i++) {
-      value *= 10;
-    }
-    return value;
-  }
+  /// The arguments [failure] contributes to its own message.
+  @visibleForTesting
+  static Map<String, Object?> argumentsFor(PaymentsFailure failure) =>
+      switch (failure) {
+        CollectionRefused(:final reason) ||
+        RefundNotPossible(:final reason) => {'reason': reason},
+        CurrencyMismatch(:final expected, :final actual) => {
+          'expected': expected,
+          'actual': actual,
+        },
+        MalformedPaymentValue(:final field) => {'field': field},
+        CashDrawerUnavailable() ||
+        PaymentsUnavailable() ||
+        AlreadySettled() ||
+        NoCollectionFor() ||
+        SettlementUnavailable() ||
+        SettlementClosed() => const {},
+      };
+
+  /// Whether trying again is the answer to [failure].
+  ///
+  /// Money is where a wrong retry costs the most. A payment that has already
+  /// been taken must not offer a button that would take it twice, and a
+  /// refusal is the operation's decision rather than a hiccup.
+  @visibleForTesting
+  static bool canRetry(PaymentsFailure failure) => switch (failure) {
+    AlreadySettled() ||
+    CollectionRefused() ||
+    NoCollectionFor() ||
+    SettlementClosed() ||
+    CurrencyMismatch() => false,
+    CashDrawerUnavailable() ||
+    PaymentsUnavailable() ||
+    RefundNotPossible() ||
+    SettlementUnavailable() ||
+    MalformedPaymentValue() => true,
+  };
 }
 
 class _CollectionScreenState extends State<CollectionScreen> {
@@ -95,28 +120,46 @@ class _CollectionScreenState extends State<CollectionScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.controller,
-    builder: (context, _) => switch (widget.controller.state) {
-      CollectionIdle() || CollectionLoading() => const Center(
-        child: Text('Checking what is owed'),
+  Widget build(BuildContext context) {
+    final strings = PeykStrings.of(context);
+
+    return PeykScreen(
+      title: strings.resolve(PaymentsStrings.title),
+      body: ListenableBuilder(
+        listenable: widget.controller,
+        builder: (context, _) => switch (widget.controller.state) {
+          CollectionIdle() || CollectionLoading() => const PeykLoadingView(),
+          // Where this screen spends most of its life. Most parcels are
+          // prepaid, and that is not a failure.
+          NothingOwed() => PeykEmptyView(
+            message: strings.resolve(PaymentsStrings.nothingOwed),
+          ),
+          final Owed state => _Door(
+            state: state,
+            canCollect: widget.controller.canCollect,
+            onMethod: widget.controller.takeBy,
+            onCollect: () =>
+                unawaited(widget.controller.collect(widget.shipment)),
+          ),
+          Collected(:final attempt) => PeykEmptyView(
+            message: strings.resolve(
+              PaymentsStrings.taken,
+              arguments: CollectionScreen.amountArguments(attempt.amount),
+            ),
+          ),
+          CollectionFailed(:final failure) => PeykFailureView(
+            message: strings.resolve(
+              CollectionScreen.describe(failure),
+              arguments: CollectionScreen.argumentsFor(failure),
+            ),
+            onRetry: CollectionScreen.canRetry(failure)
+                ? () => unawaited(widget.controller.load(widget.shipment))
+                : null,
+          ),
+        },
       ),
-      // Where this screen spends most of its life. Most parcels are prepaid.
-      NothingOwed() => const Center(child: Text('Nothing to collect')),
-      final Owed state => _Door(
-        state: state,
-        canCollect: widget.controller.canCollect,
-        onMethod: widget.controller.takeBy,
-        onCollect: () => unawaited(widget.controller.collect(widget.shipment)),
-      ),
-      Collected(:final attempt) => Center(
-        child: Text('Taken ${CollectionScreen.render(attempt.amount)}'),
-      ),
-      CollectionFailed(:final failure) => Center(
-        child: Text(CollectionScreen.describe(failure)),
-      ),
-    },
-  );
+    );
+  }
 }
 
 final class _Door extends StatelessWidget {
@@ -135,25 +178,65 @@ final class _Door extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final refusal = state.refusal;
+    final strings = PeykStrings.of(context);
+    final isCash = state.method.isCash;
 
     return ListView(
       children: [
-        Text('Owed ${CollectionScreen.render(state.amount)}'),
-        Text('Taking by ${state.method.isCash ? 'cash' : 'card'}'),
-        GestureDetector(
-          onTap: () => onMethod(const PaymentMethod.cash()),
-          child: const Text('Cash'),
+        PeykText.display(
+          strings.resolve(
+            PaymentsStrings.owed,
+            arguments: CollectionScreen.amountArguments(state.amount),
+          ),
         ),
-        GestureDetector(
-          onTap: () => onMethod(const PaymentMethod.card(last4: '0000')),
-          child: const Text('Card'),
+        const PeykGap.vertical(PeykGapSize.betweenGroups),
+        PeykSection(
+          title: strings.resolve(
+            PaymentsStrings.takingBy,
+            arguments: {
+              'method': strings.resolve(
+                isCash
+                    ? PaymentsStrings.methodCash
+                    : PaymentsStrings.methodCard,
+              ),
+            },
+          ),
+          children: [
+            PeykOptionRow(
+              label: strings.resolve(PaymentsStrings.methodCash),
+              selected: isCash,
+              onTap: () => onMethod(const PaymentMethod.cash()),
+            ),
+            PeykOptionRow(
+              label: strings.resolve(PaymentsStrings.methodCard),
+              selected: !isCash,
+              onTap: () => onMethod(const PaymentMethod.card(last4: '0000')),
+            ),
+          ],
         ),
+        const PeykGap.vertical(PeykGapSize.betweenGroups),
         // Scenario 6: the action a courier without the grant never sees. The
         // use case does not check permissions, so this is the last thing
         // between them and a recorded payment.
         if (canCollect)
-          GestureDetector(onTap: onCollect, child: const Text('Take payment')),
-        if (refusal != null) Text(CollectionScreen.describe(refusal)),
+          PeykButton(
+            label: strings.resolve(PaymentsStrings.collect),
+            onPressed: onCollect,
+            tone: PeykButtonTone.primary,
+          ),
+        // An advisory rather than a failure page: the amount is still on the
+        // screen and the courier can change the method and try again. A
+        // refusal that replaced the screen would take the number with it.
+        if (refusal != null) ...[
+          const PeykGap.vertical(PeykGapSize.betweenRows),
+          PeykChip(
+            label: strings.resolve(
+              CollectionScreen.describe(refusal),
+              arguments: CollectionScreen.argumentsFor(refusal),
+            ),
+            intent: PeykIntent.danger,
+          ),
+        ],
       ],
     );
   }
