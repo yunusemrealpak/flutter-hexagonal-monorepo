@@ -15,6 +15,7 @@ version: 0.0.0
 # `resolution: workspace` in its own pubspec.
 workspace:
   - apps/app_courier
+  - apps/app_dispatcher
   - apps/app_harness
   - packages/core/core_kernel
   - packages/core/core_navigation
