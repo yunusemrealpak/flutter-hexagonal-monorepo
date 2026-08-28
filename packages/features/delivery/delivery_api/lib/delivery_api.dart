@@ -33,8 +33,14 @@
 /// subscribes to it through the `DomainEventBus` port and never depends on
 /// `delivery_application`; the two share this file and a bus.
 ///
-/// **The driving port.** `DeliveryFacade`, implemented by
-/// `delivery_application`.
+/// **The driving ports, drawn where a port stops being answerable.**
+/// `DeliveryExecution` is arriving at a door and is the only one that needs a
+/// `GeoFencePort` — this device's position — so only a courier's app composes
+/// it. `DeliverySettlement` closes an attempt and `DeliveryHistory` reads one
+/// back; both are answered from a store, a queue and a server, so a desk
+/// composes both and can correct a record without claiming to be at the
+/// address. They were one `DeliveryFacade` until phase 8; the reasoning is in
+/// docs/ARCHITECTURE.md, scenario 5.
 ///
 /// **The driven ports.** `DeliveryGateway`, `ProofStorePort`,
 /// `MediaCompressorPort`, `GeoFencePort`, answered by
@@ -46,10 +52,12 @@ export 'src/courier_reference.dart';
 export 'src/delivery_attempt.dart';
 export 'src/delivery_attempt_id.dart';
 export 'src/delivery_completed.dart';
-export 'src/delivery_facade.dart';
+export 'src/delivery_execution.dart';
 export 'src/delivery_failure.dart';
 export 'src/delivery_gateway.dart';
 export 'src/delivery_grade.dart';
+export 'src/delivery_history.dart';
+export 'src/delivery_settlement.dart';
 export 'src/evidence_kind.dart';
 export 'src/geo_fence_port.dart';
 export 'src/geo_fence_verdict.dart';

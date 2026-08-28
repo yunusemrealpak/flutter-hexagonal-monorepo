@@ -43,8 +43,22 @@ void main() {
     test('the six full-split features', () {
       expect(container<IdentityFacade>(), isNotNull);
       expect(container<ShipmentsFacade>(), isNotNull);
-      expect(container<RoutingFacade>(), isNotNull);
-      expect(container<DeliveryFacade>(), isNotNull);
+      // The other two of routing's three. **`RouteFollowing` is absent, and
+      // that absence is the point of the phase 8 split**: it is the interface
+      // whose ports read this device's position, and a desk cannot answer it
+      // about a courier. Before the split this app had to bind it — and the
+      // GPS behind it — to get `resequence` at all.
+      expect(container<RoutePlanning>(), isNotNull);
+      expect(container<RouteSupervision>(), isNotNull);
+      expect(container.isRegistered<RouteFollowing>(), isFalse);
+      // Two of delivery's three. `DeliveryExecution` is absent: opening an
+      // attempt asks a geofence whether *this device* is at the address, and a
+      // desk has no answer. Settling and reading are answered from a store, a
+      // queue and a server, so both are composed here — which is also what
+      // keeps `RemoteProofStore` a binding with a caller.
+      expect(container<DeliverySettlement>(), isNotNull);
+      expect(container<DeliveryHistory>(), isNotNull);
+      expect(container.isRegistered<DeliveryExecution>(), isFalse);
       expect(container<PaymentsFacade>(), isNotNull);
       expect(container<SyncFacade>(), isNotNull);
     });

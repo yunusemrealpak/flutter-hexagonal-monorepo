@@ -50,5 +50,5 @@ Not `routing_infrastructure`, not `platform/*`. A use case here could not see a 
 ## What must never live here
 
 - **A rule that belongs on the entity.** The estimates, the deviation test and the sequence checks are `RoutePlan`'s. A use case orchestrates; an entity decides.
-- **A decision `RoutingCoordinator` makes on its own.** It delegates to four use cases and owns a stream.
+- **A decision a coordinator makes on its own.** Each of the three delegates to its own use cases and shares one `RouteChannel`.
 - **`DateTime.now()`, `Random()`, `print()`.** Rules A1, A2, A4.

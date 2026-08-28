@@ -1,0 +1,5 @@
+name: alpha_api
+dependencies:
+  beta_api: ^0.1.0
+  core_kernel: ^0.1.0
+  meta: ^1.0.0

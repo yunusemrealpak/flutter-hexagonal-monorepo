@@ -20,9 +20,16 @@
 /// what is in the parcel would have to reach into `shipments_api` and would be
 /// the second place in the product that knows what a shipment is.
 ///
+/// **Two controllers, because routing has two audiences.**
+/// `FollowedRouteController` holds `RouteFollowing` — the interface whose
+/// ports read *this device's* position — and `SupervisedRouteController` holds
+/// `RouteSupervision`. An app builds the one it can honestly answer, and
+/// `RouteScreen` reads the reorder affordance off the type rather than off a
+/// boolean the app used to pass.
+///
 /// This package holds no adapter and no use case. It depends on contracts
-/// only, so what actually answers `RoutingFacade` is decided by whichever app
-/// composed it: the real coordinator in `app_courier`, a fake in
+/// only, so what actually answers `RoutePlanning` is decided by whichever app
+/// composed it: the real coordinators in `app_courier`, fakes in
 /// `app_harness`.
 library;
 

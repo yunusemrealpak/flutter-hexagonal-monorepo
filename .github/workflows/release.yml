@@ -1,0 +1,109 @@
+name: release
+
+# Tag-triggered. The tags this repository cuts are phase tags (`phase-07`) and
+# app releases (`app_courier-v1.4.0`); only the second builds anything, and the
+# job below decides which it is from the tag's own shape rather than from a
+# second trigger nobody remembers to update.
+on:
+  push:
+    tags:
+      - "app_*-v*"
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: "3.47.1"
+
+jobs:
+  release:
+    name: ${{ github.ref_name }}
+    runs-on: macos-14
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Read the app and the version out of the tag
+        id: target
+        run: |
+          tag="${{ github.ref_name }}"
+          echo "app=${tag%%-v*}" >> "$GITHUB_OUTPUT"
+          echo "version=${tag##*-v}" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve the workspace
+        run: flutter pub get
+
+      - name: Gate the release on the same checks a merge passed
+        # A tag can be pushed at any commit, including one that never went
+        # through a pull request. Re-running the constitution and the suite
+        # here costs minutes and removes the only path by which unreviewed
+        # code reaches a store.
+        run: |
+          dart run melos run analyze
+          dart run melos run arch:check
+          dart run melos run gen:check
+          dart run tooling/test_runner/bin/test_runner.dart --no-cache --bundle
+
+      - name: Changelog since the previous release of this app
+        id: changelog
+        run: |
+          app="${{ steps.target.outputs.app }}"
+          previous=$(git tag --list "${app}-v*" --sort=-v:refname | sed -n 2p)
+          range=${previous:+$previous..}${{ github.ref_name }}
+          {
+            echo 'body<<EOF'
+            git log --no-merges --pretty='- %s (%h)' "$range"
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build the Android artifact
+        working-directory: apps/${{ steps.target.outputs.app }}
+        # --obfuscate needs somewhere to put the symbol map, and a build
+        # without --split-debug-info produces stack traces nobody can read.
+        run: |
+          flutter build appbundle \
+            --release \
+            --build-name=${{ steps.target.outputs.version }} \
+            --build-number=${{ github.run_number }} \
+            --obfuscate \
+            --split-debug-info=build/symbols/android
+
+      - name: Build the iOS artifact
+        working-directory: apps/${{ steps.target.outputs.app }}
+        # No code signing here: signing happens in Codemagic, which holds the
+        # certificates. This job proves the release builds and produces the
+        # symbols; codemagic.yaml is what ships it.
+        run: |
+          flutter build ios \
+            --release \
+            --no-codesign \
+            --build-name=${{ steps.target.outputs.version }} \
+            --build-number=${{ github.run_number }} \
+            --obfuscate \
+            --split-debug-info=build/symbols/ios
+
+      - name: Keep the symbols
+        # Without these the obfuscated release's crash reports are unreadable,
+        # and they cannot be regenerated after the fact.
+        uses: actions/upload-artifact@v4
+        with:
+          name: symbols-${{ github.ref_name }}
+          path: apps/${{ steps.target.outputs.app }}/build/symbols
+          retention-days: 365
+
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ steps.target.outputs.app }} ${{ steps.target.outputs.version }}" \
+            --notes "${{ steps.changelog.outputs.body }}" \
+            apps/${{ steps.target.outputs.app }}/build/app/outputs/bundle/release/*.aab

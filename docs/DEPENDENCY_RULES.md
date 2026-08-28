@@ -112,6 +112,29 @@ Nothing in the product asks for "an HTTP request" or "a GPS fix". `shipments` as
 
 A technology contract lives in the same package as its adapter, together with the fake that stands in for it. A fake belongs with the contract it imitates — which is why `FakeHttpTransport` ships from `http_dio` and not from `core_testing`, while `InMemorySecureStore` ships from `core_testing`, because `SecureStore` is declared in `core_ports`.
 
+### 2.3 How wide a driving port is
+
+Section 2.2 says where a contract is declared. This says how much of a feature one contract may cover, and it is the question phase 8 answered.
+
+A driving port is **one audience's conversation with the feature**, not the feature's whole public surface. Two audiences share a port when they ask the same thing through different technology — Cockburn's own example is a screen, a test suite and a remote system driving one port through three adapters. They do **not** share a port when one of them cannot perform an operation at all, because no adapter fixes that.
+
+The test that draws the line is mechanical enough to apply without argument: **look at the driven ports behind each operation, and ask whether every audience can answer them honestly.**
+
+| | Absence of *capability* | Absence of *intent* |
+|---|---|---|
+| Which side | a driven port | a driving port |
+| Example | a desk has no push client | a desk never stands at a consignee's door |
+| The right answer | an adapter that declines — `DeskAlertChannel` returns `AlertsRefused` | the operation is not on the interface that audience holds |
+| Why | the domain still *asks*, and "cannot" is a real answer | nobody asks, so a refusal is unreachable code standing in for a compile-time fact |
+
+Two consequences are easy to get wrong:
+
+**Splitting the interface is not enough on its own.** `IdentityCoordinator` implements three ports from one constructor, which segregates what a caller may ask and not what a composition root must supply. If an app must still build an object whose constructor demands a use case it cannot answer, nothing has been gained. The implementation splits with the interface, and a shared fact between the halves — a change stream — becomes an explicit collaborator (`RouteChannel`, `DeliveryChannel`) rather than a field on whichever coordinator happens to be registered.
+
+**A query must not be answered by a command.** A screen that opens on a route asked `recalculateOnDeviation` because routing had no read; that operation reads the caller's position and may replace the plan. Where an audience needs to *see* something, the port owes it a query — `RoutePlanning.currentPlan` — and the failure of that rule is what let a desk replan a courier's afternoon from the office.
+
+The cost of the rule is more interfaces. The benefit is the one this repository exists to make visible: `app_dispatcher`'s `pubspec.yaml` no longer lists `location_service`, and its container test asserts that `RouteFollowing` and `DeliveryExecution` are *not registered* — the Common Reuse Principle turned into a check.
+
 ---
 
 ## 3. Structural rules
@@ -242,6 +265,7 @@ Three constitutional rules resist a checker and stay a review responsibility. Th
 - **Rule 1.2.6, cycle resolution.** `arch_check` detects a cycle, but it cannot tell you that the right fix is mutual `_api` dependencies rather than a new `shared` package. Creating `shared` makes the graph green and the architecture worse.
 - **Rule 1.2.10, DTO/entity separation.** The checker can prove a DTO is not declared in `_api`. It cannot prove that a mapper in `_infrastructure` actually maps rather than passing a DTO-shaped entity through.
 - **Rule 4 of §2.1, adapter scope.** Whether an adapter has quietly taken on a use case's job is a judgement about intent, not about imports.
+- **§2.3, driving-port width.** A checker can see that `app_dispatcher` does not register `RouteFollowing`. It cannot tell you that `resequence` and `recalculateOnDeviation` belong to different audiences in the first place — that is a reading of the product, and getting it wrong produces a graph that is green and a desk that answers a courier's question with the desk's coordinates.
 
 ---
 

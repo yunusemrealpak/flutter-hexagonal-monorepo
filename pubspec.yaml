@@ -86,7 +86,9 @@ workspace:
   - packages/platform/secure_store
   - packages/platform/storage_drift
   - tooling/arch_check
+  - tooling/dep_graph
   - tooling/scaffold
+  - tooling/test_runner
 
 environment:
   sdk: ^3.12.2
@@ -174,6 +176,22 @@ melos:
       packageFilters:
         dependsOn: build_runner
 
+    # -- Graph ----------------------------------------------------------------
+    graph:
+      description: >-
+        Rewrite docs/dependency-graph.md from the workspace. Run it in the same
+        commit as a change that adds a package or moves an edge; the generated
+        graph is committed for the same three reasons the generated Dart is
+        (CLAUDE.md section 4.3).
+      run: dart run tooling/dep_graph/bin/dep_graph.dart
+
+    graph:check:
+      description: >-
+        Fail when docs/dependency-graph.md does not match the workspace, and
+        fail when the graph has a cycle. Success criterion 4 of the
+        specification, on the pre-push hook and in CI.
+      run: dart run tooling/dep_graph/bin/dep_graph.dart --check
+
     # -- Architecture -------------------------------------------------------
     arch:check:
       description: >-
@@ -228,8 +246,26 @@ melos:
     test:affected:
       description: >-
         Run only the tests a change against origin/main can break, walking the
-        dependency graph outwards from the changed packages.
-        (phase 8 — tooling/test_runner)
+        dependency graph outwards from the changed packages — through
+        dev_dependencies as well, because a broken contract kit breaks its
+        consumers' suites and nobody's build.
       run: >-
         dart run tooling/test_runner/bin/test_runner.dart
         --affected --base=origin/main
+
+    test:affected:list:
+      description: >-
+        Print the packages test:affected would run, and stop. What the pull
+        request comment is built from.
+      run: >-
+        dart run tooling/test_runner/bin/test_runner.dart
+        --affected --base=origin/main --list
+
+    test:bucket:
+      description: >-
+        One CI machine's share of the full suite, balanced by the durations
+        the last run measured. Pass BUCKET and TOTAL in the environment.
+      run: >-
+        dart run tooling/test_runner/bin/test_runner.dart
+        --bucket=$BUCKET --total=$TOTAL --no-cache --bundle
+        --junit=build/junit-$BUCKET.xml

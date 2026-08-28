@@ -13,11 +13,12 @@ import '../l10n/peyk_dispatcher_localizations.dart';
 /// presentation package that edge and gives it no app.
 ///
 /// **It carries no delivery sentences, and that is the finding this app's
-/// coverage test produced.** `delivery` is *composed* here — `DeliveryFacade`
-/// resolves and `RemoteProofStore` is row 4 of the adapter table — and none of
-/// its destinations is mounted. Composing a feature is not the same as
-/// carrying its language: a sentence for a screen this app never draws is a
-/// translation somebody maintains in every language forever.
+/// coverage test produced.** `delivery` is *composed* here — the two driving
+/// ports a desk can answer resolve, and `RemoteProofStore` is row 4 of the
+/// adapter table — and none of its destinations is mounted. Composing a
+/// feature is not the same as carrying its language: a sentence for a screen
+/// this app never draws is a translation somebody maintains in every language
+/// forever.
 ///
 /// The words are a dispatcher's, and they are the same keys `app_courier`
 /// answers differently. `identity.failure.unavailable` is "No signal, try

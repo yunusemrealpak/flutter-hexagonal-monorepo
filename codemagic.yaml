@@ -1,0 +1,162 @@
+# Codemagic: the signed, store-bound half of the pipeline.
+#
+# GitHub Actions runs the constitution, the analyzer and the tests; it does not
+# hold certificates, provisioning profiles or store credentials. This file is
+# where a build is signed and shipped, and the split is deliberate — the
+# secrets live in one place, and that place is not a workflow anybody can add a
+# step to in a pull request.
+#
+# WHAT THIS REPOSITORY DOES NOT HAVE YET, and what has to exist before a
+# workflow below can run:
+#
+#   * `apps/<app>/android/` and `apps/<app>/ios/` — the specification states
+#     that iOS and Android builds are explicitly not required of this
+#     reference repository, so the native projects were never generated.
+#     `flutter create --platforms=android,ios .` inside an app adds them.
+#   * `apps/<app>/config/<flavour>.json` — the values `--dart-define-from-file`
+#     reads. One file per flavour, holding the endpoints and feature switches
+#     that differ between them.
+#   * The signing groups named under `environment.groups`, configured in the
+#     Codemagic UI.
+#
+# Everything else — the changeset triggers, the flavour matrix, the obfuscation
+# flags, the artefact paths — is real and is what a working pipeline looks
+# like.
+
+definitions:
+  instance: &instance
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+  flutter: &flutter
+    flutter: 3.47.1
+    xcode: latest
+    cocoapods: default
+
+  # One `pub get` resolves all 75 packages: that is what `resolution:
+  # workspace` in the root pubspec buys. Running it per app would resolve the
+  # same solution three times.
+  resolve: &resolve
+    name: Resolve the workspace
+    script: flutter pub get
+
+  gates: &gates
+    name: The same gates the merge passed
+    script: |
+      dart run melos run analyze
+      dart run melos run arch:check
+      dart run tooling/test_runner/bin/test_runner.dart --no-cache --bundle
+
+workflows:
+  courier:
+    name: app_courier
+    <<: *instance
+    environment:
+      <<: *flutter
+      groups:
+        - courier_signing
+        - store_credentials
+      vars:
+        APP: app_courier
+    triggering:
+      events: [push, tag]
+      branch_patterns:
+        - pattern: main
+          include: true
+      # The whole point of a monorepo pipeline: a change to `app_dispatcher`
+      # must not rebuild and re-ship the courier app. The changeset is scoped
+      # to this app and to everything it composes — which is nearly the whole
+      # of packages/, and that is honest rather than lazy: a change to
+      # `core_kernel` really can break a courier's build.
+      when:
+        changeset:
+          includes:
+            - apps/app_courier
+            - packages
+            - pubspec.yaml
+            - pubspec.lock
+    scripts:
+      - *resolve
+      - *gates
+      - name: Build the signed Android bundle
+        script: |
+          cd apps/$APP
+          flutter build appbundle \
+            --release \
+            --flavor production \
+            --dart-define-from-file=config/production.json \
+            --build-number=$PROJECT_BUILD_NUMBER \
+            --obfuscate \
+            --split-debug-info=build/symbols/android
+      - name: Build the signed iOS archive
+        script: |
+          cd apps/$APP
+          flutter build ipa \
+            --release \
+            --flavor production \
+            --dart-define-from-file=config/production.json \
+            --build-number=$PROJECT_BUILD_NUMBER \
+            --obfuscate \
+            --split-debug-info=build/symbols/ios \
+            --export-options-plist=$HOME/export_options.plist
+    artifacts:
+      - apps/app_courier/build/**/outputs/bundle/**/*.aab
+      - apps/app_courier/build/ios/ipa/*.ipa
+      # Kept with the build, not after it: an obfuscated release whose symbol
+      # map was thrown away has crash reports nobody can read, and the map
+      # cannot be regenerated later.
+      - apps/app_courier/build/symbols/**
+    publishing:
+      google_play:
+        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT
+        track: internal
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true
+
+  dispatcher:
+    name: app_dispatcher
+    <<: *instance
+    environment:
+      <<: *flutter
+      groups:
+        - dispatcher_signing
+        - store_credentials
+      vars:
+        APP: app_dispatcher
+    triggering:
+      events: [push, tag]
+      branch_patterns:
+        - pattern: main
+          include: true
+      when:
+        changeset:
+          includes:
+            - apps/app_dispatcher
+            - packages
+            - pubspec.yaml
+            - pubspec.lock
+    scripts:
+      - *resolve
+      - *gates
+      - name: Build the signed Android bundle
+        script: |
+          cd apps/$APP
+          flutter build appbundle \
+            --release \
+            --flavor production \
+            --dart-define-from-file=config/production.json \
+            --build-number=$PROJECT_BUILD_NUMBER \
+            --obfuscate \
+            --split-debug-info=build/symbols/android
+    artifacts:
+      - apps/app_dispatcher/build/**/outputs/bundle/**/*.aab
+      - apps/app_dispatcher/build/symbols/**
+    publishing:
+      google_play:
+        credentials: $GOOGLE_PLAY_SERVICE_ACCOUNT
+        track: internal
+
+  # app_harness is never shipped. It exists so that every feature can be
+  # composed on fakes and the container asserted in milliseconds, and giving it
+  # a store workflow would be giving a test harness a release process.

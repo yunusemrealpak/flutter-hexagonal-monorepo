@@ -38,8 +38,12 @@
 /// can rebuild the identifiers this contract is expressed in without
 /// depending on the packages that declare them.
 ///
-/// **The driving port.** `RoutingFacade`, implemented by
-/// `routing_application`.
+/// **The driving ports, one per audience.** `RoutePlanning` is what both a
+/// desk and a van perform; `RouteSupervision` is the desk's override;
+/// `RouteFollowing` is what only the vehicle on the route can answer. They
+/// were one `RoutingFacade` until phase 8, and splitting them is what lets
+/// `app_dispatcher` compose routing without binding a GPS it would read the
+/// wrong position from. The reasoning is in docs/ARCHITECTURE.md, scenario 5.
 ///
 /// **The driven ports.** `RouteOptimizerPort`, `TrafficDataPort`,
 /// `RouteCache`, `LocationStreamPort`, answered by `routing_infrastructure`.
@@ -52,10 +56,12 @@ export 'src/location_stream_port.dart';
 export 'src/optimisation_request.dart';
 export 'src/route_cache.dart';
 export 'src/route_constraint.dart';
+export 'src/route_following.dart';
 export 'src/route_optimizer_port.dart';
 export 'src/route_plan.dart';
 export 'src/route_plan_id.dart';
-export 'src/routing_facade.dart';
+export 'src/route_planning.dart';
+export 'src/route_supervision.dart';
 export 'src/routing_failure.dart';
 export 'src/service_time.dart';
 export 'src/shipment_reference.dart';

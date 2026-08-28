@@ -30,7 +30,6 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   flutter_secure_storage_platform_interface: ^2.0.1
-  geolocator_platform_interface: ^4.3.0
   get_it: ^9.2.0
   go_router: ^18.0.0
   http_dio: ^0.1.0
@@ -43,7 +42,6 @@ dependencies:
   incidents_presentation: ^0.1.0
   injectable: ^3.0.0
   intl: ^0.20.2
-  location_service: ^0.1.0
   messaging_api: ^0.1.0
   messaging_core: ^0.1.0
   messaging_presentation: ^0.1.0

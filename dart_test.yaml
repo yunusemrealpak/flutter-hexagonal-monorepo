@@ -2,10 +2,16 @@
 # Workspace-wide test configuration.
 #
 # Package-level dart_test.yaml files inherit nothing from this one — the test
-# package reads the file next to the pubspec being tested. tooling/test_runner
-# (phase 8) is what carries these defaults down to every package, and
-# tooling/scaffold (phase 3) copies the tag and preset block into each new
-# package it generates.
+# package reads the file next to the pubspec being tested. This file is the
+# template: tooling/scaffold copies the tag and preset block into every package
+# it generates, and a package keeps only the tags it can actually produce (a
+# pure Dart package declares no `widget`).
+#
+# tooling/test_runner does not carry these defaults down. It selects a preset
+# *by name* — `dart test --preset pr` — and for Flutter packages, where
+# `flutter test` has no --preset, it spells the same selection out as
+# --exclude-tags. Either way the definitions come from the package's own file,
+# which is what keeps one package's timeout from becoming everybody's.
 # ---------------------------------------------------------------------------
 
 # A retried test is a test that lies about whether the code works. The default

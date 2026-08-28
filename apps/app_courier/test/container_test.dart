@@ -44,8 +44,16 @@ void main() {
     test('the six full-split features', () {
       expect(container<IdentityFacade>(), isNotNull);
       expect(container<ShipmentsFacade>(), isNotNull);
-      expect(container<RoutingFacade>(), isNotNull);
-      expect(container<DeliveryFacade>(), isNotNull);
+      // Two of routing's three driving ports. A courier follows a route and
+      // does not supervise one, so `RouteSupervision` is deliberately absent.
+      expect(container<RoutePlanning>(), isNotNull);
+      expect(container<RouteFollowing>(), isNotNull);
+      expect(container.isRegistered<RouteSupervision>(), isFalse);
+      // All three of delivery's driving ports: a courier arrives, settles and
+      // reads back.
+      expect(container<DeliveryExecution>(), isNotNull);
+      expect(container<DeliverySettlement>(), isNotNull);
+      expect(container<DeliveryHistory>(), isNotNull);
       expect(container<PaymentsFacade>(), isNotNull);
       expect(container<SyncFacade>(), isNotNull);
     });

@@ -1,0 +1,54 @@
+name: Architecture question or proposal
+description: A rule seems wrong, missing, or in the way.
+labels: [architecture]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        **When a rule feels like it needs bending: report it rather than
+        bending it.** Those moments are where this repository teaches the
+        most, and an issue that names one is more valuable than a pull request
+        that works around it.
+
+  - type: textarea
+    id: rule
+    attributes:
+      label: Which rule
+      description: >-
+        Quote it, with its section number from docs/DEPENDENCY_RULES.md or
+        CLAUDE.md.
+    validations:
+      required: true
+
+  - type: textarea
+    id: situation
+    attributes:
+      label: What you were trying to do when it got in the way
+      description: >-
+        Concretely: which package, which dependency, which port. A rule that
+        blocks something is easy to argue about in the abstract and easy to
+        settle with an example.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you tried instead
+      description: >-
+        Most of the time the rule is right and the shape is wrong. Mutual
+        `_api` dependencies instead of a `shared` package; a port instead of a
+        direct call; a role interface per audience instead of one facade.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: process
+    attributes:
+      label: If this becomes a rule change
+      options:
+        - label: >-
+            I understand a rule change needs a pull request touching
+            docs/DEPENDENCY_RULES.md, tooling/arch_check/rules.yaml and a
+            fixture proving the rule fires (§9). A rule with no fixture is a
+            rule that will silently stop working.

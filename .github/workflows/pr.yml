@@ -1,0 +1,142 @@
+name: pr
+
+# Every gate a change has to pass before it can be merged, in the order that
+# fails cheapest first: formatting, then staleness, then the analyzer, then the
+# constitution, then the tests. A pull request that reformats a file should
+# find out in forty seconds rather than after a full test run.
+on:
+  pull_request:
+    branches: [main]
+
+# A push to a branch supersedes whatever was already running for it.
+concurrency:
+  group: pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+env:
+  # Kept in sync with .fvmrc and .tool-versions. Pinned rather than tracking a
+  # channel: a workspace this size finds a new analyzer's opinions the hard way.
+  FLUTTER_VERSION: "3.47.1"
+
+jobs:
+  verify:
+    name: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out the branch and its history
+        uses: actions/checkout@v4
+        with:
+          # Affected-test selection diffs against origin/main, and a shallow
+          # clone has no base to diff against. test_runner falls back to
+          # running everything when the diff fails, so the cost of getting
+          # this wrong is silent and expensive rather than loud.
+          fetch-depth: 0
+
+      - name: Fetch the base branch
+        # actions/checkout fetches the history of the ref it checked out.
+        # `origin/main` as a *ref* still has to be asked for, and both
+        # `melos run gen` and `test_runner --affected` name it.
+        run: git fetch --no-tags origin main:refs/remotes/origin/main
+
+      - name: Install Flutter ${{ env.FLUTTER_VERSION }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Restore the build_runner cache
+        uses: actions/cache@v4
+        with:
+          # build_runner keeps its incremental state here. Without it every
+          # run regenerates the whole workspace, which is most of gen:check's
+          # cost and none of its value.
+          path: |
+            .dart_tool/build
+            **/.dart_tool/build
+          key: build-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock') }}-${{ github.sha }}
+          restore-keys: |
+            build-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-${{ hashFiles('pubspec.lock') }}-
+            build-${{ runner.os }}-${{ env.FLUTTER_VERSION }}-
+
+      - name: Resolve the workspace
+        # One `pub get` for 75 packages: that is what `resolution: workspace`
+        # buys. `flutter pub get` rather than `dart pub get`, because members
+        # of this workspace depend on the Flutter SDK.
+        run: flutter pub get
+
+      - name: Formatting
+        run: dart run melos run format:check
+
+      - name: Generated files are current
+        # gen:check runs `gen`, then `l10n`, then `git diff --exit-code`.
+        # The message below is the one a developer acts on, so it names the
+        # command rather than the failure.
+        run: dart run melos run gen:check
+
+      - name: Analyzer
+        run: dart run melos run analyze
+
+      - name: Architecture
+        run: dart run melos run arch:check
+
+      - name: Dependency graph is current and acyclic
+        run: dart run melos run graph:check
+
+      - name: Which packages this change can break
+        id: affected
+        run: |
+          dart run tooling/test_runner/bin/test_runner.dart \
+            --affected --base=origin/main --list | tee affected.txt
+          {
+            echo 'list<<EOF'
+            cat affected.txt
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Affected tests
+        # Coverage is off here on purpose: it costs roughly a third of the run
+        # and nothing on a pull request reads it. main.yml and nightly.yml are
+        # where coverage is merged.
+        run: |
+          dart run tooling/test_runner/bin/test_runner.dart \
+            --affected --base=origin/main \
+            --no-cache \
+            --junit=build/junit.xml
+
+      - name: Golden tests, when a UI package changed
+        # No test carries the `golden` tag yet — the tag, the preset and this
+        # step are the mechanism, and the images arrive with the screens that
+        # need them. The condition is here so that the day one is written, it
+        # is already gated on the packages that can break it.
+        if: contains(steps.affected.outputs.list, 'design_system') || contains(steps.affected.outputs.list, '_presentation')
+        run: dart run melos exec --dir-exists=test -- flutter test --tags golden
+
+      - name: Upload the JUnit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-pr-${{ github.run_id }}
+          path: build/junit.xml
+          if-no-files-found: ignore
+
+      - name: Report the selection on the pull request
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SELECTION: ${{ steps.affected.outputs.list }}
+        run: |
+          {
+            echo "### Affected packages"
+            echo
+            echo '```'
+            echo "$SELECTION"
+            echo '```'
+          } > comment.md
+          gh pr comment "${{ github.event.pull_request.number }}" \
+            --body-file comment.md --edit-last --create-if-none

@@ -25,8 +25,9 @@ import 'l10n/peyk_dispatcher_localizations.dart';
 /// compiles in what it does not mount.
 ///
 /// `delivery` is the interesting absence: this app *composes* the feature —
-/// `DeliveryFacade` resolves, and `RemoteProofStore` is row 4 of the adapter
-/// table — and mounts none of its routes. A dispatcher reads a delivery
+/// `DeliverySettlement` and `DeliveryHistory` resolve, and
+/// `RemoteProofStore` is row 4 of the adapter table — and mounts none of its
+/// routes. A dispatcher reads a delivery
 /// attempt and never stands at a door. A feature is a set of use cases and a
 /// set of destinations, and an app can want one without the other.
 const List<RouteModule> dispatcherModules = [

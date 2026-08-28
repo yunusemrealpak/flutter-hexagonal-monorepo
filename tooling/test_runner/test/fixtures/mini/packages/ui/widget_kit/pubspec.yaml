@@ -1,0 +1,8 @@
+name: widget_kit
+dependencies:
+  alpha_api: ^0.1.0
+  flutter:
+    sdk: flutter
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

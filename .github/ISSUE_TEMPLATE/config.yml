@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: A question about the architecture
+    url: https://github.com/peyk/flutter_hexagonal_monorepo/blob/main/docs/ARCHITECTURE.md
+    about: >-
+      Read ARCHITECTURE.md and DEPENDENCY_RULES.md first. Most "why is it like
+      this" questions are answered there, and the answer is usually the point
+      of the repository rather than an accident of it.

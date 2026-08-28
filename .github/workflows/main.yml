@@ -1,0 +1,122 @@
+name: main
+
+# The full suite, on the way in. Triggered from the merge queue rather than
+# from a push to main: the point is to find the combination that only exists
+# once two independently green branches are put together, and that combination
+# exists in the queue, before the merge, where it can still be rejected.
+on:
+  merge_group:
+    types: [checks_requested]
+  # Kept for the case the queue is disabled, and for a manual re-run after an
+  # infrastructure failure.
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: main-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  FLUTTER_VERSION: "3.47.1"
+
+jobs:
+  suite:
+    name: bucket ${{ matrix.bucket }}/10
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      # One machine's failure is a real failure of that bucket; the other nine
+      # still report, so a flake in one is distinguishable from a break in all.
+      fail-fast: false
+      matrix:
+        bucket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Flutter ${{ env.FLUTTER_VERSION }}
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve the workspace
+        run: flutter pub get
+
+      - name: Restore the durations the last run measured
+        # Bucketing is only as balanced as its input. Without this every
+        # machine assumes the default cost for every package, which degrades
+        # to splitting by count — one widget suite next to nine _api packages.
+        uses: actions/download-artifact@v4
+        continue-on-error: true
+        with:
+          name: timings
+          path: .cache
+          github-token: ${{ github.token }}
+          run-id: ${{ github.event.workflow_run.id || github.run_id }}
+
+      - name: This machine's share of the suite
+        # --no-cache: the hash cache is a developer's convenience. On the way
+        # into main every package runs, because "it passed on somebody's
+        # laptop under the same hash" is not the guarantee this job exists to
+        # give.
+        run: |
+          dart run tooling/test_runner/bin/test_runner.dart \
+            --bucket=${{ matrix.bucket }} --total=10 \
+            --no-cache --bundle \
+            --junit=build/junit-${{ matrix.bucket }}.xml
+
+      - name: Upload this bucket's report and timings
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: junit-${{ matrix.bucket }}
+          path: |
+            build/junit-${{ matrix.bucket }}.xml
+            .cache/timings.json
+          if-no-files-found: ignore
+
+  timings:
+    name: merge timings
+    needs: suite
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Collect every bucket's timings
+        uses: actions/download-artifact@v4
+        with:
+          pattern: junit-*
+          path: buckets
+
+      - name: Merge them into one file
+        # Each bucket measured the packages it ran and nothing else, so the
+        # merge is a union rather than an average. Later keys win, which is
+        # harmless: a package appears in exactly one bucket.
+        run: |
+          python3 - <<'PY'
+          import json, pathlib
+          merged = {}
+          for path in pathlib.Path('buckets').rglob('timings.json'):
+              merged.update(json.loads(path.read_text()))
+          out = pathlib.Path('.cache'); out.mkdir(exist_ok=True)
+          (out / 'timings.json').write_text(
+              json.dumps(dict(sorted(merged.items())), indent=2) + '\n'
+          )
+          print(f'{len(merged)} packages timed')
+          PY
+
+      - name: Publish them for the next run
+        uses: actions/upload-artifact@v4
+        with:
+          name: timings
+          path: .cache/timings.json
+          retention-days: 30

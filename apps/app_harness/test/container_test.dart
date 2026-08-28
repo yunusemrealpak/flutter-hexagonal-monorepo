@@ -47,8 +47,13 @@ void main() {
     test('the six full-split features', () {
       expect(container<IdentityFacade>(), isNotNull);
       expect(container<ShipmentsFacade>(), isNotNull);
-      expect(container<RoutingFacade>(), isNotNull);
-      expect(container<DeliveryFacade>(), isNotNull);
+      // All three, because this app composes everything.
+      expect(container<RoutePlanning>(), isNotNull);
+      expect(container<RouteSupervision>(), isNotNull);
+      expect(container<RouteFollowing>(), isNotNull);
+      expect(container<DeliveryExecution>(), isNotNull);
+      expect(container<DeliverySettlement>(), isNotNull);
+      expect(container<DeliveryHistory>(), isNotNull);
       expect(container<PaymentsFacade>(), isNotNull);
       expect(container<SyncFacade>(), isNotNull);
     });

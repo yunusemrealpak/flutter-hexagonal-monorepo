@@ -108,8 +108,9 @@ PeykRouter buildHarnessRouter(GetIt container) {
         ),
       ),
       'routing.myRoute': (context, _) => RouteScreen(
-        controller: RouteController(
-          routing: container<RoutingFacade>(),
+        controller: FollowedRouteController(
+          planning: container<RoutePlanning>(),
+          following: container<RouteFollowing>(),
           courier: actor(),
         ),
       ),
@@ -117,12 +118,12 @@ PeykRouter buildHarnessRouter(GetIt container) {
         ActorId.parse(parameters['courierId'] ?? ''),
         (courier) => RouteScreen(
           // The dispatcher's view of the same screen, and the only difference
-          // between the two: whether this viewer may change somebody else's
-          // afternoon. The flag is the app's to decide — the route guard has
-          // already let them in, and reordering is a separate grant.
-          reorderable: true,
-          controller: RouteController(
-            routing: container<RoutingFacade>(),
+          // between the two: which controller the app can build. This one is
+          // the only app that can build both, which is what makes it the place
+          // the split is legible.
+          controller: SupervisedRouteController(
+            planning: container<RoutePlanning>(),
+            supervision: container<RouteSupervision>(),
             courier: courier,
           ),
         ),
@@ -132,7 +133,8 @@ PeykRouter buildHarnessRouter(GetIt container) {
         (shipment) => ProofCaptureScreen(
           shipment: shipment,
           controller: ProofCaptureController(
-            delivery: container<DeliveryFacade>(),
+            execution: container<DeliveryExecution>(),
+            settlement: container<DeliverySettlement>(),
             permissions: permissions,
             session: sessions,
           ),

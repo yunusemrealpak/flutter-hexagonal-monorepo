@@ -1,0 +1,82 @@
+# Ownership follows the dependency rings, not the org chart.
+#
+# The pattern to copy from this file is which paths get *more* reviewers rather
+# than which team owns what. A change to a leaf package touches one team; a
+# change to core_kernel touches all of them, and the review load should say so.
+#
+# Teams here are placeholders — this is a reference repository with one author.
+# What is real is the shape: the innermost rings and the constitution have the
+# widest ownership, and every path has an owner.
+
+# Everything has an owner, so that nothing merges unreviewed.
+*                                       @peyk/maintainers
+
+# ---------------------------------------------------------------------------
+# The constitution. A change here changes what every other review means, so it
+# is the one path that names the architects explicitly.
+# ---------------------------------------------------------------------------
+/CLAUDE.md                              @peyk/architects
+/docs/DEPENDENCY_RULES.md               @peyk/architects
+/docs/HEXAGONAL_MONOREPO_PROJECT_SPEC.md @peyk/architects
+/docs/ARCHITECTURE.md                   @peyk/architects
+/tooling/arch_check/rules.yaml          @peyk/architects
+
+# ---------------------------------------------------------------------------
+# The innermost rings. Everything depends on these, so a change is a change to
+# 75 packages' compile surface.
+# ---------------------------------------------------------------------------
+/packages/core/                         @peyk/architects @peyk/maintainers
+
+# ---------------------------------------------------------------------------
+# Technology adapters. Reviewed by whoever carries the pager for the SDK
+# underneath them.
+# ---------------------------------------------------------------------------
+/packages/platform/                     @peyk/platform
+
+# ---------------------------------------------------------------------------
+# Design. The tokens are the narrowest package in the repository and the
+# widest blast radius in the UI.
+# ---------------------------------------------------------------------------
+/packages/design/                       @peyk/design
+
+# ---------------------------------------------------------------------------
+# Features, by team. A feature's _api is called out separately: it is the only
+# part other teams compile against, so changing it is a cross-team change even
+# when it looks local.
+# ---------------------------------------------------------------------------
+/packages/features/identity/            @peyk/team-identity
+/packages/features/identity/identity_api/ @peyk/team-identity @peyk/architects
+
+/packages/features/shipments/           @peyk/team-operations
+/packages/features/routing/             @peyk/team-operations
+/packages/features/delivery/            @peyk/team-operations
+/packages/features/vehicle_inventory/   @peyk/team-operations
+/packages/features/shipments/shipments_api/ @peyk/team-operations @peyk/architects
+/packages/features/routing/routing_api/ @peyk/team-operations @peyk/architects
+/packages/features/delivery/delivery_api/ @peyk/team-operations @peyk/architects
+
+/packages/features/payments/            @peyk/team-money
+/packages/features/payments/payments_api/ @peyk/team-money @peyk/architects
+
+/packages/features/sync/                @peyk/team-platform-services
+/packages/features/notifications/       @peyk/team-platform-services
+/packages/features/messaging/           @peyk/team-platform-services
+/packages/features/reporting/           @peyk/team-platform-services
+/packages/features/incidents/           @peyk/team-platform-services
+/packages/features/documents/           @peyk/team-platform-services
+/packages/features/settings/            @peyk/team-platform-services
+
+# ---------------------------------------------------------------------------
+# Composition roots. An app is where every rule either holds or stops holding,
+# and it is the only place allowed to join a feature's halves.
+# ---------------------------------------------------------------------------
+/apps/                                  @peyk/architects @peyk/maintainers
+
+# ---------------------------------------------------------------------------
+# Tooling and CI. A change here changes what every other check is worth.
+# ---------------------------------------------------------------------------
+/tooling/                               @peyk/architects
+/.github/                               @peyk/architects
+/codemagic.yaml                         @peyk/architects @peyk/platform
+/fastlane/                              @peyk/platform
+/lefthook.yml                           @peyk/architects

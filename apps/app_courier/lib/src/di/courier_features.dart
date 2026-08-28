@@ -232,10 +232,6 @@ abstract class CourierFeatures {
     logger: logger,
   );
 
-  /// Changing the order.
-  @lazySingleton
-  Resequence resequence(RouteCache cache) => Resequence(cache: cache);
-
   /// Where to go now.
   @lazySingleton
   NextStop nextStop(RouteCache cache) => NextStop(cache: cache);
@@ -254,18 +250,45 @@ abstract class CourierFeatures {
     logger: logger,
   );
 
-  /// The one implementation of `RoutingFacade`.
+  /// Reading the plan without changing it.
   @lazySingleton
-  RoutingFacade routing(
+  CurrentPlan currentPlan(RouteCache cache) => CurrentPlan(cache: cache);
+
+  /// The one stream routing announces on.
+  ///
+  /// Routing's driving surface is three interfaces and its change stream is
+  /// one fact, so the channel is bound here and handed to every coordinator
+  /// this app builds.
+  @lazySingleton
+  RouteChannel get routeChannel => RouteChannel();
+
+  /// What both audiences perform.
+  @lazySingleton
+  RoutePlanning routePlanning(
     PlanRoute plan,
-    Resequence resequence,
+    CurrentPlan currentPlan,
+    RouteChannel channel,
+  ) => RoutePlanningCoordinator(
+    planRoute: plan,
+    currentPlan: currentPlan,
+    channel: channel,
+  );
+
+  /// What only the vehicle on the route performs.
+  ///
+  /// **`RouteSupervision` is not bound here, and that is the split working in
+  /// the other direction.** A courier does not reorder somebody's afternoon,
+  /// so this app composes no `Resequence` — exactly as `app_dispatcher`
+  /// composes no `RecalculateOnDeviation` and therefore needs no GPS.
+  @lazySingleton
+  RouteFollowing routeFollowing(
     NextStop nextStop,
     RecalculateOnDeviation recalculate,
-  ) => RoutingCoordinator(
-    planRoute: plan,
-    resequence: resequence,
+    RouteChannel channel,
+  ) => RouteFollowingCoordinator(
     nextStop: nextStop,
     recalculate: recalculate,
+    channel: channel,
   );
 
   // -- sync ----------------------------------------------------------------
@@ -411,19 +434,38 @@ abstract class CourierFeatures {
   AttemptReads attemptReads(DeliveryGateway gateway) =>
       AttemptReads(gateway: gateway);
 
-  /// The one implementation of `DeliveryFacade`.
+  /// The one stream delivery announces on.
   @lazySingleton
-  DeliveryFacade delivery(
+  DeliveryChannel get deliveryChannel => DeliveryChannel();
+
+  /// Arriving at a door.
+  ///
+  /// The one delivery role that needs a device. `app_dispatcher` does not
+  /// bind it, which is why that app needs no geofence and no GPS.
+  @lazySingleton
+  DeliveryExecution deliveryExecution(
     StartAttempt start,
+    DeliveryChannel channel,
+  ) => DeliveryExecutionCoordinator(startAttempt: start, channel: channel);
+
+  /// Closing an attempt.
+  @lazySingleton
+  DeliverySettlement deliverySettlement(
     CompleteWithProof complete,
     FailWithReason fail,
-    AttemptReads reads,
-  ) => DeliveryCoordinator(
-    startAttempt: start,
+    DeliveryChannel channel,
+  ) => DeliverySettlementCoordinator(
     complete: complete,
     fail: fail,
-    reads: reads,
+    channel: channel,
   );
+
+  /// Reading attempts back.
+  @lazySingleton
+  DeliveryHistory deliveryHistory(
+    AttemptReads reads,
+    DeliveryChannel channel,
+  ) => DeliveryHistoryCoordinator(reads: reads, channel: channel);
 
   // -- payments ------------------------------------------------------------
 

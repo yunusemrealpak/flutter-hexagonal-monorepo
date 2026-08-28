@@ -1,0 +1,19 @@
+discovery:
+  roots:
+    - packages
+  skip_directories:
+    - .dart_tool
+    - build
+    - test
+
+feature_root: packages/features
+
+package_types:
+  - type: core_kernel
+    path: packages/core/core_kernel
+  - type: feature_api
+    path_prefix: packages/features/
+    name_suffix: _api
+  - type: feature_application
+    path_prefix: packages/features/
+    name_suffix: _application

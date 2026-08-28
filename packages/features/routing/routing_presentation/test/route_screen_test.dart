@@ -11,16 +11,20 @@ import 'package:routing_api/routing_api.dart';
 import 'package:routing_presentation/routing_presentation.dart';
 import 'package:routing_testing/routing_testing.dart';
 
-/// A `RoutingFacade` this test steers.
+/// The three routing ports, in one object this test steers.
 ///
-/// A stand-in rather than the real coordinator, and it has to be: this package
-/// may not depend on `routing_application`. What it can name is the port,
-/// which is exactly the point — the screen works against a contract, and which
-/// implementation ends up behind it is an app's decision. That the same
-/// stand-in can play a heuristic and a solver is scenario 4 restated in a
-/// test.
-final class _Facade implements RoutingFacade {
-  _Facade(this._plan);
+/// A stand-in rather than the real coordinators, and it has to be: this
+/// package may not depend on `routing_application`. What it can name is the
+/// ports, which is exactly the point — the screen works against contracts, and
+/// which implementation ends up behind them is an app's decision.
+///
+/// **One class implementing all three is a test's privilege, not a pattern.**
+/// The workspace's apps build three separate coordinators precisely so that a
+/// desk is never asked to construct the one holding `LocationStreamPort`; a
+/// test that answers every port from memory has no such problem.
+final class _Routing
+    implements RoutePlanning, RouteSupervision, RouteFollowing {
+  _Routing(this._plan);
 
   Result<RoutePlan, RoutingFailure> _plan;
 
@@ -32,6 +36,9 @@ final class _Facade implements RoutingFacade {
 
   /// The visited sets `recalculateOnDeviation` was called with, in order.
   final List<Set<StopId>> recalculatedWith = [];
+
+  /// How many times `currentPlan` was asked.
+  int currentPlanCalls = 0;
 
   /// What `resequence` should answer, when it differs from the current plan.
   Result<RoutePlan, RoutingFailure>? resequenceAnswer;
@@ -56,6 +63,22 @@ final class _Facade implements RoutingFacade {
   }
 
   @override
+  Future<Result<RoutePlan, RoutingFailure>> currentPlan({
+    required ActorId courier,
+  }) async {
+    currentPlanCalls++;
+    return _plan;
+  }
+
+  @override
+  Future<Result<RoutePlan, RoutingFailure>> planRoute({
+    required ActorId courier,
+    required GeoPoint origin,
+    required List<Stop> stops,
+    List<RouteConstraint> constraints = const [],
+  }) async => _plan;
+
+  @override
   Future<Result<RoutePlan, RoutingFailure>> resequence({
     required ActorId courier,
     required List<StopId> order,
@@ -67,7 +90,7 @@ final class _Facade implements RoutingFacade {
   @override
   Stream<RoutePlan> changes() => _plans.stream;
 
-  /// Every other method of the port, which this test does not use.
+  /// Every other method of the ports, which this test does not use.
   ///
   /// A stub rather than overrides that return a plausible value. What it says
   /// is "this test is about the route screen"; a call to anything else throws,
@@ -116,19 +139,27 @@ RoutePlan _planFor(ActorId courier, List<Stop> stops, List<String> order) =>
     );
 
 void main() {
-  late _Facade facade;
-  late RouteController controller;
+  late _Routing facade;
+  late FollowedRouteController controller;
+  late SupervisedRouteController supervisor;
 
   setUp(() {
-    facade = _Facade(Success(RouteFixtures.plan(_stops, ['s1', 's2'])));
-    controller = RouteController(
-      routing: facade,
+    facade = _Routing(Success(RouteFixtures.plan(_stops, ['s1', 's2'])));
+    controller = FollowedRouteController(
+      planning: facade,
+      following: facade,
+      courier: RouteFixtures.courier(),
+    );
+    supervisor = SupervisedRouteController(
+      planning: facade,
+      supervision: facade,
       courier: RouteFixtures.courier(),
     );
   });
 
   tearDown(() async {
     controller.dispose();
+    supervisor.dispose();
     await facade.close();
   });
 
@@ -238,10 +269,37 @@ void main() {
       expect(notifications, 1);
     });
 
-    test('moving a stop up hands the domain the whole order', () async {
+    test('opening a followed route checks for a deviation', () async {
+      // A courier opening the screen is asking what to drive now, and the
+      // honest answer to that includes noticing they have left the route.
       await controller.load();
 
-      await controller.moveUp(RouteFixtures.stopId('s2'));
+      expect(facade.recalculatedWith, hasLength(1));
+      expect(facade.currentPlanCalls, 0);
+    });
+  });
+
+  group('SupervisedRouteController', () {
+    test('opening somebody else s route asks a question only', () async {
+      // **The bug this split was opened to fix.** `load` used to call
+      // `recalculateOnDeviation` for every viewer, and that use case reads the
+      // *calling device's* position — so a dispatcher opening a courier's
+      // route compared the desk's coordinates against that courier's next stop
+      // and could replan the afternoon from the office.
+      await supervisor.load();
+
+      expect(facade.currentPlanCalls, 1);
+      expect(
+        facade.recalculatedWith,
+        isEmpty,
+        reason: 'a desk has no position that answers a courier s question',
+      );
+    });
+
+    test('moving a stop up hands the domain the whole order', () async {
+      await supervisor.load();
+
+      await supervisor.moveUp(RouteFixtures.stopId('s2'));
 
       expect(facade.resequenced, [
         ['s2', 's1'],
@@ -249,9 +307,9 @@ void main() {
     });
 
     test('moving the first stop up asks for nothing', () async {
-      await controller.load();
+      await supervisor.load();
 
-      await controller.moveUp(RouteFixtures.stopId('s1'));
+      await supervisor.moveUp(RouteFixtures.stopId('s1'));
 
       expect(facade.resequenced, isEmpty);
     });
@@ -260,14 +318,14 @@ void main() {
       // The domain declined to change the plan, so the plan is still the
       // truth. Dropping to a failure state would blank a valid route because
       // somebody dragged a row somewhere it could not go.
-      await controller.load();
+      await supervisor.load();
       facade.resequenceAnswer = const Failed(
         SequenceDoesNotMatch(reason: 's3 is not on this route'),
       );
 
-      await controller.reorder([RouteFixtures.stopId('s1')]);
+      await supervisor.reorder([RouteFixtures.stopId('s1')]);
 
-      final state = controller.state as RouteReady;
+      final state = supervisor.state as RouteReady;
       expect(state.plan.sequence.length, 2);
       expect(state.refusal, isA<SequenceDoesNotMatch>());
     });
@@ -275,9 +333,9 @@ void main() {
     test('a refusal with nothing on screen is a failure', () async {
       facade.resequenceAnswer = const Failed(RoutingUnavailable());
 
-      await controller.reorder([RouteFixtures.stopId('s1')]);
+      await supervisor.reorder([RouteFixtures.stopId('s1')]);
 
-      expect(controller.state, isA<RouteFailed>());
+      expect(supervisor.state, isA<RouteFailed>());
     });
   });
 
@@ -337,11 +395,11 @@ void main() {
       expect(find.text(RoutingStrings.done), findsOneWidget);
     });
 
-    testWidgets('offers no reordering unless the app allows it', (
-      tester,
-    ) async {
-      // Defaults to false, so forgetting to think about it fails in the safe
-      // direction: a courier cannot rewrite the afternoon a dispatcher planned.
+    testWidgets('a followed route offers no reordering', (tester) async {
+      // Not a flag any more: a `FollowedRouteController` holds no
+      // `RouteSupervision`, so there is nothing for the affordance to call and
+      // the screen cannot draw it by mistake. A courier cannot rewrite the
+      // afternoon a dispatcher planned.
       await tester.pumpWidget(
         PeykTheme.wrap(
           child: RouteScreen(controller: controller),
@@ -357,7 +415,7 @@ void main() {
     ) async {
       await tester.pumpWidget(
         PeykTheme.wrap(
-          child: RouteScreen(controller: controller, reorderable: true),
+          child: RouteScreen(controller: supervisor),
         ),
       );
       await tester.pump();
