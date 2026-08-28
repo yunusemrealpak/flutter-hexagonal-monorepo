@@ -1,0 +1,11 @@
+# The app half of the gen-l10n split in §4.1 of CLAUDE.md. design_system owns
+# sentences about a *component* — "Try again", "3 unread". This file owns
+# sentences about the *product*, and about this app's audience in particular:
+# app_dispatcher answers the same keys with different words.
+arb-dir: l10n
+template-arb-file: peyk_courier_en.arb
+output-dir: lib/src/l10n
+output-localization-file: peyk_courier_localizations.dart
+output-class: PeykCourierLocalizations
+nullable-getter: false
+untranslated-messages-file: l10n/untranslated.json

@@ -182,4 +182,32 @@ void main() {
       PeykIntent.warning,
     );
   });
+
+  // The same seven the dispatcher package declares, and the reason both do:
+  // section 2 forbids a presentation package from depending on another, so
+  // sharing them means spelling them twice. This switch is what stops the two
+  // drifting — adding a ShipmentStatus stops it compiling.
+  test('every state has a key in the manifest', () {
+    final instant = DateTime.utc(2026, 3, 4);
+    final statuses = <ShipmentStatus>[
+      const ShipmentStatus.awaitingAssignment(),
+      ShipmentStatus.assignedToCourier(courier.actor.id),
+      ShipmentStatus.loadedOnVehicle(courier.actor.id),
+      ShipmentStatus.outForDelivery(courier.actor.id),
+      ShipmentStatus.deliveredToConsignee(
+        proofReference: 'proof-1',
+        at: instant,
+      ),
+      ShipmentStatus.undeliverable(reason: 'nobody home', at: instant),
+      ShipmentStatus.returnedToDepot(at: instant),
+    ];
+
+    for (final status in statuses) {
+      expect(
+        ShipmentsCourierStrings.statusKeys,
+        contains(ShipmentsCourierStrings.status(status)),
+      );
+    }
+    expect(ShipmentsCourierStrings.statusKeys, hasLength(statuses.length));
+  });
 }

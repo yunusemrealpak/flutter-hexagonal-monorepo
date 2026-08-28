@@ -35,17 +35,37 @@ abstract final class ShipmentsCourierStrings {
   static String status(ShipmentStatus status) =>
       'shipments.status.${status.label}';
 
-  /// Every key above, for an app's coverage test.
+  /// Every status key this screen can ask for.
   ///
-  /// The status keys are not in it: `ShipmentStatus` is a `freezed` union
-  /// rather than an enum, so there is no `values` to walk. The dispatcher
-  /// package's manifest carries them, built from the seven constructors by
-  /// hand, and a `switch` in its test is what keeps that list honest.
+  /// Written out rather than derived, because `ShipmentStatus` is a `freezed`
+  /// union and has no `values` to walk. The test beside this file exhausts the
+  /// union in a `switch`, so adding a state stops that test compiling — the
+  /// same guarantee an enum would have given, bought with one test.
+  ///
+  /// **`shipments_presentation_dispatcher` declares the identical seven.**
+  /// That duplication is the price of section 2's rule that a presentation
+  /// package may not depend on another, and phase 7 is where the price came
+  /// due: `app_courier` mounts this package and not that one, so a manifest
+  /// that pointed at the dispatcher's list would have left a courier's status
+  /// chips unanswered — which is exactly what that app's catalogue coverage
+  /// test reported.
+  static const List<String> statusKeys = [
+    'shipments.status.awaitingAssignment',
+    'shipments.status.assignedToCourier',
+    'shipments.status.loadedOnVehicle',
+    'shipments.status.outForDelivery',
+    'shipments.status.deliveredToConsignee',
+    'shipments.status.undeliverable',
+    'shipments.status.returnedToDepot',
+  ];
+
+  /// Every key above, for an app's coverage test.
   static const List<String> all = [
     title,
     empty,
     failureUnavailable,
     failureNotFound,
     failureOther,
+    ...statusKeys,
   ];
 }
