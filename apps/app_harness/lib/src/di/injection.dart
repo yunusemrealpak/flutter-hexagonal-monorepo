@@ -23,5 +23,11 @@ final GetIt harnessContainer = GetIt.asNewInstance();
 /// reason it can be generated at all is that every module in `di/` is written
 /// by hand: rule I6 forbids an annotation inside a package, so there is
 /// nothing to scan out there and everything to read in here.
-@InjectableInit()
+/// `preferRelativeImports` is on for the reason rule S3 exists: a
+/// `package:*/src/` import means one thing in this workspace — somebody
+/// reached across a boundary — and that is exact only because intra-package
+/// imports are relative by convention. A generator emitting absolute
+/// self-imports breaks the premise, which `melos run gen` and arch_check
+/// caught between them.
+@InjectableInit(preferRelativeImports: true)
 GetIt configureHarness() => harnessContainer.init();

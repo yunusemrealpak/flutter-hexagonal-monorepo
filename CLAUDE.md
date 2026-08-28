@@ -291,54 +291,61 @@ At the **end** of a phase: verify the acceptance criteria in the spec, push, ope
 
 This section is the handoff between sessions. It is rewritten at every phase boundary and it is the only part of this file that is expected to go stale — everything above is the constitution. Read it after section 9, then check it against `git log` before trusting it.
 
-**Branch:** `phase/06-light-features`. **Last tag:** `phase-05`. **Working tree:** clean; `arch_check` clean across 68 packages; `dart run melos run test` green (1578 tests); `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace.
+**Branch:** `phase/07-composition-roots`. **Last tag:** `phase-06`. **Working tree:** clean; `arch_check` clean across 73 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace.
 
-### Phase 6 is code-complete
+### Phase 7 is code-complete
 
-Seven light features, twenty-two packages. Six are three packages each — `_api`, `_core`, `_presentation` — and `messaging` is four, because its fakes are consumed by two other packages.
+Five packages added — `design_tokens`, `design_system`, `app_harness`, `app_courier`, `app_dispatcher` — and all fourteen presentation packages retrofitted onto the design system.
 
-| Feature | What it is for | What it demonstrates |
+| Package | What it is for | What it demonstrates |
 |---|---|---|
-| `settings` | language, palette, sync policy | the reduced split itself: both halves of a hexagon in one package, the wall kept by hand |
-| `notifications` | push and the in-app inbox | `feature_core` may depend on `platform/*`, which `feature_application` may not — `AlertChannel` beside `PushMessagingClient` |
-| `incidents` | recording and escalating exceptions | scenario 2 in a light feature: a watcher on `ShipmentFailed`, and a taxonomy this feature owns rather than borrows |
-| `vehicle_inventory` | loading and unloading reconciliation | scenario 4 in miniature: two adapters for one manifest port, composed rather than swapped |
-| `messaging` | courier↔operation threads, offline | a queue a person can see, and why it is *not* `sync`'s outbox |
-| `documents` | waybills and receipts | a derived identifier, and the capped cache that follows from it |
-| `reporting` | operation metrics, dispatcher only | a read model: accumulating from events rather than reacting to them |
+| `design_tokens` | palette, spacing, type, motion, breakpoints | the narrowest row after `core_kernel`: the Flutter SDK and nothing else, with a WCAG contrast test that makes it more than a constants file |
+| `design_system` | the component library, and `StringCatalogue` | the driven-port inversion applied to the UI layer — a contract declared where a presentation package can see it and satisfied where an app can answer it |
+| `app_harness` | every feature on fakes | the container test: 128 registrations, thirteen facades, and a graph that fails in milliseconds rather than at whichever screen somebody opened |
+| `app_courier` | offline-first, device-bound | column one of the §5.5 table, asserted rather than described |
+| `app_dispatcher` | online, single sign-on | column two, plus the two ports a desk cannot honestly answer |
 
-### What phase 6 added to the constitution
+### What phase 7 added to the constitution
 
-`docs/DEPENDENCY_RULES.md` §2.1 now has a paragraph on `feature_core` being the widest row and the three disciplines its packages keep by hand. Every `_core` README repeats them for its own package. The one place the discipline genuinely cannot be kept — `IncidentDto` rebuilding foreign identifiers directly — is named in `incidents_core`'s README as the one part of a later split that would not be a pure `git mv`.
+**Rule S1 and S2 grew an `app` shape.** Both were written for a package with dependents: "the public surface is one barrel named after the package" is a promise to whoever imports it, and nothing imports an app. What an app has is an entry point, and Flutter looks for it directly under `lib/` — one per flavour, which the phase 7 specification asks for explicitly. `docs/DEPENDENCY_RULES.md` §3 states the amendment; `rules.yaml` encodes it as `structure.entry_point`; two fixtures prove both halves.
+
+**`melos run l10n` exists, and `gen:check` runs it.** `flutter gen-l10n` is the one generator in §4.1 that build_runner does not drive, and a stale `.arb` has to fail the same gate a stale `.g.dart` does. See §4.4.
+
+### Decisions made in phase 7 — do not re-litigate
+
+- **The vocabulary lives in `design_system`, not `design_tokens`.** A presentation package must be able to write `PeykIntent.danger`; section 2 does not put `design_tokens` on that row and rule S4 forbids re-exporting it. The constitution made the placement visible, and it was the right split anyway: the tokens package holds five colour triples, and *which one a situation calls for* is a question about the component API.
+- **A `describe` returns a key, not a sentence.** The mapping from a sealed failure to a message stays in the presentation package where the compiler checks it covers the union; the wording moves to the app. `identity` is why it matters beyond localisation: `InvalidCredentials` and `DeviceNotRegistered` map to one key, so two apps cannot accidentally give them different wording and leak whether an account exists.
+- **Anything a locale owns crosses unformatted.** A byte count, a percentage, a money amount, an arrival time. `routing`'s `hhmm` is gone; money crosses as `minorUnits`, a currency code and a scale.
+- **A key manifest is derived wherever the keys are.** `SettingsStrings.all` is built from the enums it labels, so a new `SyncPolicy` fails an app's coverage test until somebody writes the sentence.
+- **The coverage test runs in both directions.** A key nobody answers is a bug; a sentence nobody asks for is a translation maintained forever. The second half found that `app_dispatcher` carried eighteen delivery sentences for screens it does not draw.
+- **`PeykRouter` is duplicated in all three apps.** A shared router package would compile and would be the first `common` package in the workspace. Ninety lines each is the price of not having that negotiation.
+- **A composition root takes its own dependencies.** `CourierPlatform` gathers the plugin platform interfaces; `main.dart` passes the real ones and a test passes stubs, and the container in between is identical. That works only because every `platform/*` adapter took an interface rather than a singleton in phase 2.
+- **An adapter may live in an app when it answers a capability the device lacks.** `DeskAlertChannel` returns `AlertsRefused` because a desk has no push client. It declines rather than pretending, and `notifications` has no business knowing that some apps are desks.
+- **A feature can be composed without being mounted.** `app_dispatcher` resolves `DeliveryFacade` and mounts no delivery route. A feature is a set of use cases *and* a set of destinations.
+
+### The one thing phase 7 found and did not fix
+
+`RoutingCoordinator` takes `RecalculateOnDeviation`, which takes a `LocationStreamPort`; `DeliveryCoordinator` takes `StartAttempt`, which takes a `GeoFencePort`. Both adapters read *this device's* position, and on a dispatcher's desk that is the desk. They are bound in `app_dispatcher` and are safe only because nothing on its screens calls those use cases — a runtime guarantee where the rest of the workspace has compile-time ones.
+
+**The seam is that a facade whose constructor demands every use case forces every app to bind every port**, including ones its audience can never trigger. The fix is a `RemoteLocationStream` and a server-side geofence adapter (phase 8 work), or splitting the coordinators, which is a larger conversation about what a facade is for. It is named in `app_dispatcher`'s module, in `DispatcherPlatform` and in that app's README so that it is visible rather than quiet.
 
 ### Left to do
 
-1. **Phase-end flow** — section 6: push, open the pull request, merge **without squashing**, tag `phase-06`, push the tag.
-2. **Phase 7** — `design_tokens`, `design_system`, then the three composition roots. Scenarios 5 and 7 of the specification close there; the adapters they name all exist.
-
-### Decisions made in phase 6 — do not re-litigate
-
-- **A reduced split is a starting point, not a discount.** The shape is identical to a full split; only the compiler is missing. The test for whether a `_core` package is honest is mechanical: no use case imports an adapter, and no adapter imports a use case.
-- **A driven port speaks in raw identifiers even where the row would allow more.** `KeyValuePreferencesStore` could take an `ActorId` and does not, because such an adapter could not move into an `_infrastructure` package.
-- **A `_testing` package exists only when another package consumes its fakes.** Only `messaging` qualified: `messaging_core` runs its store contract kit and `messaging_presentation` drives its facade fake. Six more `_testing` packages would have been six packages imported once each.
-- **`messaging` keeps its own queue instead of using `sync`'s outbox.** The test, written down in `messaging_core`'s README: if a person can see the queued thing, it belongs beside the thing they can see; if it is a write nobody looks at again, it belongs in `sync`.
-- **An identifier is derived when two parties must agree on it and minted when they must not.** `DocumentId` and `ThreadId` are derived; `IncidentId`, `LoadCountId` and `MessageId` are minted. A parcel can go wrong twice and a van is counted twice a day; there is only ever one current waybill.
-- **A count is derived, never stored.** `LoadCount.missing`, `OperationTally.delivered` and their neighbours are computed on read. A stored counter beside the thing it counts is a state that can disagree with itself, silently, in the record somebody uses to argue.
-- **A corrupt store is reported everywhere except `documents`.** That archive is the only store in the workspace whose contents can be produced again; every other feature's stored state is the only copy there is.
-- **`incidents` does not borrow `NonDeliveryReason`.** Delivery's union answers why a visit ended without a hand-over; `IncidentCategory` answers how fast somebody has to act. `ShipmentFailed.reason` stays a `String`, and its doc comment — which claimed the taxonomy belonged to incidents — was corrected in the commit that made the claim checkable.
-- **Reporting attributes a day by domain time and asks no clock.** `RecordOutcome` having no `Clock` in its constructor is the proof. `ReportingDay.parse` guards against `DateTime.tryParse` being both lenient and local.
+1. **Phase-end flow** — section 6: push, open the pull request, merge **without squashing**, tag `phase-07`, push the tag.
+2. **Phase 8** — `test_runner`, `dep_graph`, the CI files, `docs/ARCHITECTURE.md`, `docs/TESTING.md`, `docs/CI_CD.md`, and the generated dependency graph.
 
 ### Verification, before every commit
 
 ```bash
 dart run melos run gen      # only where build_runner is a dev dependency
+dart run melos run l10n     # only where an l10n.yaml exists
 dart analyze --fatal-infos --fatal-warnings .
 dart run melos run arch:check
 dart run melos run test
 ```
 
-The pre-commit hook runs format, analyze **on staged files only**, and `arch_check` over the whole workspace. Analyze on staged files is the gap: a mid-phase commit can leave an unstaged package broken and still pass. Run `dart analyze` over the workspace before a phase PR — phase 6 opened by finding a `sort_pub_dependencies` info in `routing_infrastructure` that had survived phase 5 exactly that way.
+The pre-commit hook runs format, analyze **on staged files only**, and `arch_check` over the whole workspace. Analyze on staged files is the gap, and phase 7 hit it: a half-migrated `settings_presentation` was staged while its fix was not, and the hook refused the commit for the right reason but with a confusing message. Run `dart analyze` over the workspace before a phase PR.
 
-`dart run melos run test` splits by runner automatically, and it works because every package that binds a Flutter engine declares the SDK in its own pubspec. Of the phase 6 packages, only `notifications_core` needs it — it reaches a device through `push_messaging` — while `vehicle_inventory_core`, `messaging_core` and `documents_core` use `http_dio`, which brings no Flutter SDK with it and so still runs under `dart test`.
+`melos run gen` is also a staleness gate in practice. Phase 7 found `app_harness`'s generated container drifting because one `@InjectableInit` was missing `preferRelativeImports` — regeneration produced absolute self-imports, which rule S3 reads as reaching across a boundary.
 
-**One flake seen:** `storage_drift` failed once under `melos run test` and passed on its own and on every re-run. It is a pre-existing package, untouched by phase 6, and the failure did not reproduce; if it recurs, suspect concurrent access to the temporary SQLite files rather than the code.
+**One flake seen in phase 6, not reproduced since:** `storage_drift` failed once under `melos run test` and passed on every re-run. If it recurs, suspect concurrent access to the temporary SQLite files rather than the code.

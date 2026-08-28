@@ -4,6 +4,8 @@ library;
 import 'package:app_harness/main.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shipments_presentation_courier/shipments_presentation_courier.dart';
+import 'package:shipments_presentation_dispatcher/shipments_presentation_dispatcher.dart';
 
 /// What the key manifests are for.
 ///
@@ -52,21 +54,27 @@ void main() {
       }
     });
 
-    // The two shipments packages share the status keys by spelling, because a
-    // presentation package may not depend on another presentation package.
-    // This is where that sharing is visible: the same key, declared twice, and
-    // an app answers it once.
+    // The two shipments packages share the status keys by *spelling*, because
+    // section 2 forbids a presentation package from depending on another. Each
+    // declares its own seven and a `switch` in its own tests keeps that list
+    // exhaustive — but nothing in either package can check that the two agree.
+    //
+    // This app can, and it is the only kind of package that can: it is the
+    // only one that may see both. Two declarations of one key drifting apart
+    // is what the duplication actually risks, and this is where it is caught.
     test('the two shipments packages agree about the status keys', () {
-      final courier = harnessStringKeys['shipments.courier']!;
-      final dispatcher = harnessStringKeys['shipments.dispatcher']!;
-      final shared = courier.toSet().intersection(dispatcher.toSet());
+      final courier = harnessStringKeys['shipments.courier']!.toSet();
+      final dispatcher = harnessStringKeys['shipments.dispatcher']!.toSet();
 
       expect(
-        shared,
-        isEmpty,
-        reason:
-            'the manifests list their own keys; the status keys are in '
-            'ShipmentsDispatcherStrings.statusKeys and are asked for by both',
+        courier.intersection(dispatcher),
+        ShipmentsDispatcherStrings.statusKeys.toSet(),
+        reason: 'the seven status keys are the whole of what they share',
+      );
+      expect(
+        ShipmentsCourierStrings.statusKeys.toSet(),
+        ShipmentsDispatcherStrings.statusKeys.toSet(),
+        reason: 'and the two lists of them are the same list',
       );
     });
   });
