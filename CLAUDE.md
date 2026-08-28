@@ -342,9 +342,17 @@ The golden step ran `flutter test --tags golden` in every package with a `test/`
 
 The general rule, now in `docs/CI_CD.md` §3 and `docs/TESTING.md`: **a gate written before the thing it gates has to have a defined answer for the empty case**, and "red" is not it.
 
+### `main` is protected as of 2026-08-28
+
+`verify` is a required status check, branches must be up to date before merging, administrators are included, and force pushes and deletions are blocked. §8 of `docs/CI_CD.md` carries the table and the reasoning.
+
+**The merge queue's ten buckets are not required checks**, and that is a correction to what §8 used to claim. `verify` runs on `pull_request` and the buckets run on `merge_group`; GitHub evaluates one required-checks list against the merge group, so a required `verify` would never arrive there and the queue would hold every pull request forever. The queue is off, `main.yml` runs through its `push: main` fallback, and the buckets report after a merge rather than gating it. Turn the queue on — and give `pr.yml` a `merge_group` trigger in the same commit — the day two branches are in flight at once.
+
 ### Left to do
 
-1. **Enable the required status checks on `main`** (§8 of `docs/CI_CD.md`): the `pr` workflow's `verify` job and the merge queue's ten buckets. The workflow files exist; the protection rule is a repository setting, and it is what would have stopped #13 from merging red.
+Nothing outstanding. The specification's acceptance criteria all hold on `main`, and every phase is tagged `phase-00` … `phase-08`.
+
+The two gaps the repository states rather than fixes are unchanged and deliberate: `codemagic.yaml` and `fastlane/Fastfile` cannot run without `apps/*/android/`, `apps/*/ios/` and `apps/*/config/<flavour>.json` (the specification excludes native builds), and no test carries the `golden` or `integration` tag yet — the tags, presets, exclusions and CI steps are the mechanism, and the images arrive with the screens that need them.
 
 ### Verification, before every commit
 
