@@ -14,29 +14,22 @@ import 'routing_strings.dart';
 /// in a tunnel is looking at a nearest-neighbour ordering their phone
 /// computed; a dispatcher is looking at a solver's answer from a data centre.
 /// Nothing here can tell the difference, because both arrive as a `RoutePlan`
-/// through `RoutingFacade` — which is what scenario 4 is worth once you are
+/// through `RoutePlanning` — which is what scenario 4 is worth once you are
 /// past the port itself.
 final class RouteScreen extends StatefulWidget {
   /// Creates the screen over [controller].
-  const RouteScreen({
-    required this.controller,
-    this.reorderable = false,
-    super.key,
-  });
+  const RouteScreen({required this.controller, super.key});
 
   /// What drives it.
-  final RouteController controller;
-
-  /// Whether this viewer may change the driving order.
   ///
-  /// A flag from the app rather than a `PermissionChecker` call here, and the
-  /// reason is that the answer is not about routing. Reordering somebody's
-  /// afternoon is a dispatcher capability that identity grants; the app knows
-  /// which of its two shells it is, has already resolved the route's
-  /// `requiredPermission` through `PermissionChecker` to let the viewer in at
-  /// all, and is the only thing entitled to decide this. Defaults to false, so
-  /// forgetting to think about it fails in the safe direction.
-  final bool reorderable;
+  /// **Whether the driving order can be changed is read from its type**, not
+  /// from a flag. A `SupervisedRouteController` holds `RouteSupervision` and a
+  /// `FollowedRouteController` does not, so the reorder affordance appears
+  /// exactly when the app composed something that can answer it. The previous
+  /// `reorderable` boolean said what the *viewer* may do; the app still
+  /// decides that by resolving the route's `requiredPermission` through
+  /// `PermissionChecker` before this screen is reached.
+  final RouteController controller;
 
   @override
   State<RouteScreen> createState() => _RouteScreenState();
@@ -106,6 +99,10 @@ class _RouteScreenState extends State<RouteScreen> {
   @override
   Widget build(BuildContext context) {
     final strings = PeykStrings.of(context);
+    final controller = widget.controller;
+    final supervisor = controller is SupervisedRouteController
+        ? controller
+        : null;
 
     return PeykScreen(
       title: strings.resolve(RoutingStrings.title),
@@ -128,9 +125,10 @@ class _RouteScreenState extends State<RouteScreen> {
             plan: plan,
             visited: visited,
             refusal: refusal,
-            reorderable: widget.reorderable,
-            onArrived: widget.controller.markArrived,
-            onMoveUp: (stop) => unawaited(widget.controller.moveUp(stop)),
+            onArrived: controller.markArrived,
+            onMoveUp: supervisor == null
+                ? null
+                : (stop) => unawaited(supervisor.moveUp(stop)),
           ),
           RouteFailed(:final failure) => PeykFailureView(
             message: strings.resolve(
@@ -149,18 +147,16 @@ final class _Stops extends StatelessWidget {
   const _Stops({
     required this.plan,
     required this.visited,
-    required this.reorderable,
     required this.onArrived,
-    required this.onMoveUp,
+    this.onMoveUp,
     this.refusal,
   });
 
   final RoutePlan plan;
   final Set<StopId> visited;
   final RoutingFailure? refusal;
-  final bool reorderable;
   final void Function(StopId) onArrived;
-  final void Function(StopId) onMoveUp;
+  final void Function(StopId)? onMoveUp;
 
   @override
   Widget build(BuildContext context) {
@@ -170,6 +166,7 @@ final class _Stops extends StatelessWidget {
     final byId = {for (final stop in plan.stops) stop.id: stop};
     final next = plan.nextStopAfter(visited);
     final refused = refusal;
+    final moveUp = onMoveUp;
     final strings = PeykStrings.of(context);
 
     return ListView(
@@ -201,8 +198,8 @@ final class _Stops extends StatelessWidget {
             isNext: eta.stop == next,
             isDone: visited.contains(eta.stop),
             onArrived: () => onArrived(eta.stop),
-            onMoveUp: reorderable && index > 0
-                ? () => onMoveUp(eta.stop)
+            onMoveUp: moveUp != null && index > 0
+                ? () => moveUp(eta.stop)
                 : null,
           ),
       ],

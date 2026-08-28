@@ -21,12 +21,26 @@
 /// and replanning on no evidence would reorder a route because somebody walked
 /// into a basement.
 ///
-/// `RoutingCoordinator` implements `RoutingFacade` by delegating to the four
-/// use cases. It stays thin on purpose: if it ever grows a decision of its
-/// own, that is the signal a use case is missing.
+/// **Three coordinators, one per driving port.** `RoutePlanningCoordinator`,
+/// `RouteSupervisionCoordinator` and `RouteFollowingCoordinator` each take
+/// only the use cases their own interface needs, and they share a
+/// `RouteChannel` so that a plan written through one is seen by a screen
+/// watching another. They were a single `RoutingCoordinator` until phase 8.
+///
+/// Splitting the *interfaces* was not enough on its own, and that is the
+/// lesson worth carrying: `IdentityCoordinator` implements three ports from
+/// one constructor, which segregates what a caller may ask but not what a
+/// composition root must supply. An app that could not answer
+/// `LocationStreamPort` needed the constructors split too.
+///
+/// They stay thin on purpose: if one ever grows a decision of its own, that is
+/// the signal a use case is missing.
 library;
 
 export 'src/plan_route.dart';
 export 'src/recalculate_on_deviation.dart';
+export 'src/route_channel.dart';
+export 'src/route_following_coordinator.dart';
+export 'src/route_planning_coordinator.dart';
 export 'src/route_reads.dart';
-export 'src/routing_coordinator.dart';
+export 'src/route_supervision_coordinator.dart';

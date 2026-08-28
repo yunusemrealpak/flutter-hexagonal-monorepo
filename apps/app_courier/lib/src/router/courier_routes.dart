@@ -87,8 +87,9 @@ PeykRouter buildCourierRouter(GetIt container) {
         ),
       ),
       'routing.myRoute': (context, _) => RouteScreen(
-        controller: RouteController(
-          routing: container<RoutingFacade>(),
+        controller: FollowedRouteController(
+          planning: container<RoutePlanning>(),
+          following: container<RouteFollowing>(),
           courier: actor(),
         ),
       ),

@@ -231,12 +231,12 @@ void main() {
     });
   });
 
-  group('RoutingCoordinator', () {
+  group('the three coordinators', () {
     test('emits a plan whenever one is produced', () async {
       final seen = <RoutePlan>[];
-      final subscription = harness.coordinator.changes().listen(seen.add);
+      final subscription = harness.planning.changes().listen(seen.add);
 
-      await harness.coordinator.planRoute(
+      await harness.planning.planRoute(
         courier: courier,
         origin: RouteFixtures.depot,
         stops: stops,
@@ -251,23 +251,59 @@ void main() {
       // The route did not change, and a screen that redrew on it would flicker
       // for no reason.
       final seen = <RoutePlan>[];
-      final subscription = harness.coordinator.changes().listen(seen.add);
+      final subscription = harness.planning.changes().listen(seen.add);
 
-      await harness.coordinator.resequence(courier: courier, order: const []);
+      await harness.supervision.resequence(courier: courier, order: const []);
       await Future<void>.delayed(Duration.zero);
       await subscription.cancel();
 
       expect(seen, isEmpty);
     });
 
+    test('a plan one role writes reaches a screen watching another', () async {
+      // The reason `RouteChannel` exists. `changes()` is declared on
+      // `RoutePlanning`, and a supervisor reordering a route has to reach a
+      // screen holding that interface — otherwise splitting the port would
+      // have split the fact it reports.
+      final seen = <RoutePlan>[];
+      final subscription = harness.planning.changes().listen(seen.add);
+      final planned = unwrap(await harness.plan(stops));
+
+      await harness.supervision.resequence(
+        courier: courier,
+        order: planned.sequence.order.reversed.toList(),
+      );
+      await Future<void>.delayed(Duration.zero);
+      await subscription.cancel();
+
+      expect(seen, hasLength(1));
+      expect(seen.single.sequence.order.first, stops.last.id);
+    });
+
+    test('a read leaves the plan alone', () async {
+      // Command-query separation, asserted rather than described: the reason
+      // the route screen may open on `currentPlan` and may not open on
+      // `recalculateOnDeviation`.
+      final planned = unwrap(await harness.plan(stops));
+      final seen = <RoutePlan>[];
+      final subscription = harness.planning.changes().listen(seen.add);
+
+      final read = unwrap(await harness.planning.currentPlan(courier: courier));
+      await Future<void>.delayed(Duration.zero);
+      await subscription.cancel();
+
+      expect(read.id, planned.id);
+      expect(seen, isEmpty);
+    });
+
     test('adds no rule of its own', () async {
-      await harness.coordinator.planRoute(
+      await harness.planning.planRoute(
         courier: courier,
         origin: RouteFixtures.depot,
         stops: stops,
       );
 
-      final next = await harness.coordinator.nextStop(
+      final next = await harness.following.nextStop(
         courier: courier,
         visited: const {},
       );

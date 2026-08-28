@@ -61,11 +61,27 @@ final class Harness {
     toleranceMetres: _tolerance,
   );
 
-  late final RoutingCoordinator coordinator = RoutingCoordinator(
+  late final CurrentPlan currentPlan = CurrentPlan(cache: cache);
+
+  /// The one stream the three coordinators announce on.
+  late final RouteChannel channel = RouteChannel();
+
+  /// What both audiences perform.
+  late final RoutePlanningCoordinator planning = RoutePlanningCoordinator(
     planRoute: planRoute,
-    resequence: resequence,
+    currentPlan: currentPlan,
+    channel: channel,
+  );
+
+  /// What only a desk performs.
+  late final RouteSupervisionCoordinator supervision =
+      RouteSupervisionCoordinator(resequence: resequence, channel: channel);
+
+  /// What only the vehicle on the route performs.
+  late final RouteFollowingCoordinator following = RouteFollowingCoordinator(
     nextStop: nextStop,
     recalculate: recalculate,
+    channel: channel,
   );
 
   /// Plans a route over [stops] for the default courier.
@@ -81,7 +97,7 @@ final class Harness {
 
   /// Releases what the harness owns.
   Future<void> dispose() async {
-    await coordinator.dispose();
+    await channel.dispose();
     await location.dispose();
   }
 }

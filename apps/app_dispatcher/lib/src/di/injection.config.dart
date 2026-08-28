@@ -56,6 +56,7 @@ extension GetItInjectableX on _i174.GetIt {
     final dispatcherFeatures = _$DispatcherFeatures();
     final dispatcherLightFeatures = _$DispatcherLightFeatures();
     final dispatcherPorts = _$DispatcherPorts();
+    gh.lazySingleton<_i717.RouteChannel>(() => dispatcherFeatures.routeChannel);
     gh.lazySingleton<_i202.OutboxStore>(() => dispatcherFeatures.outbox);
     gh.lazySingleton<_i1041.MediaCompressorPort>(
       () => dispatcherFeatures.compressor,
@@ -232,8 +233,8 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i717.Resequence>(
       () => dispatcherFeatures.resequence(gh<_i178.RouteCache>()),
     );
-    gh.lazySingleton<_i717.NextStop>(
-      () => dispatcherFeatures.nextStop(gh<_i178.RouteCache>()),
+    gh.lazySingleton<_i717.CurrentPlan>(
+      () => dispatcherFeatures.currentPlan(gh<_i178.RouteCache>()),
     );
     gh.lazySingleton<_i398.PermissionRequester>(
       () => dispatcherPorts.permissions(
@@ -320,6 +321,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i398.IdGenerator>(),
       ),
     );
+    gh.lazySingleton<_i178.RouteSupervision>(
+      () => dispatcherFeatures.routeSupervision(
+        gh<_i717.Resequence>(),
+        gh<_i717.RouteChannel>(),
+      ),
+    );
     gh.lazySingleton<_i202.SyncFacade>(
       () => dispatcherFeatures.sync(
         gh<_i502.EnqueueCommand>(),
@@ -363,9 +370,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i718.ReasonClassifier>(),
         gh<_i398.Logger>(),
       ),
-    );
-    gh.lazySingleton<_i178.LocationStreamPort>(
-      () => dispatcherFeatures.locationStream(gh<_i281.LocationSource>()),
     );
     gh.lazySingleton<_i1041.GeoFencePort>(
       () => dispatcherFeatures.fence(
@@ -421,6 +425,13 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i111.ReadThread>(
       () => dispatcherLightFeatures.readThread(gh<_i280.MessageStore>()),
     );
+    gh.lazySingleton<_i178.RoutePlanning>(
+      () => dispatcherFeatures.routePlanning(
+        gh<_i717.PlanRoute>(),
+        gh<_i717.CurrentPlan>(),
+        gh<_i717.RouteChannel>(),
+      ),
+    );
     gh.lazySingleton<_i952.ResolveBarcode>(
       () => dispatcherFeatures.resolve(
         gh<_i490.BarcodeResolverPort>(),
@@ -431,14 +442,6 @@ extension GetItInjectableX on _i174.GetIt {
       () => dispatcherLightFeatures.reportingWatcher(
         gh<_i398.DomainEventBus>(),
         gh<_i302.RecordOutcome>(),
-        gh<_i398.Logger>(),
-      ),
-    );
-    gh.lazySingleton<_i717.RecalculateOnDeviation>(
-      () => dispatcherFeatures.recalculate(
-        gh<_i178.RouteCache>(),
-        gh<_i178.LocationStreamPort>(),
-        gh<_i717.PlanRoute>(),
         gh<_i398.Logger>(),
       ),
     );
@@ -476,14 +479,6 @@ extension GetItInjectableX on _i174.GetIt {
       () => dispatcherLightFeatures.drainMessages(
         gh<_i280.MessageStore>(),
         gh<_i111.DeliverMessage>(),
-      ),
-    );
-    gh.lazySingleton<_i178.RoutingFacade>(
-      () => dispatcherFeatures.routing(
-        gh<_i717.PlanRoute>(),
-        gh<_i717.Resequence>(),
-        gh<_i717.NextStop>(),
-        gh<_i717.RecalculateOnDeviation>(),
       ),
     );
     gh.lazySingleton<_i719.CompleteWithProof>(

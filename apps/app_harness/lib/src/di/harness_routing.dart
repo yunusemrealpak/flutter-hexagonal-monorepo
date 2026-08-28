@@ -77,17 +77,47 @@ abstract class HarnessRouting {
     logger: logger,
   );
 
-  /// The one implementation of `RoutingFacade`.
+  /// Reading the plan without changing it.
   @lazySingleton
-  RoutingFacade routing(
+  CurrentPlan currentPlan(RouteCache cache) => CurrentPlan(cache: cache);
+
+  /// The one stream all three coordinators announce on.
+  @lazySingleton
+  RouteChannel get routeChannel => RouteChannel();
+
+  /// What both audiences perform.
+  @lazySingleton
+  RoutePlanning routePlanning(
     PlanRoute plan,
+    CurrentPlan currentPlan,
+    RouteChannel channel,
+  ) => RoutePlanningCoordinator(
+    planRoute: plan,
+    currentPlan: currentPlan,
+    channel: channel,
+  );
+
+  /// A desk's override.
+  @lazySingleton
+  RouteSupervision routeSupervision(
     Resequence resequence,
+    RouteChannel channel,
+  ) => RouteSupervisionCoordinator(resequence: resequence, channel: channel);
+
+  /// The vehicle's half.
+  ///
+  /// **All three are bound here, and only here.** This app exists to compose
+  /// every feature, so it is the one place the whole routing surface is put
+  /// together — and the one place the split can be seen as a split rather than
+  /// as a subset.
+  @lazySingleton
+  RouteFollowing routeFollowing(
     NextStop nextStop,
     RecalculateOnDeviation recalculate,
-  ) => RoutingCoordinator(
-    planRoute: plan,
-    resequence: resequence,
+    RouteChannel channel,
+  ) => RouteFollowingCoordinator(
     nextStop: nextStop,
     recalculate: recalculate,
+    channel: channel,
   );
 }

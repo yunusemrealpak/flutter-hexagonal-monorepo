@@ -43,7 +43,14 @@ void main() {
     test('the six full-split features', () {
       expect(container<IdentityFacade>(), isNotNull);
       expect(container<ShipmentsFacade>(), isNotNull);
-      expect(container<RoutingFacade>(), isNotNull);
+      // The other two of routing's three. **`RouteFollowing` is absent, and
+      // that absence is the point of the phase 8 split**: it is the interface
+      // whose ports read this device's position, and a desk cannot answer it
+      // about a courier. Before the split this app had to bind it — and the
+      // GPS behind it — to get `resequence` at all.
+      expect(container<RoutePlanning>(), isNotNull);
+      expect(container<RouteSupervision>(), isNotNull);
+      expect(container.isRegistered<RouteFollowing>(), isFalse);
       expect(container<DeliveryFacade>(), isNotNull);
       expect(container<PaymentsFacade>(), isNotNull);
       expect(container<SyncFacade>(), isNotNull);

@@ -208,27 +208,14 @@ abstract class DispatcherFeatures {
 
   /// The device's GPS.
   ///
-  /// **Bound, and never usefully read here — which is a seam worth naming.**
-  /// `RoutingCoordinator`'s constructor takes `RecalculateOnDeviation`, which
-  /// takes a `LocationStreamPort`, so every app that composes routing must
-  /// answer it. On a desk the only position available is the desk's, and
-  /// recalculating a courier's route against it would be wrong. It is safe
-  /// only because nothing on a dispatcher's screen calls that use case.
-  ///
-  /// The workspace has no `RemoteLocationStream`, and writing one is a phase 8
-  /// job rather than a phase 7 one. What phase 7 can do is stop the seam being
-  /// invisible: see this app's README under "two ports a desk cannot honestly
-  /// answer".
+  /// Bound for `HttpGeoFence` only, which is delivery's. Routing no longer
+  /// asks this app for a position at all: `RouteFollowing` is the interface
+  /// that needs one, and a desk does not compose it.
   @lazySingleton
   LocationSource locationSource(
     DispatcherPlatform platform,
     PermissionRequester permissions,
   ) => GeolocatorLocationSource(platform.location, permissions);
-
-  /// Where the van is.
-  @lazySingleton
-  LocationStreamPort locationStream(LocationSource source) =>
-      DeviceLocationStream(source: source);
 
   /// Ordering a day's stops.
   @lazySingleton
@@ -252,37 +239,39 @@ abstract class DispatcherFeatures {
   @lazySingleton
   Resequence resequence(RouteCache cache) => Resequence(cache: cache);
 
-  /// Where to go now.
+  /// Reading the plan without changing it.
   @lazySingleton
-  NextStop nextStop(RouteCache cache) => NextStop(cache: cache);
+  CurrentPlan currentPlan(RouteCache cache) => CurrentPlan(cache: cache);
 
-  /// Replanning when the van deviates.
+  /// The one stream routing announces on.
   @lazySingleton
-  RecalculateOnDeviation recalculate(
-    RouteCache cache,
-    LocationStreamPort location,
+  RouteChannel get routeChannel => RouteChannel();
+
+  /// What both audiences perform.
+  @lazySingleton
+  RoutePlanning routePlanning(
     PlanRoute plan,
-    Logger logger,
-  ) => RecalculateOnDeviation(
-    cache: cache,
-    location: location,
+    CurrentPlan currentPlan,
+    RouteChannel channel,
+  ) => RoutePlanningCoordinator(
     planRoute: plan,
-    logger: logger,
+    currentPlan: currentPlan,
+    channel: channel,
   );
 
-  /// The one implementation of `RoutingFacade`.
+  /// A desk's override of a route it is not driving.
+  ///
+  /// **The registration that used to force a GPS into this app.** Until phase
+  /// 8 routing had one driving port declaring every operation, so composing
+  /// `resequence` meant also supplying `RecalculateOnDeviation` and the
+  /// `LocationStreamPort` behind it — a port whose only honest answer here is
+  /// the desk's own position. `RouteFollowing` is a separate interface now and
+  /// this app does not compose it, so the question no longer arises.
   @lazySingleton
-  RoutingFacade routing(
-    PlanRoute plan,
+  RouteSupervision routeSupervision(
     Resequence resequence,
-    NextStop nextStop,
-    RecalculateOnDeviation recalculate,
-  ) => RoutingCoordinator(
-    planRoute: plan,
-    resequence: resequence,
-    nextStop: nextStop,
-    recalculate: recalculate,
-  );
+    RouteChannel channel,
+  ) => RouteSupervisionCoordinator(resequence: resequence, channel: channel);
 
   // -- sync ----------------------------------------------------------------
 

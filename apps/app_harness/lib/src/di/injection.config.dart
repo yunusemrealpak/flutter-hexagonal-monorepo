@@ -127,6 +127,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i711.FakeLocationStream>(
       () => harnessRouting.fakeLocation,
     );
+    gh.lazySingleton<_i717.RouteChannel>(() => harnessRouting.routeChannel);
     gh.lazySingleton<_i450.InMemoryShipmentGateway>(
       () => harnessShipments.fakeGateway,
     );
@@ -236,6 +237,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i717.NextStop>(
       () => harnessRouting.nextStop(gh<_i178.RouteCache>()),
+    );
+    gh.lazySingleton<_i717.CurrentPlan>(
+      () => harnessRouting.currentPlan(gh<_i178.RouteCache>()),
     );
     gh.lazySingleton<_i1041.DeliveryGateway>(
       () => harnessDelivery.gateway(gh<_i876.FakeDeliveryGateway>()),
@@ -347,6 +351,12 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i257.FindOpenCount>(
       () => harnessLightFeatures.findCount(gh<_i79.LoadCountStore>()),
     );
+    gh.lazySingleton<_i178.RouteSupervision>(
+      () => harnessRouting.routeSupervision(
+        gh<_i717.Resequence>(),
+        gh<_i717.RouteChannel>(),
+      ),
+    );
     gh.lazySingleton<_i502.ReadSyncStatus>(
       () => harnessSync.status(
         gh<_i202.OutboxStore>(),
@@ -409,6 +419,13 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i60.AlertChannel>(
       () => harnessLightFeatures.alerts(gh<_i247.PushMessagingClient>()),
+    );
+    gh.lazySingleton<_i178.RoutePlanning>(
+      () => harnessRouting.routePlanning(
+        gh<_i717.PlanRoute>(),
+        gh<_i717.CurrentPlan>(),
+        gh<_i717.RouteChannel>(),
+      ),
     );
     gh.lazySingleton<_i719.AttemptReads>(
       () => harnessDelivery.reads(gh<_i1041.DeliveryGateway>()),
@@ -497,14 +514,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i111.DeliverMessage>(),
       ),
     );
-    gh.lazySingleton<_i178.RoutingFacade>(
-      () => harnessRouting.routing(
-        gh<_i717.PlanRoute>(),
-        gh<_i717.Resequence>(),
-        gh<_i717.NextStop>(),
-        gh<_i717.RecalculateOnDeviation>(),
-      ),
-    );
     gh.lazySingleton<_i202.SyncFacade>(
       () => harnessSync.sync(
         gh<_i502.EnqueueCommand>(),
@@ -535,6 +544,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i718.ListOpenIncidents>(),
         gh<_i718.EscalateOverdue>(),
         gh<_i718.ResolveIncident>(),
+      ),
+    );
+    gh.lazySingleton<_i178.RouteFollowing>(
+      () => harnessRouting.routeFollowing(
+        gh<_i717.NextStop>(),
+        gh<_i717.RecalculateOnDeviation>(),
+        gh<_i717.RouteChannel>(),
       ),
     );
     gh.lazySingleton<_i79.VehicleInventoryFacade>(

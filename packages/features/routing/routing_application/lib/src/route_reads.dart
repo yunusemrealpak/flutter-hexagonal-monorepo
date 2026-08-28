@@ -78,3 +78,27 @@ final class NextStop
     return plan.map((value) => value.nextStopAfter(request.visited));
   }
 }
+
+/// Answers what a courier is on now, and changes nothing by asking.
+///
+/// **The use case that was missing, and whose absence caused a bug.** Before
+/// phase 8 routing had no read-only "what is planned", so the route screen
+/// opened by calling `recalculateOnDeviation` — a command that reads this
+/// device's position and may replace the plan. On a courier's phone that is
+/// merely generous. On a dispatcher's desk, opening somebody else's route
+/// compared *the desk's* coordinates against *their* next stop.
+///
+/// Command-query separation is the rule that was being broken, and it is worth
+/// stating as the reason rather than as a citation: asking a question must not
+/// change the answer.
+final class CurrentPlan
+    implements UseCase<ActorId, Result<RoutePlan, RoutingFailure>> {
+  /// Creates the use case.
+  const CurrentPlan({required this._cache});
+
+  final RouteCache _cache;
+
+  @override
+  Future<Result<RoutePlan, RoutingFailure>> call(ActorId courier) =>
+      _cache.read(courier.value);
+}

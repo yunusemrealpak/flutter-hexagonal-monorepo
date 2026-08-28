@@ -27,7 +27,7 @@ There is no `build.yaml` and no `build_runner` dependency, because nothing here 
 
 | File | What it is |
 |---|---|
-| `route_controller.dart` | Holds `RoutingFacade` and one `ActorId`; turns port answers into states. |
+| `route_controller.dart` | `RouteController` holds `RoutePlanning` and one `ActorId`; `FollowedRouteController` adds `RouteFollowing`, `SupervisedRouteController` adds `RouteSupervision`. |
 | `route_view_state.dart` | The sealed union a widget renders exhaustively. |
 | `route_screen.dart` | The stop list, its markers, and the failure sentences. |
 | `routing_routes.dart` | Two destinations, one screen; the difference between them is a permission. |

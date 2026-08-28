@@ -57,6 +57,7 @@ extension GetItInjectableX on _i174.GetIt {
     final courierFeatures = _$CourierFeatures();
     final courierLightFeatures = _$CourierLightFeatures();
     final courierPorts = _$CourierPorts();
+    gh.lazySingleton<_i717.RouteChannel>(() => courierFeatures.routeChannel);
     gh.lazySingleton<_i1041.MediaCompressorPort>(
       () => courierFeatures.compressor,
     );
@@ -227,11 +228,11 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i490.BarcodeResolverPort>(
       () => courierFeatures.barcodes(gh<_i490.ShipmentCache>()),
     );
-    gh.lazySingleton<_i717.Resequence>(
-      () => courierFeatures.resequence(gh<_i178.RouteCache>()),
-    );
     gh.lazySingleton<_i717.NextStop>(
       () => courierFeatures.nextStop(gh<_i178.RouteCache>()),
+    );
+    gh.lazySingleton<_i717.CurrentPlan>(
+      () => courierFeatures.currentPlan(gh<_i178.RouteCache>()),
     );
     gh.lazySingleton<_i398.PermissionRequester>(
       () => courierPorts.permissions(
@@ -462,6 +463,13 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i60.AlertChannel>(
       () => courierLightFeatures.alerts(gh<_i247.PushMessagingClient>()),
     );
+    gh.lazySingleton<_i178.RoutePlanning>(
+      () => courierFeatures.routePlanning(
+        gh<_i717.PlanRoute>(),
+        gh<_i717.CurrentPlan>(),
+        gh<_i717.RouteChannel>(),
+      ),
+    );
     gh.lazySingleton<_i475.DocumentsFacade>(
       () => courierLightFeatures.documents(gh<_i1046.ObtainDocument>()),
     );
@@ -526,14 +534,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i111.DeliverMessage>(),
       ),
     );
-    gh.lazySingleton<_i178.RoutingFacade>(
-      () => courierFeatures.routing(
-        gh<_i717.PlanRoute>(),
-        gh<_i717.Resequence>(),
-        gh<_i717.NextStop>(),
-        gh<_i717.RecalculateOnDeviation>(),
-      ),
-    );
     gh.lazySingleton<_i719.CompleteWithProof>(
       () => courierFeatures.complete(
         gh<_i1041.ProofStorePort>(),
@@ -557,6 +557,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i718.ListOpenIncidents>(),
         gh<_i718.EscalateOverdue>(),
         gh<_i718.ResolveIncident>(),
+      ),
+    );
+    gh.lazySingleton<_i178.RouteFollowing>(
+      () => courierFeatures.routeFollowing(
+        gh<_i717.NextStop>(),
+        gh<_i717.RecalculateOnDeviation>(),
+        gh<_i717.RouteChannel>(),
       ),
     );
     gh.lazySingleton<_i901.PaymentsCoordinator>(

@@ -20,13 +20,13 @@ import 'routing_failure.dart';
 /// answered by an adapter, and section 2 forbids an adapter from seeing
 /// another feature at all — so a port whose signature named `ActorId` would be
 /// a port its own adapter could not implement without breaking the rule. The
-/// typed identity belongs on the driving side, where `RoutingFacade` takes an
+/// typed identity belongs on the driving side, where `RoutePlanning` takes an
 /// `ActorId` and a use case — the layer allowed to see both features — does
 /// the crossing.
 ///
-/// It is primitive obsession only if you read the port in isolation. Read as a
-/// pair with the facade, it is the boundary doing its job: the vocabulary
-/// narrows on the way out and widens on the way in.
+/// It is primitive obsession only if you read the port in isolation. Read as
+/// a pair with the driving ports, it is the boundary doing its job: the
+/// vocabulary narrows on the way out and widens on the way in.
 abstract interface class RouteCache {
   /// The plan stored for the courier with this identifier, or `NoPlan` when
   /// there is none.
