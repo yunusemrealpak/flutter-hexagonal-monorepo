@@ -327,12 +327,15 @@ Five packages added — `design_tokens`, `design_system`, `app_harness`, `app_co
 
 `RoutingCoordinator` takes `RecalculateOnDeviation`, which takes a `LocationStreamPort`; `DeliveryCoordinator` takes `StartAttempt`, which takes a `GeoFencePort`. Both adapters read *this device's* position, and on a dispatcher's desk that is the desk. They are bound in `app_dispatcher` and are safe only because nothing on its screens calls those use cases — a runtime guarantee where the rest of the workspace has compile-time ones.
 
-**The seam is that a facade whose constructor demands every use case forces every app to bind every port**, including ones its audience can never trigger. The fix is a `RemoteLocationStream` and a server-side geofence adapter (phase 8 work), or splitting the coordinators, which is a larger conversation about what a facade is for. It is named in `app_dispatcher`'s module, in `DispatcherPlatform` and in that app's README so that it is visible rather than quiet.
+**The seam is that a facade whose constructor demands every use case forces every app to bind every port**, including ones its audience can never trigger — and writing it up showed the constructor is the symptom rather than the cause: `RoutingFacade` and `DeliveryFacade` *declare* operations no dispatcher can perform, so an app that wants any of the interface must supply all of it.
+
+It is written up in **[`docs/research/facade-port-coupling.md`](docs/research/facade-port-coupling.md)**, with the evidence, what has already been ruled out, three candidate directions, the constraints any answer must satisfy, and the acceptance criteria for closing it. **Read that file before writing `docs/ARCHITECTURE.md`** — the answer changes what that document says about facades and about scenario 5.
 
 ### Left to do
 
 1. **Phase-end flow** — section 6: push, open the pull request, merge **without squashing**, tag `phase-07`, push the tag.
-2. **Phase 8** — `test_runner`, `dep_graph`, the CI files, `docs/ARCHITECTURE.md`, `docs/TESTING.md`, `docs/CI_CD.md`, and the generated dependency graph.
+2. **Phase 8's first item** — research and settle [`docs/research/facade-port-coupling.md`](docs/research/facade-port-coupling.md). The instruction that opened it: find what the literature says *first*, then integrate. It is first because it changes `docs/ARCHITECTURE.md`, not because the rest waits on it.
+3. **Phase 8** — `test_runner`, `dep_graph`, the CI files, `docs/ARCHITECTURE.md`, `docs/TESTING.md`, `docs/CI_CD.md`, and the generated dependency graph.
 
 ### Verification, before every commit
 
