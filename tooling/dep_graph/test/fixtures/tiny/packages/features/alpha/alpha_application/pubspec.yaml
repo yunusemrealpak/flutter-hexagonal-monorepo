@@ -1,0 +1,6 @@
+name: alpha_application
+dependencies:
+  alpha_api: ^0.1.0
+  core_kernel: ^0.1.0
+dev_dependencies:
+  beta_api: ^0.1.0

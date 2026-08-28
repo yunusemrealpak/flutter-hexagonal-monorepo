@@ -1,0 +1,3 @@
+name: beta_api
+dependencies:
+  alpha_api: ^0.1.0

@@ -1,0 +1,29 @@
+name: dep_graph
+description: >-
+  Renders the workspace's dependency graph as Mermaid and Graphviz DOT into
+  docs/dependency-graph.md, colour-coded by package type, and fails when the
+  graph has a cycle.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+# A tooling package may depend on third-party Dart packages and on nothing in
+# packages/, apps/ or tooling/ (docs/DEPENDENCY_RULES.md §2, `tooling.allow` is
+# empty). That is why this package re-reads the workspace instead of importing
+# arch_check's loader.
+#
+# It does not re-*decide* what a package's type is, though. The type matchers
+# come from arch_check's rules.yaml, read as data at a path rather than through
+# an import: one source of truth for "what type is this package", no edge in
+# the graph this tool exists to draw. A diagram that classified a package
+# differently from the checker would be a diagram that lies.
+dependencies:
+  args: ^2.7.0
+  path: ^1.9.1
+  yaml: ^3.1.3
+
+dev_dependencies:
+  test: ^1.26.0

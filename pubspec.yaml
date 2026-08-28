@@ -86,6 +86,7 @@ workspace:
   - packages/platform/secure_store
   - packages/platform/storage_drift
   - tooling/arch_check
+  - tooling/dep_graph
   - tooling/scaffold
 
 environment:
@@ -173,6 +174,22 @@ melos:
       exec: dart run build_runner watch
       packageFilters:
         dependsOn: build_runner
+
+    # -- Graph ----------------------------------------------------------------
+    graph:
+      description: >-
+        Rewrite docs/dependency-graph.md from the workspace. Run it in the same
+        commit as a change that adds a package or moves an edge; the generated
+        graph is committed for the same three reasons the generated Dart is
+        (CLAUDE.md section 4.3).
+      run: dart run tooling/dep_graph/bin/dep_graph.dart
+
+    graph:check:
+      description: >-
+        Fail when docs/dependency-graph.md does not match the workspace, and
+        fail when the graph has a cycle. Success criterion 4 of the
+        specification, on the pre-push hook and in CI.
+      run: dart run tooling/dep_graph/bin/dep_graph.dart --check
 
     # -- Architecture -------------------------------------------------------
     arch:check:
