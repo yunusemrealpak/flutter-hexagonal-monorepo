@@ -88,6 +88,7 @@ workspace:
   - tooling/arch_check
   - tooling/dep_graph
   - tooling/scaffold
+  - tooling/test_runner
 
 environment:
   sdk: ^3.12.2
@@ -245,8 +246,26 @@ melos:
     test:affected:
       description: >-
         Run only the tests a change against origin/main can break, walking the
-        dependency graph outwards from the changed packages.
-        (phase 8 — tooling/test_runner)
+        dependency graph outwards from the changed packages — through
+        dev_dependencies as well, because a broken contract kit breaks its
+        consumers' suites and nobody's build.
       run: >-
         dart run tooling/test_runner/bin/test_runner.dart
         --affected --base=origin/main
+
+    test:affected:list:
+      description: >-
+        Print the packages test:affected would run, and stop. What the pull
+        request comment is built from.
+      run: >-
+        dart run tooling/test_runner/bin/test_runner.dart
+        --affected --base=origin/main --list
+
+    test:bucket:
+      description: >-
+        One CI machine's share of the full suite, balanced by the durations
+        the last run measured. Pass BUCKET and TOTAL in the environment.
+      run: >-
+        dart run tooling/test_runner/bin/test_runner.dart
+        --bucket=$BUCKET --total=$TOTAL --no-cache --bundle
+        --junit=build/junit-$BUCKET.xml

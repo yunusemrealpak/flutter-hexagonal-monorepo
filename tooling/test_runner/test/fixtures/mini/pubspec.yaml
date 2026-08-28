@@ -1,0 +1,8 @@
+name: mini_workspace
+publish_to: none
+workspace:
+  - packages/core/core_kernel
+  - packages/core/core_docs
+  - packages/features/alpha/alpha_api
+  - packages/features/alpha/alpha_application
+  - packages/ui/widget_kit

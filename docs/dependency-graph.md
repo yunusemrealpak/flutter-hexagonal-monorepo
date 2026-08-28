@@ -17,7 +17,7 @@ without shipping in anybody's product build.
 
 | | |
 |---|---|
-| Packages | 74 |
+| Packages | 75 |
 | Runtime edges | 415 |
 | Dev-dependency edges | 56 |
 | Cycles | none |
@@ -48,7 +48,7 @@ loop — see the payments/shipments diagram below.
 | `#fce4ec` | feature _presentation (UI) | 14 |
 | `#ede7f6` | feature _testing (fakes) | 7 |
 | `#fbe9e7` | platform/* (technology) | 9 |
-| `#eceff1` | tooling/* | 3 |
+| `#eceff1` | tooling/* | 4 |
 
 ## The constitution, as it was actually built
 
@@ -420,6 +420,7 @@ graph LR
 | `arch_check` | tooling | — |
 | `dep_graph` | tooling | — |
 | `scaffold` | tooling | — |
+| `test_runner` | tooling | — |
 
 ## The complete graph, as Graphviz DOT
 
@@ -615,6 +616,7 @@ digraph peyk {
     "arch_check" [fillcolor="#eceff1", color="#455a64"];
     "dep_graph" [fillcolor="#eceff1", color="#455a64"];
     "scaffold" [fillcolor="#eceff1", color="#455a64"];
+    "test_runner" [fillcolor="#eceff1", color="#455a64"];
   }
 
   "analytics_otel" -> "core_ports";
