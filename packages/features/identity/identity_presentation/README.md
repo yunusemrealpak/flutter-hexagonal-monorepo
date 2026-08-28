@@ -20,7 +20,7 @@ The credential kind is chosen by the caller, which is what keeps that true: a co
 
 ## What it may depend on
 
-Own `_api`, other features' `_api`, `core_kernel`, `core_navigation`, `design_system` (from phase 7), and the Flutter SDK.
+Own `_api`, other features' `_api`, `core_kernel`, `core_navigation`, `design_system`, and the Flutter SDK.
 
 ## What must never live here
 
@@ -28,3 +28,13 @@ Own `_api`, other features' `_api`, `core_kernel`, `core_navigation`, `design_sy
 - **A secret in a state object.** `Credentials` redacts in `toString`; a controller that copied the password into its state would undo that.
 - **A formatted message in a state object.** `SignInRejected` carries an `IdentityFailure`; the sentence is produced at the widget, where the locale is known.
 - **`debugPrint`.** Rule A4.
+
+## Keys, not sentences
+
+`IdentityStrings` declares every key this package asks an app to answer, and `SignInScreen.describe` maps each case of the sealed `IdentityFailure` onto one of them. The mapping is checked by the compiler here; the wording is chosen by whichever app mounted the screen, through the `StringCatalogue` it installs.
+
+**That split is what keeps the security decision intact.** `InvalidCredentials` and `DeviceNotRegistered` map to the *same key*, because distinguishing them tells an attacker whether an account exists. Two apps write two sets of words, but both write them behind one key — so neither can accidentally give the two failures different wording and leak the difference. Had `describe` returned sentences, the decision would have had to be re-made, correctly, in every app.
+
+`SignInScreen.canRetry` is separate because `PeykFailureView` draws no button when trying again cannot help. A disabled account and a malformed token both need somebody at the depot; a retry button there teaches a courier that the app is broken.
+
+`SignInController.clear` is what that retry calls. There is nothing to re-send: this controller never holds the credentials it was given, deliberately — keeping them would mean a password in memory for as long as the screen is on the stack. Trying again therefore means asking again.

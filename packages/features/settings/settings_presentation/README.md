@@ -8,7 +8,7 @@ The settings UI: the screen where somebody chooses a language, a palette and wha
 
 **No clock.** A presentation package gets `core_kernel`, `core_navigation`, contracts and Flutter — not `core_ports`. Nothing on this screen needs one.
 
-**No sentences.** Every label is a key: `theme.dark`, not "Dark". The strings belong to the app's localisation, which arrives in phase 7, and writing English here would mean deleting it then. `SettingsScreen.describe` is the one exception, and it exists so that the exhaustive `switch` over `SettingsFailure` lives somewhere the compiler checks it.
+**No sentences.** Every label is a key: `settings.theme.dark`, not "Dark". `SettingsStrings` declares them and an app's `StringCatalogue` answers them. `SettingsScreen.describe` maps the sealed `SettingsFailure` onto one of the same keys — the mapping is checked here, the wording is chosen there.
 
 ## `SettingsSaving` carries what it is saving over
 
@@ -28,7 +28,17 @@ The rows are disabled rather than hidden while that is true. A settings screen t
 
 `core_kernel`, `core_navigation`, `identity_api`, `settings_api`, `flutter`
 
-That list is section 2 of [`docs/DEPENDENCY_RULES.md`](../../../../docs/DEPENDENCY_RULES.md), one row. `design_system` is missing because it does not exist yet; it arrives in phase 7 and this package's plain widgets are what it will replace.
+That list is section 2 of [`docs/DEPENDENCY_RULES.md`](../../../../docs/DEPENDENCY_RULES.md), one row, plus `design_system`.
+
+## `SettingsStrings.all` is derived, not written out
+
+The option keys come from the enums that label them: `for (final policy in SyncPolicy.values) syncPolicy(policy)`. That is what makes the list stay true. Adding a `SyncPolicy` adds a row to the screen *and* a key to `all`, so an app's catalogue coverage test fails until somebody writes the sentence — where a hand-written list would have let the new row ship showing its own key to a person choosing a sync policy.
+
+It is the same reason `offeredLanguages` moved here from the screen: the list of options and the list of keys that label them cannot be allowed to disagree, and the only way to guarantee that is to derive one from the other.
+
+## `describe` and `argumentsFor` are two functions
+
+Which sentence, and what goes in its holes. Only `MalformedPreference` contributes an argument, and folding the two into one record would make the common case — a failure with nothing to substitute — carry an empty map at every call site.
 
 ## What must never live here
 
@@ -36,6 +46,7 @@ That list is section 2 of [`docs/DEPENDENCY_RULES.md`](../../../../docs/DEPENDEN
 - **`core_ports`.** Not on this row. The temptation is a `Clock` for a "last saved" line; the answer is that a use case stamps instants, not a screen.
 - **A `SettingsFacade` this package constructs.** A composition root builds it and hands it over.
 - **A sentence in a widget.** See above.
+- **A `design_tokens` import.** Not on this row. `PeykGapSize.betweenGroups` says what a gap means; the number behind it belongs to the design layer.
 
 ## Code generation
 

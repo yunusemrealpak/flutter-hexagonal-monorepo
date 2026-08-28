@@ -1,0 +1,17 @@
+# Only injectable_generator, and only over lib/src/di/.
+#
+# §4.2 point 6 and rule G4: a package enables the builders it needs and
+# narrows them with generate_for. This app has one generator, and the glob is
+# the DI directory rather than lib/**, because scanning the router and the
+# shell for annotations that are not there is work every build pays for.
+targets:
+  $default:
+    builders:
+      injectable_generator:injectable_builder:
+        enabled: true
+        generate_for:
+          - lib/src/di/**.dart
+      injectable_generator:injectable_config_builder:
+        enabled: true
+        generate_for:
+          - lib/src/di/injection.dart

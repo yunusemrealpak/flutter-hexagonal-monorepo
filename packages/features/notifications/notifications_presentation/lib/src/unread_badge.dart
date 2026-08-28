@@ -1,3 +1,4 @@
+import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 
 import 'inbox_controller.dart';
@@ -10,8 +11,10 @@ import 'inbox_controller.dart';
 /// keeps those screens from having to hold a `NotificationsFacade` of their
 /// own.
 ///
-/// It shows nothing at all when the count is zero. A badge reading "0" is a
-/// badge that has to be looked at to be dismissed.
+/// The zero case and the spoken label both belong to `PeykBadge`: "3 unread"
+/// is a sentence about a component, and Turkish and English disagree about
+/// what happens to the noun after the number. This widget's job is the
+/// subscription, not the grammar.
 final class UnreadBadge extends StatelessWidget {
   /// Creates the badge over [controller].
   const UnreadBadge({required this.controller, super.key});
@@ -22,11 +25,6 @@ final class UnreadBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) => ListenableBuilder(
     listenable: controller,
-    builder: (context, _) => controller.unread == 0
-        ? const SizedBox.shrink()
-        : Semantics(
-            label: 'inbox.unread',
-            child: Text('${controller.unread}'),
-          ),
+    builder: (context, _) => PeykBadge(count: controller.unread),
   );
 }

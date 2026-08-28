@@ -106,6 +106,8 @@ final class StructureRules {
     required this.deepImportScan,
     required this.barrelAllowsDeclarations,
     required this.barrelAllowsPackageReexport,
+    required this.entryPointTypes,
+    required this.entryPointPattern,
     required this.implementationInApiTypes,
     required this.forbiddenClassSuffixes,
     required this.suffixesSkipGenerated,
@@ -119,6 +121,16 @@ final class StructureRules {
 
   /// Whether a barrel may re-export another package's URI. It may not.
   final bool barrelAllowsPackageReexport;
+
+  /// The types whose public surface is an entry point rather than a barrel.
+  ///
+  /// An app has no dependents, so "the public surface is one barrel" answers a
+  /// question nobody asked; what it has instead is one entry point per flavor,
+  /// which Flutter's tooling looks for directly under `lib/`.
+  final Set<PackageType> entryPointTypes;
+
+  /// Which file names count as an entry point in those types.
+  final RegExp entryPointPattern;
 
   /// The types rule S8 applies to.
   final Set<PackageType> implementationInApiTypes;
@@ -512,11 +524,17 @@ final class RuleSet {
     final deepImport = _requireMap(map, 'deep_import');
     final barrel = _requireMap(map, 'barrel');
     final implementation = _requireMap(map, 'implementation_in_api');
+    final entryPoint = _requireMap(map, 'entry_point');
     return StructureRules(
       deepImportScan: _strings(deepImport['scan']),
       barrelAllowsDeclarations: barrel['allow_declarations'] as bool? ?? false,
       barrelAllowsPackageReexport:
           barrel['allow_package_reexport'] as bool? ?? false,
+      entryPointTypes: _resolveTypes(
+        entryPoint['in_types'],
+        entryPoint['except_types'],
+      ),
+      entryPointPattern: RegExp(entryPoint['file_pattern'] as String),
       implementationInApiTypes: _resolveTypes(
         implementation['in_types'],
         implementation['except_types'],

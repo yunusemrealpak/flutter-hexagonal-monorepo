@@ -4,7 +4,7 @@ library;
 import 'dart:async';
 
 import 'package:core_kernel/core_kernel.dart';
-import 'package:flutter/widgets.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:routing_api/routing_api.dart';
@@ -286,8 +286,7 @@ void main() {
       tester,
     ) async {
       await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
+        PeykTheme.wrap(
           child: RouteScreen(controller: controller),
         ),
       );
@@ -295,8 +294,14 @@ void main() {
 
       expect(find.text('Stop s1'), findsOneWidget);
       expect(find.text('Stop s2'), findsOneWidget);
-      expect(find.text('Next'), findsOneWidget);
-      expect(find.textContaining('2 stops, back at'), findsOneWidget);
+      expect(find.text(RoutingStrings.next), findsOneWidget);
+      // The finish time crosses as a UTC instant, not as "17:30". Turning it
+      // into a courier's wall clock needs a timezone and a locale, and only
+      // the app has both.
+      expect(
+        find.textContaining('${RoutingStrings.summary}(stops=2'),
+        findsOneWidget,
+      );
     });
 
     testWidgets('marks a stop that is already forecast late', (tester) async {
@@ -309,29 +314,27 @@ void main() {
       );
 
       await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
+        PeykTheme.wrap(
           child: RouteScreen(controller: controller),
         ),
       );
       await tester.pump();
 
-      expect(find.text('Late'), findsOneWidget);
+      expect(find.text(RoutingStrings.late), findsOneWidget);
     });
 
     testWidgets('records an arrival and moves the marker', (tester) async {
       await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
+        PeykTheme.wrap(
           child: RouteScreen(controller: controller),
         ),
       );
       await tester.pump();
 
-      await tester.tap(find.text('Arrived').first);
+      await tester.tap(find.text(RoutingStrings.arrived).first);
       await tester.pump();
 
-      expect(find.text('Done'), findsOneWidget);
+      expect(find.text(RoutingStrings.done), findsOneWidget);
     });
 
     testWidgets('offers no reordering unless the app allows it', (
@@ -340,28 +343,26 @@ void main() {
       // Defaults to false, so forgetting to think about it fails in the safe
       // direction: a courier cannot rewrite the afternoon a dispatcher planned.
       await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
+        PeykTheme.wrap(
           child: RouteScreen(controller: controller),
         ),
       );
       await tester.pump();
 
-      expect(find.text('Move up'), findsNothing);
+      expect(find.text(RoutingStrings.moveUp), findsNothing);
     });
 
     testWidgets('asks the facade to resequence when a row is moved up', (
       tester,
     ) async {
       await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
+        PeykTheme.wrap(
           child: RouteScreen(controller: controller, reorderable: true),
         ),
       );
       await tester.pump();
 
-      await tester.tap(find.text('Move up'));
+      await tester.tap(find.text(RoutingStrings.moveUp));
       await tester.pump();
 
       expect(facade.resequenced, [
@@ -375,14 +376,13 @@ void main() {
       facade.answersWith(Success(RouteFixtures.plan(const [], const [])));
 
       await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
+        PeykTheme.wrap(
           child: RouteScreen(controller: controller),
         ),
       );
       await tester.pump();
 
-      expect(find.text('Nothing to drive today'), findsOneWidget);
+      expect(find.text(RoutingStrings.nothingToDrive), findsOneWidget);
     });
 
     testWidgets('says nothing has been planned when nothing has', (
@@ -391,26 +391,25 @@ void main() {
       facade.answersWith(const Failed(NoPlan('courier-1')));
 
       await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
+        PeykTheme.wrap(
           child: RouteScreen(controller: controller),
         ),
       );
       await tester.pump();
 
       expect(
-        find.text('No route has been planned for you yet.'),
+        find.text(RoutingStrings.unplanned),
         findsOneWidget,
       );
     });
 
-    test('says something different for every failure', () {
-      // Seven cases, seven sentences — the reason RoutingFailure is a sealed
-      // union rather than a message. "The planner could not be reached" and
-      // "that order does not describe this route" send a courier to different
+    test('asks for a different key for every failure', () {
+      // Seven cases, seven keys — the reason RoutingFailure is a sealed union
+      // rather than a message. "The planner could not be reached" and "that
+      // order does not describe this route" send a courier to different
       // places, and a screen that collapsed them into "something went wrong"
       // is what makes somebody restart an app that is working correctly.
-      final sentences = <RoutingFailure>[
+      final keys = <RoutingFailure>[
         const NoPlan('courier-1'),
         const SequenceDoesNotMatch(reason: 'nothing visits s2'),
         const ConstraintUnsatisfiable(constraint: 'maxStops', reason: 'too'),
@@ -420,7 +419,17 @@ void main() {
         const MalformedRouteValue(field: 'stop.label', reason: 'is empty'),
       ].map(RouteScreen.describe).toList();
 
-      expect(sentences.toSet(), hasLength(7));
+      expect(keys.toSet(), hasLength(7));
+      expect(RoutingStrings.all, containsAll(keys));
+    });
+
+    // The two failures that leave a courier looking at something drivable.
+    // Replacing the stops with an error page for either of them would stop
+    // somebody driving a route that works — it is just not a fresh one.
+    test('a stale route is an advisory, not a failure page', () {
+      expect(RouteScreen.isAdvisory(const PositionUnavailable()), isTrue);
+      expect(RouteScreen.isAdvisory(const RoutingUnavailable()), isTrue);
+      expect(RouteScreen.isAdvisory(const NoPlan('courier-1')), isFalse);
     });
   });
 

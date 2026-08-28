@@ -15,6 +15,7 @@
 library;
 
 export 'src/identity_routes.dart';
+export 'src/identity_strings.dart';
 export 'src/sign_in_controller.dart';
 export 'src/sign_in_screen.dart';
 export 'src/sign_in_state.dart';

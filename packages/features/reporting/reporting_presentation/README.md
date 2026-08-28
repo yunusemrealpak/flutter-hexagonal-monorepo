@@ -20,7 +20,13 @@ This is scenario 6 for the fifth time, and the stand-in in the test suite is the
 
 ## No chart
 
-A chart is the first thing `design_system` will bring in phase 7, and one hand-painted here would be a thing to delete rather than a thing to restyle. The rate is rendered in whole percentage points, because a delivery rate quoted to two decimals invites somebody to treat a change of 0.03 as news.
+`design_system` brought no chart, deliberately: the first chart in a design system is the decision that shapes every chart after it, and this repository has no data to shape it around. Rows and rates are what the numbers actually support.
+
+The rate is whole percentage points, because a delivery rate quoted to two decimals invites somebody to treat a change of 0.03 as news. It crosses to the app as an `int` rather than a string — where the per-cent sign goes is a locale's question, answered once per locale instead of once here.
+
+`ReportScreen.intentOfRate` is where a rate becomes a colour, and the thresholds are reporting's. Eighty-five per cent being the line between "fine" and "look at this" is an operational fact about a courier network; a component library that knew it would be a component library that had learned what a delivery is.
+
+`ReportForbidden` is drawn as an empty view rather than a failure. A courier who opens a dispatcher's report has not hit an error — they have hit a screen that is not theirs, and a retry button would suggest otherwise.
 
 ## What it may depend on
 

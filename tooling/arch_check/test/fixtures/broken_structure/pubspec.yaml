@@ -7,6 +7,7 @@ publish_to: none
 version: 0.0.0
 
 workspace:
+  - apps/app_broken
   - packages/core/core_kernel
   - packages/features/shipments/shipments_api
 

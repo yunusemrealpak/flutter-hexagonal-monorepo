@@ -15,6 +15,7 @@ environment:
 dependencies:
   core_kernel: ^0.1.0
   core_navigation: ^0.1.0
+  design_system: ^0.1.0
   flutter:
     sdk: flutter
   # A foreign _api, which section 2 allows a presentation package. The screen

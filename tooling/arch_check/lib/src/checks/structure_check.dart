@@ -78,10 +78,19 @@ final class StructureCheck implements Check {
   }
 
   /// S1, S2 and S4.
+  ///
+  /// Two shapes, because two kinds of package answer "what is directly under
+  /// lib/" differently. A library package has one barrel named after itself.
+  /// An app has no dependents and therefore no barrel to name — what it has is
+  /// one entry point per flavor, which is what Flutter's tooling looks for.
   Iterable<Violation> _libLayout(
     CheckContext context,
     WorkspacePackage package,
   ) sync* {
+    if (context.rules.structure.entryPointTypes.contains(package.type)) {
+      yield* _entryPointLayout(context, package);
+      return;
+    }
     final barrelName = '${package.name}.dart';
     final lib = Directory(p.join(package.absolutePath, 'lib'));
     final entries =
@@ -117,6 +126,56 @@ final class StructureCheck implements Check {
     }
 
     yield* _barrelContent(context, package, barrelName);
+  }
+
+  /// S1 and S2 for a package whose surface is an entry point.
+  ///
+  /// It requires at least one and permits several: a Flutter app with three
+  /// flavors has `lib/main_dev.dart`, `lib/main_staging.dart` and
+  /// `lib/main_prod.dart`, and every one of them is a target `flutter run -t`
+  /// is given. Anything else directly under `lib/` is a stray file for the
+  /// same reason it is in a library package.
+  ///
+  /// S4 does not apply here at all. An entry point's whole job is to declare
+  /// `main`, so "declares nothing of its own" would forbid the one thing it
+  /// exists for.
+  Iterable<Violation> _entryPointLayout(
+    CheckContext context,
+    WorkspacePackage package,
+  ) sync* {
+    final pattern = context.rules.structure.entryPointPattern;
+    final lib = Directory(p.join(package.absolutePath, 'lib'));
+    final entries =
+        (lib.existsSync()
+              ? lib
+                    .listSync(followLinks: false)
+                    .whereType<File>()
+                    .map((file) => p.basename(file.path))
+                    .where((name) => name.endsWith('.dart'))
+                    .toList()
+              : <String>[])
+          ..sort();
+
+    if (!entries.any(pattern.hasMatch)) {
+      yield Violation(
+        code: 'missing_barrel',
+        location: ViolationLocation(package: package.relativePath),
+        what: 'there is no entry point under lib/ matching ${pattern.pattern}',
+        remedy: context.rules.remedyFor('missing_barrel'),
+      );
+    }
+
+    for (final entry in entries.where((name) => !pattern.hasMatch(name))) {
+      yield Violation(
+        code: 'stray_lib_file',
+        location: ViolationLocation(
+          package: package.relativePath,
+          file: '${package.relativePath}/lib/$entry',
+        ),
+        what: '$entry sits directly under lib/ and is not an entry point',
+        remedy: context.rules.remedyFor('stray_lib_file'),
+      );
+    }
   }
 
   /// S4, in the two shapes a barrel can leak: declaring a type itself, and

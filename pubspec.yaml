@@ -14,10 +14,15 @@ version: 0.0.0
 # added from phase 1 onwards registers its path here and declares
 # `resolution: workspace` in its own pubspec.
 workspace:
+  - apps/app_courier
+  - apps/app_dispatcher
+  - apps/app_harness
   - packages/core/core_kernel
   - packages/core/core_navigation
   - packages/core/core_ports
   - packages/core/core_testing
+  - packages/design/design_system
+  - packages/design/design_tokens
   - packages/features/delivery/delivery_api
   - packages/features/delivery/delivery_application
   - packages/features/delivery/delivery_infrastructure
@@ -138,6 +143,17 @@ melos:
       packageFilters:
         dependsOn: build_runner
 
+    l10n:
+      description: >-
+        Run `flutter gen-l10n` in every package that carries an l10n.yaml —
+        design_system and the three apps. It is the one generator in section
+        4.1 of CLAUDE.md that build_runner does not drive, so it has its own
+        script rather than travelling with `gen`; the staleness gate below
+        runs both.
+      exec: flutter gen-l10n
+      packageFilters:
+        fileExists: l10n.yaml
+
     gen:check:
       description: >-
         Staleness gate. Regenerates the affected packages and fails if the
@@ -145,6 +161,7 @@ melos:
         did not match its source.
       steps:
         - gen
+        - l10n
         - >-
           git diff --exit-code
           || (echo "" && echo "Generated files are stale. Run 'dart run melos run gen', then commit the regenerated files together with their sources." && exit 1)

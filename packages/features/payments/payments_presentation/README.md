@@ -25,7 +25,7 @@ It comes from `PaymentStatus`, so a courier cannot collect a different number fr
 - **`payments_application` or `payments_infrastructure`.**
 - **An input field for money.** See above.
 - **A clock.** This row does not include `core_ports`, and nothing here needs one: the instants a collection carries are stamped by the use case, which has one.
-- **A colour, a spacing value or a currency format of its own.** Those come from `design_system` and the app's localisation in phase 7.
+- **A colour, a spacing value or a currency format of its own.** An amount crosses to the app as three arguments — `minorUnits`, `currency` and `scale` — and never as text. Turning minor units into money needs a locale, and the scale travels with the amount because a currency with three minor-unit digits or none would break any formatter that assumed a hundred. That is the same reason `Currency` carries the scale rather than a bare code.
 
 ## Code generation
 

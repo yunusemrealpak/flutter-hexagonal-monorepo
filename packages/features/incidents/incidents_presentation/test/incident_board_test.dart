@@ -2,6 +2,7 @@
 library;
 
 import 'package:core_kernel/core_kernel.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
@@ -109,8 +110,7 @@ final class _Incidents implements IncidentsFacade {
 ActorId get _courier =>
     (ActorId.parse('courier-7') as Success<ActorId, IdentityFailure>).value;
 
-Widget _wrap(Widget child) =>
-    Directionality(textDirection: TextDirection.ltr, child: child);
+Widget _wrap(Widget child) => PeykTheme.wrap(child: child);
 
 IncidentBoardController _controller(
   _Incidents incidents, {
@@ -137,7 +137,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('incidents.clear'), findsOneWidget);
+    expect(find.text(IncidentsStrings.boardClear), findsOneWidget);
   });
 
   testWidgets('an open incident is drawn with its category and severity', (
@@ -152,10 +152,17 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('incidents.category.accessDenied'), findsOneWidget);
     expect(
-      tester.getSemantics(find.text('incidents.category.accessDenied')).label,
-      contains('incidents.severity.routine'),
+      find.text(IncidentsStrings.category(IncidentCategory.accessDenied)),
+      findsOneWidget,
+    );
+    // Severity is a chip a dispatcher can see, not only a label a screen
+    // reader can hear. That was the change phase 6 said it was waiting for:
+    // severity is the thing read first, and a word only assistive technology
+    // reaches is not read first by anybody.
+    expect(
+      find.text(IncidentsStrings.severity(IncidentSeverity.routine)),
+      findsOneWidget,
     );
   });
 
@@ -171,7 +178,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('The incident log could not be read.'), findsOneWidget);
+    expect(
+      find.text(IncidentsStrings.failureLogUnavailable),
+      findsOneWidget,
+    );
   });
 
   test('an actor without the permission reports nothing', () async {
@@ -213,5 +223,53 @@ void main() {
     await controller.report(category: IncidentCategory.accessDenied);
 
     expect(controller.state, isA<BoardFailed>());
+  });
+
+  group('what IncidentsStrings.all covers', () {
+    // Derived from the enums it labels, so a new category cannot ship showing
+    // its own key on a dispatcher's board.
+    test('every category and severity has a key in it', () {
+      for (final category in IncidentCategory.values) {
+        expect(
+          IncidentsStrings.all,
+          contains(IncidentsStrings.category(category)),
+        );
+      }
+      for (final severity in IncidentSeverity.values) {
+        expect(
+          IncidentsStrings.all,
+          contains(IncidentsStrings.severity(severity)),
+        );
+      }
+    });
+
+    test('every failure maps to a key in it', () {
+      const failures = <IncidentsFailure>[
+        IncidentLogUnavailable(),
+        IncidentMissing('inc-1'),
+        IncidentNotInState(attempted: 'resolve', state: 'closed'),
+        MalformedIncident(field: 'category', reason: 'unreadable'),
+      ];
+
+      for (final failure in failures) {
+        expect(
+          IncidentsStrings.all,
+          contains(IncidentBoardScreen.describe(failure)),
+        );
+      }
+    });
+  });
+
+  test('a critical incident is drawn as danger, a routine one is not', () {
+    // The mapping design_system cannot make: a component knows what danger
+    // looks like, and only incidents knows that "critical" is one.
+    expect(
+      IncidentBoardScreen.intentOf(IncidentSeverity.critical),
+      PeykIntent.danger,
+    );
+    expect(
+      IncidentBoardScreen.intentOf(IncidentSeverity.routine),
+      isNot(PeykIntent.danger),
+    );
   });
 }

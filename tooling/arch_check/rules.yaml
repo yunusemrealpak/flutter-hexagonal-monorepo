@@ -227,6 +227,22 @@ structure:
     allow_declarations: false
     allow_package_reexport: false
 
+  # S1 and S2 have a second shape, and the reason is that they were written for
+  # a package with dependents. An app has none: nothing imports it, so "the
+  # public surface is one barrel named after the package" answers a question
+  # nobody asked. What an app has instead is an entry point — and a Flutter app
+  # with flavors has several, one per flavor, all directly under lib/ because
+  # that is where `flutter run -t` is pointed.
+  #
+  # So for these types the barrel requirement becomes "at least one file
+  # matching the pattern", the stray-file rule keeps its meaning for everything
+  # else, and S4 does not apply at all: an entry point's whole job is to
+  # declare `main`, and "declares nothing of its own" would forbid the one
+  # thing it exists for.
+  entry_point:
+    in_types: [app]
+    file_pattern: '^main(_[a-z0-9]+)*\.dart$'
+
   # S8. A port is declared as `abstract interface class` (CLAUDE.md section 3),
   # so "a class implementing a port declared in the same package" is exact
   # rather than a guess. Sealed failure hierarchies and freezed unions are
@@ -469,11 +485,13 @@ messages:
   missing_barrel: >-
     Add lib/<package_name>.dart and export the package's public surface from
     it. A package with no barrel has no public surface, only files other
-    packages guess at.
+    packages guess at. In an app, the surface is an entry point instead —
+    lib/main.dart, or one lib/main_<flavour>.dart per flavour.
 
   stray_lib_file: >-
     Move the file under lib/src/ and export it from the barrel if it is part of
-    the public surface. Only the barrel lives directly under lib/.
+    the public surface. Only the barrel lives directly under lib/ — or, in an
+    app, only its entry points.
 
   deep_import: >-
     Import the other package's barrel instead. If the type you need is not

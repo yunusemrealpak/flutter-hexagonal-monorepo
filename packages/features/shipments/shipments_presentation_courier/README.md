@@ -30,11 +30,15 @@ The state type is the part that matters. Swapping in a bloc, a cubit or a signal
 
 ## Why the screens are plain
 
-No colours, no typography, no spacing scale. Those come from `design_system` in phase 7, and inventing them here would mean deleting them then. What these widgets demonstrate now is the part that will not change: a screen renders a sealed state exhaustively and reaches nothing but ports.
+Colours, typography and spacing come from `design_system`. What has not changed is the part that never was going to: a screen renders a sealed state exhaustively and reaches nothing but ports.
+
+`CourierManifestScreen.intentOf` is where a shipment status becomes a colour, and it is **not** the mapping the dispatcher's board makes. `undeliverable` is a warning here — the visit is over and the parcel goes back to the depot, which is a normal outcome of a delivery round — and a danger there, because on that screen it is a parcel somebody has to do something about today.
+
+That disagreement is the half of scenario 7 that only two presentation packages can demonstrate. A status is one fact; what it *means to the person looking at it* is two, and neither package could say so if the mapping lived in `shipments_api`.
 
 ## What it may depend on
 
-Own `_api`, other features' `_api`, `core_kernel`, `core_navigation`, `design_system` (from phase 7), and the Flutter SDK.
+Own `_api`, other features' `_api`, `core_kernel`, `core_navigation`, `design_system`, and the Flutter SDK.
 
 ## What must never live here
 

@@ -31,6 +31,7 @@
 library;
 
 export 'src/delivery_routes.dart';
+export 'src/delivery_strings.dart';
 export 'src/proof_capture_controller.dart';
 export 'src/proof_capture_screen.dart';
 export 'src/proof_capture_state.dart';

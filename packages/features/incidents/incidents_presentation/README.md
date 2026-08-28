@@ -20,7 +20,11 @@ The controller checks it a **second time** before reporting, and that is not bel
 
 ## Severity is a semantics label, for now
 
-`design_system` arrives in phase 7, and severity is the one thing on this screen that a dispatcher reads first — which in a finished product means colour. Until the tokens exist, it is a semantics label: readable by a test and by a screen reader, and impossible to mistake for a design decision that was made.
+Severity is the one thing on this screen a dispatcher reads first, and phase 7 is where it became something they can. It was a semantics label until then — readable by a test and by a screen reader, and impossible to mistake for a design decision that had been made — and it is now a `PeykChip` carrying both a word and an intent.
+
+`IncidentBoardScreen.intentOf` is where that intent is decided, and it is the mapping `design_system` deliberately cannot make: a component knows what `danger` looks like, and only `incidents` knows that a critical incident is one. It is the same boundary that keeps `IncidentSeverity` from borrowing delivery's `NonDeliveryReason` — that union answers why a visit ended, this one answers how fast somebody has to move.
+
+The chip keeps its word. A board where urgency is only a hue is a board one dispatcher in twelve cannot sort.
 
 ## What it may depend on
 

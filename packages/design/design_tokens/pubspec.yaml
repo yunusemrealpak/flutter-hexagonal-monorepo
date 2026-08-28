@@ -1,0 +1,24 @@
+name: design_tokens
+description: >-
+  The product's design decisions as values: a palette, a spacing scale, a type
+  scale, corner radii, motion durations and layout breakpoints. No widget, no
+  theme, no component.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+# The narrowest row in section 2 of docs/DEPENDENCY_RULES.md after core_kernel:
+# the Flutter SDK and nothing else — not core_kernel, not one third-party
+# package. A token is a value somebody chose; the moment this package can
+# import something, the values start having opinions about it.
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

@@ -1,0 +1,655 @@
+{
+  "@@locale": "en",
+  "identitySignInTitle": "Sign in",
+  "@identitySignInTitle": {
+    "description": "The sentence behind \"identity.signIn.title\"."
+  },
+  "identitySignInIdle": "Sign in to open the board.",
+  "@identitySignInIdle": {
+    "description": "The sentence behind \"identity.signIn.idle\"."
+  },
+  "identitySignInPending": "Signing you in",
+  "@identitySignInPending": {
+    "description": "The sentence behind \"identity.signIn.pending\"."
+  },
+  "identitySignedInAs": "Signed in as {name}",
+  "@identitySignedInAs": {
+    "description": "The sentence behind \"identity.signIn.signedInAs\".",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "identityFailureRejected": "Those details did not work. Check them and try again.",
+  "@identityFailureRejected": {
+    "description": "The sentence behind \"identity.failure.rejected\"."
+  },
+  "identityFailureDeviceChanged": "This workstation has changed. Sign in again.",
+  "@identityFailureDeviceChanged": {
+    "description": "The sentence behind \"identity.failure.deviceChanged\"."
+  },
+  "identityFailureSessionEnded": "Your session ended. Sign in again.",
+  "@identityFailureSessionEnded": {
+    "description": "The sentence behind \"identity.failure.sessionEnded\"."
+  },
+  "identityFailureDisabled": "This account is not active. Ask an administrator.",
+  "@identityFailureDisabled": {
+    "description": "The sentence behind \"identity.failure.disabled\"."
+  },
+  "identityFailureUnavailable": "The identity service did not answer. Try again.",
+  "@identityFailureUnavailable": {
+    "description": "The sentence behind \"identity.failure.unavailable\"."
+  },
+  "identityFailureInternal": "Something went wrong signing you in. Call the depot.",
+  "@identityFailureInternal": {
+    "description": "The sentence behind \"identity.failure.internal\"."
+  },
+  "shipmentsStatusAwaitingAssignment": "Unassigned",
+  "@shipmentsStatusAwaitingAssignment": {
+    "description": "The sentence behind \"shipments.status.awaitingAssignment\"."
+  },
+  "shipmentsStatusAssignedToCourier": "Assigned",
+  "@shipmentsStatusAssignedToCourier": {
+    "description": "The sentence behind \"shipments.status.assignedToCourier\"."
+  },
+  "shipmentsStatusLoadedOnVehicle": "On the van",
+  "@shipmentsStatusLoadedOnVehicle": {
+    "description": "The sentence behind \"shipments.status.loadedOnVehicle\"."
+  },
+  "shipmentsStatusOutForDelivery": "Out for delivery",
+  "@shipmentsStatusOutForDelivery": {
+    "description": "The sentence behind \"shipments.status.outForDelivery\"."
+  },
+  "shipmentsStatusDelivered": "Delivered",
+  "@shipmentsStatusDelivered": {
+    "description": "The sentence behind \"shipments.status.deliveredToConsignee\"."
+  },
+  "shipmentsStatusUndeliverable": "Not delivered",
+  "@shipmentsStatusUndeliverable": {
+    "description": "The sentence behind \"shipments.status.undeliverable\"."
+  },
+  "shipmentsStatusReturned": "Back at the depot",
+  "@shipmentsStatusReturned": {
+    "description": "The sentence behind \"shipments.status.returnedToDepot\"."
+  },
+  "routingTitle": "Courier route",
+  "@routingTitle": {
+    "description": "The sentence behind \"routing.title\"."
+  },
+  "routingUnplanned": "No route has been planned for this courier yet.",
+  "@routingUnplanned": {
+    "description": "The sentence behind \"routing.unplanned\"."
+  },
+  "routingNothingToDrive": "This courier has nothing to drive today.",
+  "@routingNothingToDrive": {
+    "description": "The sentence behind \"routing.nothingToDrive\"."
+  },
+  "routingSummary": "{stops} stops, back at {finishesAt}",
+  "@routingSummary": {
+    "description": "The sentence behind \"routing.summary\".",
+    "placeholders": {
+      "stops": {
+        "type": "int"
+      },
+      "finishesAt": {
+        "type": "DateTime",
+        "format": "Hm"
+      }
+    }
+  },
+  "routingStopArrivesAt": "Arrives {arrivesAt}",
+  "@routingStopArrivesAt": {
+    "description": "The sentence behind \"routing.stop.arrivesAt\".",
+    "placeholders": {
+      "arrivesAt": {
+        "type": "DateTime",
+        "format": "Hm"
+      }
+    }
+  },
+  "routingStopNext": "Next",
+  "@routingStopNext": {
+    "description": "The sentence behind \"routing.stop.next\"."
+  },
+  "routingStopLate": "Late",
+  "@routingStopLate": {
+    "description": "The sentence behind \"routing.stop.late\"."
+  },
+  "routingStopDone": "Done",
+  "@routingStopDone": {
+    "description": "The sentence behind \"routing.stop.done\"."
+  },
+  "routingStopArrived": "Mark arrived",
+  "@routingStopArrived": {
+    "description": "The sentence behind \"routing.stop.arrived\"."
+  },
+  "routingStopMoveUp": "Move up",
+  "@routingStopMoveUp": {
+    "description": "The sentence behind \"routing.stop.moveUp\"."
+  },
+  "routingFailureNoPlan": "No route has been planned for this courier yet.",
+  "@routingFailureNoPlan": {
+    "description": "The sentence behind \"routing.failure.noPlan\"."
+  },
+  "routingFailureSequenceMismatch": "That order does not describe this route.",
+  "@routingFailureSequenceMismatch": {
+    "description": "The sentence behind \"routing.failure.sequenceMismatch\"."
+  },
+  "routingFailureUnsatisfiable": "These stops cannot all be fitted in.",
+  "@routingFailureUnsatisfiable": {
+    "description": "The sentence behind \"routing.failure.unsatisfiable\"."
+  },
+  "routingFailureNotGeocoded": "One stop has no location: {address}",
+  "@routingFailureNotGeocoded": {
+    "description": "The sentence behind \"routing.failure.notGeocoded\".",
+    "placeholders": {
+      "address": {
+        "type": "String"
+      }
+    }
+  },
+  "routingFailurePositionUnavailable": "No position reported. This is the route as planned.",
+  "@routingFailurePositionUnavailable": {
+    "description": "The sentence behind \"routing.failure.positionUnavailable\"."
+  },
+  "routingFailurePlannerUnavailable": "The solver did not answer. This route is the last one it returned.",
+  "@routingFailurePlannerUnavailable": {
+    "description": "The sentence behind \"routing.failure.plannerUnavailable\"."
+  },
+  "routingFailureMalformed": "Something is wrong with {field}.",
+  "@routingFailureMalformed": {
+    "description": "The sentence behind \"routing.failure.malformed\".",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentsTitle": "Collection",
+  "@paymentsTitle": {
+    "description": "The sentence behind \"payments.title\"."
+  },
+  "paymentsNothingOwed": "Nothing to collect on this parcel.",
+  "@paymentsNothingOwed": {
+    "description": "The sentence behind \"payments.nothingOwed\"."
+  },
+  "paymentsOwed": "Owed {minorUnits} {currency}",
+  "@paymentsOwed": {
+    "description": "The sentence behind \"payments.owed\".",
+    "placeholders": {
+      "minorUnits": {
+        "type": "int"
+      },
+      "currency": {
+        "type": "String"
+      },
+      "scale": {
+        "type": "int"
+      }
+    }
+  },
+  "paymentsTaken": "Taken {minorUnits} {currency}",
+  "@paymentsTaken": {
+    "description": "The sentence behind \"payments.taken\".",
+    "placeholders": {
+      "minorUnits": {
+        "type": "int"
+      },
+      "currency": {
+        "type": "String"
+      },
+      "scale": {
+        "type": "int"
+      }
+    }
+  },
+  "paymentsTakingBy": "Taking by {method}",
+  "@paymentsTakingBy": {
+    "description": "The sentence behind \"payments.takingBy\".",
+    "placeholders": {
+      "method": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentsMethodCash": "Cash",
+  "@paymentsMethodCash": {
+    "description": "The sentence behind \"payments.method.cash\"."
+  },
+  "paymentsMethodCard": "Card",
+  "@paymentsMethodCard": {
+    "description": "The sentence behind \"payments.method.card\"."
+  },
+  "paymentsCollect": "Record payment",
+  "@paymentsCollect": {
+    "description": "The sentence behind \"payments.collect\"."
+  },
+  "paymentsFailureRefused": "Refused: {reason}",
+  "@paymentsFailureRefused": {
+    "description": "The sentence behind \"payments.failure.refused\".",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentsFailureCashDrawer": "The cash record could not be updated.",
+  "@paymentsFailureCashDrawer": {
+    "description": "The sentence behind \"payments.failure.cashDrawerUnavailable\"."
+  },
+  "paymentsFailureUnavailable": "The payments service did not answer.",
+  "@paymentsFailureUnavailable": {
+    "description": "The sentence behind \"payments.failure.unavailable\"."
+  },
+  "paymentsFailureAlreadySettled": "This payment has already been taken.",
+  "@paymentsFailureAlreadySettled": {
+    "description": "The sentence behind \"payments.failure.alreadySettled\"."
+  },
+  "paymentsFailureNothingToCollect": "There is nothing to collect on this parcel.",
+  "@paymentsFailureNothingToCollect": {
+    "description": "The sentence behind \"payments.failure.nothingToCollect\"."
+  },
+  "paymentsFailureRefundNotPossible": "Cannot refund: {reason}",
+  "@paymentsFailureRefundNotPossible": {
+    "description": "The sentence behind \"payments.failure.refundNotPossible\".",
+    "placeholders": {
+      "reason": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentsFailureSettlementUnavailable": "Your day's total could not be read.",
+  "@paymentsFailureSettlementUnavailable": {
+    "description": "The sentence behind \"payments.failure.settlementUnavailable\"."
+  },
+  "paymentsFailureSettlementClosed": "Your day is already handed in.",
+  "@paymentsFailureSettlementClosed": {
+    "description": "The sentence behind \"payments.failure.settlementClosed\"."
+  },
+  "paymentsFailureCurrencyMismatch": "This is in {actual} and the collection is in {expected}.",
+  "@paymentsFailureCurrencyMismatch": {
+    "description": "The sentence behind \"payments.failure.currencyMismatch\".",
+    "placeholders": {
+      "expected": {
+        "type": "int"
+      },
+      "actual": {
+        "type": "String"
+      }
+    }
+  },
+  "paymentsFailureMalformed": "Something is wrong with {field}.",
+  "@paymentsFailureMalformed": {
+    "description": "The sentence behind \"payments.failure.malformed\".",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "syncReviewTitle": "Stuck work",
+  "@syncReviewTitle": {
+    "description": "The sentence behind \"sync.review.title\"."
+  },
+  "syncReviewEmpty": "Nothing needs a decision.",
+  "@syncReviewEmpty": {
+    "description": "The sentence behind \"sync.review.empty\"."
+  },
+  "syncReviewRetry": "Try again",
+  "@syncReviewRetry": {
+    "description": "The sentence behind \"sync.review.retry\"."
+  },
+  "syncReviewAttempts": "{count, plural, =1{1 attempt} other{{count} attempts}}",
+  "@syncReviewAttempts": {
+    "description": "The sentence behind \"sync.review.attempts\".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncStatusIdle": "Everything is sent",
+  "@syncStatusIdle": {
+    "description": "The sentence behind \"sync.status.idle\"."
+  },
+  "syncStatusDraining": "Sending {count}",
+  "@syncStatusDraining": {
+    "description": "The sentence behind \"sync.status.draining\".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncStatusWaitingForNetwork": "{count} waiting for the service",
+  "@syncStatusWaitingForNetwork": {
+    "description": "The sentence behind \"sync.status.waitingForNetwork\".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncStatusWaitingToRetry": "{count} will be retried",
+  "@syncStatusWaitingToRetry": {
+    "description": "The sentence behind \"sync.status.waitingToRetry\".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncStatusBlocked": "{count} need you",
+  "@syncStatusBlocked": {
+    "description": "The sentence behind \"sync.status.blocked\".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "syncFailureOffline": "The service did not answer. This list may be stale.",
+  "@syncFailureOffline": {
+    "description": "The sentence behind \"sync.failure.offline\"."
+  },
+  "syncFailureOutboxUnavailable": "The queue could not be read.",
+  "@syncFailureOutboxUnavailable": {
+    "description": "The sentence behind \"sync.failure.outboxUnavailable\"."
+  },
+  "syncFailureOther": "Something went wrong. Try again.",
+  "@syncFailureOther": {
+    "description": "The sentence behind \"sync.failure.other\"."
+  },
+  "settingsTitle": "Settings",
+  "@settingsTitle": {
+    "description": "The sentence behind \"settings.title\"."
+  },
+  "settingsLanguageSection": "Language",
+  "@settingsLanguageSection": {
+    "description": "The sentence behind \"settings.language.section\"."
+  },
+  "settingsThemeSection": "Appearance",
+  "@settingsThemeSection": {
+    "description": "The sentence behind \"settings.theme.section\"."
+  },
+  "settingsSyncSection": "When couriers send",
+  "@settingsSyncSection": {
+    "description": "The sentence behind \"settings.sync.section\"."
+  },
+  "settingsLanguageTr": "Türkçe",
+  "@settingsLanguageTr": {
+    "description": "The sentence behind \"settings.language.tr\"."
+  },
+  "settingsThemeSystem": "Follow the phone",
+  "@settingsThemeSystem": {
+    "description": "The sentence behind \"settings.theme.system\"."
+  },
+  "settingsThemeLight": "Light",
+  "@settingsThemeLight": {
+    "description": "The sentence behind \"settings.theme.light\"."
+  },
+  "settingsThemeDark": "Dark",
+  "@settingsThemeDark": {
+    "description": "The sentence behind \"settings.theme.dark\"."
+  },
+  "settingsSyncAlways": "Always",
+  "@settingsSyncAlways": {
+    "description": "The sentence behind \"settings.sync.always\"."
+  },
+  "settingsSyncUnmeteredOnly": "Only on Wi-Fi",
+  "@settingsSyncUnmeteredOnly": {
+    "description": "The sentence behind \"settings.sync.unmeteredOnly\"."
+  },
+  "settingsSyncManual": "Only when I say",
+  "@settingsSyncManual": {
+    "description": "The sentence behind \"settings.sync.manual\"."
+  },
+  "settingsFailureUnavailable": "Your settings could not be reached.",
+  "@settingsFailureUnavailable": {
+    "description": "The sentence behind \"settings.failure.unavailable\"."
+  },
+  "settingsFailureCorrupted": "Your settings could not be read.",
+  "@settingsFailureCorrupted": {
+    "description": "The sentence behind \"settings.failure.corrupted\"."
+  },
+  "settingsFailureMalformed": "That {field} cannot be used.",
+  "@settingsFailureMalformed": {
+    "description": "The sentence behind \"settings.failure.malformed\".",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "notificationsInboxTitle": "Operation notices",
+  "@notificationsInboxTitle": {
+    "description": "The sentence behind \"notifications.inbox.title\"."
+  },
+  "notificationsInboxEmpty": "Nothing from the field.",
+  "@notificationsInboxEmpty": {
+    "description": "The sentence behind \"notifications.inbox.empty\"."
+  },
+  "notificationsFailureUnavailable": "Your alerts could not be read.",
+  "@notificationsFailureUnavailable": {
+    "description": "The sentence behind \"notifications.failure.unavailable\"."
+  },
+  "notificationsFailureMissing": "That alert is no longer here.",
+  "@notificationsFailureMissing": {
+    "description": "The sentence behind \"notifications.failure.missing\"."
+  },
+  "notificationsFailureRefused": "Alerts are not available at a desk. Read them here instead.",
+  "@notificationsFailureRefused": {
+    "description": "The sentence behind \"notifications.failure.refused\"."
+  },
+  "notificationsFailureBlocked": "Alerts are not available at a desk. Read them here instead.",
+  "@notificationsFailureBlocked": {
+    "description": "The sentence behind \"notifications.failure.blocked\"."
+  },
+  "notificationsFailureUnreachable": "Alerts are not available at a desk.",
+  "@notificationsFailureUnreachable": {
+    "description": "The sentence behind \"notifications.failure.unreachable\"."
+  },
+  "notificationsFailureMalformed": "An alert could not be read.",
+  "@notificationsFailureMalformed": {
+    "description": "The sentence behind \"notifications.failure.malformed\"."
+  },
+  "incidentsBoardTitle": "Open problems",
+  "@incidentsBoardTitle": {
+    "description": "The sentence behind \"incidents.board.title\"."
+  },
+  "incidentsBoardClear": "Nothing open across the operation.",
+  "@incidentsBoardClear": {
+    "description": "The sentence behind \"incidents.board.clear\"."
+  },
+  "incidentsCategoryDamage": "Damaged",
+  "@incidentsCategoryDamage": {
+    "description": "The sentence behind \"incidents.category.damage\"."
+  },
+  "incidentsCategoryAddressNotFound": "Address not found",
+  "@incidentsCategoryAddressNotFound": {
+    "description": "The sentence behind \"incidents.category.addressNotFound\"."
+  },
+  "incidentsCategoryRecipientUnavailable": "Nobody there",
+  "@incidentsCategoryRecipientUnavailable": {
+    "description": "The sentence behind \"incidents.category.recipientUnavailable\"."
+  },
+  "incidentsCategoryAccessDenied": "Could not get in",
+  "@incidentsCategoryAccessDenied": {
+    "description": "The sentence behind \"incidents.category.accessDenied\"."
+  },
+  "incidentsCategoryFieldEmergency": "Emergency",
+  "@incidentsCategoryFieldEmergency": {
+    "description": "The sentence behind \"incidents.category.fieldEmergency\"."
+  },
+  "incidentsCategoryUnclassified": "Something else",
+  "@incidentsCategoryUnclassified": {
+    "description": "The sentence behind \"incidents.category.unclassified\"."
+  },
+  "incidentsSeverityRoutine": "Routine",
+  "@incidentsSeverityRoutine": {
+    "description": "The sentence behind \"incidents.severity.routine\"."
+  },
+  "incidentsSeverityUrgent": "Urgent",
+  "@incidentsSeverityUrgent": {
+    "description": "The sentence behind \"incidents.severity.urgent\"."
+  },
+  "incidentsSeverityCritical": "Critical",
+  "@incidentsSeverityCritical": {
+    "description": "The sentence behind \"incidents.severity.critical\"."
+  },
+  "incidentsFailureLogUnavailable": "The problem list could not be read.",
+  "@incidentsFailureLogUnavailable": {
+    "description": "The sentence behind \"incidents.failure.logUnavailable\"."
+  },
+  "incidentsFailureMissing": "That problem is no longer open.",
+  "@incidentsFailureMissing": {
+    "description": "The sentence behind \"incidents.failure.missing\"."
+  },
+  "incidentsFailureNotInState": "This cannot be {attempted} now.",
+  "@incidentsFailureNotInState": {
+    "description": "The sentence behind \"incidents.failure.notInState\".",
+    "placeholders": {
+      "attempted": {
+        "type": "String"
+      }
+    }
+  },
+  "incidentsFailureMalformed": "Something is wrong with the {field}.",
+  "@incidentsFailureMalformed": {
+    "description": "The sentence behind \"incidents.failure.malformed\".",
+    "placeholders": {
+      "field": {
+        "type": "String"
+      }
+    }
+  },
+  "messagingThreadTitle": "Conversation",
+  "@messagingThreadTitle": {
+    "description": "The sentence behind \"messaging.thread.title\"."
+  },
+  "messagingThreadEmpty": "Nothing said yet.",
+  "@messagingThreadEmpty": {
+    "description": "The sentence behind \"messaging.thread.empty\"."
+  },
+  "messagingThreadQueued": "{count} waiting to send",
+  "@messagingThreadQueued": {
+    "description": "The sentence behind \"messaging.thread.queued\".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "messagingStatusQueued": "Waiting",
+  "@messagingStatusQueued": {
+    "description": "The sentence behind \"messaging.status.queued\"."
+  },
+  "messagingStatusSent": "Sent",
+  "@messagingStatusSent": {
+    "description": "The sentence behind \"messaging.status.sent\"."
+  },
+  "messagingStatusRead": "Read",
+  "@messagingStatusRead": {
+    "description": "The sentence behind \"messaging.status.read\"."
+  },
+  "messagingFailureThread": "This conversation could not be opened.",
+  "@messagingFailureThread": {
+    "description": "The sentence behind \"messaging.failure.threadUnavailable\"."
+  },
+  "messagingFailureDeferred": "Waiting for a connection.",
+  "@messagingFailureDeferred": {
+    "description": "The sentence behind \"messaging.failure.deferred\"."
+  },
+  "messagingFailureRefused": "The service would not take that message.",
+  "@messagingFailureRefused": {
+    "description": "The sentence behind \"messaging.failure.refused\"."
+  },
+  "messagingFailureMissing": "That message is no longer here.",
+  "@messagingFailureMissing": {
+    "description": "The sentence behind \"messaging.failure.missing\"."
+  },
+  "messagingFailureMalformed": "That message cannot be sent.",
+  "@messagingFailureMalformed": {
+    "description": "The sentence behind \"messaging.failure.malformed\"."
+  },
+  "shipmentsDispatcherTitle": "The board",
+  "@shipmentsDispatcherTitle": {
+    "description": "The sentence behind \"shipments.dispatcher.title\"."
+  },
+  "shipmentsDispatcherEmpty": "Nothing on the board.",
+  "@shipmentsDispatcherEmpty": {
+    "description": "The sentence behind \"shipments.dispatcher.empty\"."
+  },
+  "shipmentsDispatcherBulkAssign": "{count, plural, =0{Assign} =1{Assign 1 parcel} other{Assign {count} parcels}}",
+  "@shipmentsDispatcherBulkAssign": {
+    "description": "The sentence behind \"shipments.dispatcher.bulkAssign\".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "shipmentsDispatcherFailureUnavailable": "The board could not be loaded.",
+  "@shipmentsDispatcherFailureUnavailable": {
+    "description": "The sentence behind \"shipments.dispatcher.failure.unavailable\"."
+  },
+  "reportsTitle": "The day",
+  "@reportsTitle": {
+    "description": "The sentence behind \"reports.title\"."
+  },
+  "reportsForbidden": "This report is not yours to read.",
+  "@reportsForbidden": {
+    "description": "The sentence behind \"reports.forbidden\"."
+  },
+  "reportsTotalsSection": "Totals",
+  "@reportsTotalsSection": {
+    "description": "The sentence behind \"reports.totals.section\"."
+  },
+  "reportsTotal": "{count} shipments",
+  "@reportsTotal": {
+    "description": "The sentence behind \"reports.total\".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "reportsDelivered": "{count} delivered",
+  "@reportsDelivered": {
+    "description": "The sentence behind \"reports.delivered\".",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "reportsDaysSection": "By day",
+  "@reportsDaysSection": {
+    "description": "The sentence behind \"reports.days.section\"."
+  },
+  "reportsDayRate": "{rate}%",
+  "@reportsDayRate": {
+    "description": "The sentence behind \"reports.day.rate\".",
+    "placeholders": {
+      "day": {
+        "type": "String"
+      },
+      "rate": {
+        "type": "int"
+      }
+    }
+  },
+  "reportsFailureTally": "The figures could not be read.",
+  "@reportsFailureTally": {
+    "description": "The sentence behind \"reports.failure.tallyUnavailable\"."
+  },
+  "reportsFailureRange": "That range starts after it ends.",
+  "@reportsFailureRange": {
+    "description": "The sentence behind \"reports.failure.rangeInverted\"."
+  },
+  "reportsFailureMalformed": "Some of the stored figures could not be read.",
+  "@reportsFailureMalformed": {
+    "description": "The sentence behind \"reports.failure.malformed\"."
+  }
+}

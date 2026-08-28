@@ -24,7 +24,19 @@ They answer different questions and change at different times: the badge follows
 
 `core_kernel`, `core_navigation`, `identity_api`, `notifications_api`, `flutter`
 
-That list is section 2 of [`docs/DEPENDENCY_RULES.md`](../../../../docs/DEPENDENCY_RULES.md), one row. `notifications_core` is not on it, and neither is `platform/push_messaging` — the screen knows what an alert *is*, not how it arrived. `design_system` arrives in phase 7 and is what these plain widgets will be replaced with.
+That list is section 2 of [`docs/DEPENDENCY_RULES.md`](../../../../docs/DEPENDENCY_RULES.md), one row. `notifications_core` is not on it, and neither is `platform/push_messaging` — the screen knows what an alert *is*, not how it arrived.
+
+## Keys, not sentences
+
+`NotificationsStrings` declares every key this package asks an app to answer, and `InboxScreen.describe` maps each case of the sealed `NotificationsFailure` onto one of them. The mapping is checked by the compiler here; the wording is chosen by whichever app mounted the screen, through the `StringCatalogue` it installs.
+
+That split is why `app_courier` can say "No signal, try again in a moment" to somebody in a van while `app_dispatcher` says "The service did not answer" to somebody at a desk on ethernet — the same failure, two audiences, and one exhaustive `switch`.
+
+`NotificationsStrings.all` is what an app's catalogue coverage test walks. It is a floor rather than a proof: an `InboxEntry` carries a subject key chosen by whatever raised the alert, and that set is data rather than source.
+
+## `InboxScreen.canRetry` exists so the retry button can be absent
+
+`AlertsRefused` and `AlertsBlocked` are not fixed by reading again — the fix is in the operating system's settings. `PeykFailureView` draws no button when there is nothing for it to do, because an action that cannot help is worse than no action: somebody taps it, nothing changes, and they conclude the app is broken rather than that alerts are switched off.
 
 ## What must never live here
 

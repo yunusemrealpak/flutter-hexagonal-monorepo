@@ -31,3 +31,4 @@ export 'src/collection_controller.dart';
 export 'src/collection_screen.dart';
 export 'src/collection_state.dart';
 export 'src/payments_routes.dart';
+export 'src/payments_strings.dart';

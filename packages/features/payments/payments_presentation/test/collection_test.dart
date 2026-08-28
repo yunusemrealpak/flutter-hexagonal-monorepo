@@ -2,6 +2,7 @@
 library;
 
 import 'package:core_kernel/core_kernel.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
@@ -220,8 +221,7 @@ void main() {
     }) {
       final built = _controller(facade, granted: granted);
       addTearDown(built.dispose);
-      return Directionality(
-        textDirection: TextDirection.ltr,
+      return PeykTheme.wrap(
         child: CollectionScreen(
           controller: built,
           shipment: PaymentsFixtures.shipment(),
@@ -237,7 +237,13 @@ void main() {
       await tester.pumpWidget(screen());
       await tester.pump();
 
-      expect(find.text('Owed 45.00 TRY'), findsOneWidget);
+      expect(
+        find.text(
+          '${PaymentsStrings.owed}'
+          '(minorUnits=4500, currency=TRY, scale=2)',
+        ),
+        findsOneWidget,
+      );
     });
 
     testWidgets('hides the action without the grant', (tester) async {
@@ -246,8 +252,8 @@ void main() {
       await tester.pumpWidget(screen(granted: const {}));
       await tester.pump();
 
-      expect(find.text('Take payment'), findsNothing);
-      expect(find.text('Cash'), findsOneWidget);
+      expect(find.text(PaymentsStrings.collect), findsNothing);
+      expect(find.text(PaymentsStrings.methodCash), findsOneWidget);
     });
 
     testWidgets('takes the money when the row is tapped', (tester) async {
@@ -256,10 +262,13 @@ void main() {
       await tester.pumpWidget(screen());
       await tester.pump();
 
-      await tester.tap(find.text('Take payment'));
+      await tester.tap(find.text(PaymentsStrings.collect));
       await tester.pump();
 
-      expect(find.textContaining('Taken 45.00 TRY'), findsOneWidget);
+      expect(
+        find.textContaining(PaymentsStrings.taken),
+        findsOneWidget,
+      );
     });
 
     testWidgets('says there is nothing to collect on a prepaid parcel', (
@@ -268,20 +277,29 @@ void main() {
       await tester.pumpWidget(screen());
       await tester.pump();
 
-      expect(find.text('Nothing to collect'), findsOneWidget);
+      expect(find.text(PaymentsStrings.nothingOwed), findsOneWidget);
     });
 
-    test('renders minor units without a float anywhere', () {
-      // The one place in the feature where an amount becomes a decimal, using
-      // the currency's own scale rather than an assumed hundred.
-      expect(CollectionScreen.render(PaymentsFixtures.lira(4500)), '45.00 TRY');
-      expect(CollectionScreen.render(PaymentsFixtures.lira(5)), '0.05 TRY');
-      expect(CollectionScreen.render(PaymentsFixtures.lira(0)), '0.00 TRY');
+    test('an amount crosses as minor units, a code and a scale', () {
+      // No formatting and no float. Turning minor units into money needs a
+      // locale, and the scale travels with the amount because a currency with
+      // three minor-unit digits or none would break any formatter that
+      // assumed a hundred.
+      expect(CollectionScreen.amountArguments(PaymentsFixtures.lira(4500)), {
+        'minorUnits': 4500,
+        'currency': 'TRY',
+        'scale': 2,
+      });
+      expect(CollectionScreen.amountArguments(PaymentsFixtures.lira(0)), {
+        'minorUnits': 0,
+        'currency': 'TRY',
+        'scale': 2,
+      });
     });
 
-    test('says something different for every failure', () {
-      // Ten cases, ten sentences — the reason PaymentsFailure is sealed.
-      final sentences = <PaymentsFailure>[
+    test('asks for a different key for every failure', () {
+      // Ten cases, ten keys — the reason PaymentsFailure is sealed.
+      final keys = <PaymentsFailure>[
         const CollectionRefused(reason: 'insufficient funds'),
         const CashDrawerUnavailable(),
         const PaymentsUnavailable(),
@@ -294,7 +312,21 @@ void main() {
         const MalformedPaymentValue(field: 'money', reason: 'is negative'),
       ].map(CollectionScreen.describe).toList();
 
-      expect(sentences.toSet(), hasLength(10));
+      expect(keys.toSet(), hasLength(10));
+      expect(PaymentsStrings.all, containsAll(keys));
+    });
+
+    // Money is where a wrong retry costs the most. A payment already taken
+    // must not offer a button that would take it twice.
+    test('a settled payment offers no retry', () {
+      expect(CollectionScreen.canRetry(const AlreadySettled('pay-1')), isFalse);
+      expect(
+        CollectionScreen.canRetry(
+          const CollectionRefused(reason: 'insufficient funds'),
+        ),
+        isFalse,
+      );
+      expect(CollectionScreen.canRetry(const PaymentsUnavailable()), isTrue);
     });
   });
 

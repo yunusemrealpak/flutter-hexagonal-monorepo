@@ -13,14 +13,16 @@
 /// other would make every arriving alert redraw a list nobody is looking at.
 ///
 /// **Nothing here renders a sentence.** An `InboxEntry` carries a localisation
-/// key and its arguments; the strings belong to the app, which arrives in
-/// phase 7. `InboxScreen.describe` is the one exception, and it exists so the
-/// exhaustive `switch` over `NotificationsFailure` lives where the compiler
-/// checks it.
+/// key and its arguments, `NotificationsStrings` declares the keys this
+/// package asks for, and `InboxScreen.describe` maps a sealed failure onto one
+/// of them. All three are resolved through the `StringCatalogue` an app
+/// installs, so the mapping is checked by the compiler here and the wording is
+/// chosen there.
 library;
 
 export 'src/inbox_controller.dart';
 export 'src/inbox_screen.dart';
 export 'src/inbox_state.dart';
 export 'src/notifications_routes.dart';
+export 'src/notifications_strings.dart';
 export 'src/unread_badge.dart';

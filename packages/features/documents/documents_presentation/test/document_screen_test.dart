@@ -2,6 +2,7 @@
 library;
 
 import 'package:core_kernel/core_kernel.dart';
+import 'package:design_system/design_system.dart';
 import 'package:documents_api/documents_api.dart';
 import 'package:documents_presentation/documents_presentation.dart';
 import 'package:flutter/widgets.dart';
@@ -53,8 +54,7 @@ final class _Documents implements DocumentsFacade {
   }
 }
 
-Widget _wrap(Widget child) =>
-    Directionality(textDirection: TextDirection.ltr, child: child);
+Widget _wrap(Widget child) => PeykTheme.wrap(child: child);
 
 void main() {
   late _Documents documents;
@@ -76,8 +76,14 @@ void main() {
     await tester.pumpWidget(_wrap(DocumentScreen(controller: controller())));
     await tester.pumpAndSettle();
 
-    expect(find.text('documents.kind.waybill'), findsOneWidget);
-    expect(find.text('4'), findsOneWidget);
+    expect(
+      find.text(DocumentsStrings.kind(DocumentKind.waybill)),
+      findsOneWidget,
+    );
+    // A key with the byte count in it, not a formatted size: "1.2 MB" and
+    // "1,2 MB" are the same number written two ways, and only the app knows
+    // which is right.
+    expect(find.text('${DocumentsStrings.size}(bytes=4)'), findsOneWidget);
   });
 
   testWidgets('an app with no share callback shows no share control', (
@@ -86,7 +92,7 @@ void main() {
     await tester.pumpWidget(_wrap(DocumentScreen(controller: controller())));
     await tester.pumpAndSettle();
 
-    expect(find.text('documents.share'), findsNothing);
+    expect(find.text(DocumentsStrings.share), findsNothing);
   });
 
   testWidgets('an app that can share gets the control, and it works', (
@@ -97,7 +103,7 @@ void main() {
 
     await tester.pumpWidget(_wrap(DocumentScreen(controller: subject)));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('documents.share'));
+    await tester.tap(find.text(DocumentsStrings.share));
     await tester.pumpAndSettle();
 
     expect(shared, hasLength(1));
@@ -113,7 +119,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      find.text('The operation will not produce it: not delivered yet'),
+      find.text(
+        '${DocumentsStrings.failureRefused}(reason=not delivered yet)',
+      ),
       findsOneWidget,
     );
   });
@@ -135,5 +143,37 @@ void main() {
 
     expect(documents.renders, 2);
     expect(subject.state, isA<DocumentReady>());
+  });
+
+  group('what DocumentsStrings.all covers', () {
+    test('every kind and every failure has a key in it', () {
+      for (final kind in DocumentKind.values) {
+        expect(DocumentsStrings.all, contains(DocumentsStrings.kind(kind)));
+      }
+      const failures = <DocumentsFailure>[
+        RenderFailed(),
+        DocumentRefused(reason: 'not delivered yet'),
+        ArchiveUnavailable(),
+        DocumentMissing('doc-1'),
+        MalformedDocument(field: 'kind', reason: 'unreadable'),
+      ];
+      for (final failure in failures) {
+        expect(
+          DocumentsStrings.all,
+          contains(DocumentScreen.describe(failure)),
+        );
+      }
+    });
+
+    // A refusal is the operation's decision. Asking twice gets the same answer
+    // with a longer wait, so the button is absent rather than useless.
+    test('only a refusal offers no retry', () {
+      expect(
+        DocumentScreen.canRetry(const DocumentRefused(reason: 'no')),
+        isFalse,
+      );
+      expect(DocumentScreen.canRetry(const RenderFailed()), isTrue);
+      expect(DocumentScreen.canRetry(const ArchiveUnavailable()), isTrue);
+    });
   });
 }

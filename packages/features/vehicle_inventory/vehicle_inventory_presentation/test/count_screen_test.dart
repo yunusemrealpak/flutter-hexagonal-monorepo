@@ -2,6 +2,7 @@
 library;
 
 import 'package:core_kernel/core_kernel.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
@@ -98,8 +99,7 @@ final class _Inventory implements VehicleInventoryFacade {
   }
 }
 
-Widget _wrap(Widget child) =>
-    Directionality(textDirection: TextDirection.ltr, child: child);
+Widget _wrap(Widget child) => PeykTheme.wrap(child: child);
 
 void main() {
   late _Inventory inventory;
@@ -116,7 +116,7 @@ void main() {
     await controller.resume();
     await tester.pumpAndSettle();
 
-    expect(find.text('inventory.idle'), findsOneWidget);
+    expect(find.text(VehicleInventoryStrings.idle), findsOneWidget);
   });
 
   testWidgets('a started count shows how much of the van is counted', (
@@ -126,8 +126,14 @@ void main() {
     await controller.start(LoadDirection.loading);
     await tester.pumpAndSettle();
 
-    expect(find.text('0/2'), findsOneWidget);
-    expect(find.text('inventory.missing 2'), findsOneWidget);
+    expect(
+      find.text('${VehicleInventoryStrings.progress}(scanned=0, expected=2)'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('${VehicleInventoryStrings.missing}(count=2)'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a scan moves the numbers', (tester) async {
@@ -136,8 +142,14 @@ void main() {
     await controller.scan(_parcel('SHP-1'));
     await tester.pumpAndSettle();
 
-    expect(find.text('1/2'), findsOneWidget);
-    expect(find.text('inventory.missing 1'), findsOneWidget);
+    expect(
+      find.text('${VehicleInventoryStrings.progress}(scanned=1, expected=2)'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('${VehicleInventoryStrings.missing}(count=1)'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a parcel nobody expected is shown as well as counted', (
@@ -148,7 +160,10 @@ void main() {
     await controller.scan(_parcel('SHP-9'));
     await tester.pumpAndSettle();
 
-    expect(find.text('inventory.unexpected 1'), findsOneWidget);
+    expect(
+      find.text('${VehicleInventoryStrings.unexpected}(count=1)'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a reconciled close says so', (tester) async {
@@ -159,7 +174,10 @@ void main() {
     await controller.close();
     await tester.pumpAndSettle();
 
-    expect(find.text('inventory.reconciled'), findsOneWidget);
+    expect(
+      find.text(VehicleInventoryStrings.reconciled),
+      findsOneWidget,
+    );
   });
 
   testWidgets('a failure is rendered as a sentence, not a type name', (
@@ -171,7 +189,10 @@ void main() {
     await controller.start(LoadDirection.loading);
     await tester.pumpAndSettle();
 
-    expect(find.text('The load list could not be reached.'), findsOneWidget);
+    expect(
+      find.text(VehicleInventoryStrings.failureManifestUnavailable),
+      findsOneWidget,
+    );
   });
 
   test('a scan before a count has started is ignored', () async {
@@ -189,5 +210,32 @@ void main() {
     await resumed.resume();
 
     expect(resumed.state, isA<CountInProgress>());
+  });
+
+  group('what VehicleInventoryStrings.all covers', () {
+    test('every failure maps to a key in it', () {
+      const failures = <VehicleInventoryFailure>[
+        ManifestUnavailable(),
+        CountUnavailable(),
+        CountMissing('lc-1'),
+        CountClosed('lc-1'),
+        MalformedCount(field: 'direction', reason: 'unreadable'),
+      ];
+
+      for (final failure in failures) {
+        expect(
+          VehicleInventoryStrings.all,
+          contains(CountScreen.describe(failure)),
+        );
+      }
+    });
+
+    // A closed count is not reopened by asking again, and a count that is gone
+    // stays gone. Both need a new count, which is a different button.
+    test('a finished or missing count offers no retry', () {
+      expect(CountScreen.canRetry(const CountClosed('lc-1')), isFalse);
+      expect(CountScreen.canRetry(const CountMissing('lc-1')), isFalse);
+      expect(CountScreen.canRetry(const ManifestUnavailable()), isTrue);
+    });
   });
 }

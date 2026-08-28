@@ -1,15 +1,14 @@
 import 'dart:async';
 
+import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:notifications_api/notifications_api.dart';
 
 import 'inbox_controller.dart';
 import 'inbox_state.dart';
+import 'notifications_strings.dart';
 
 /// Where a courier reads what the operation has told them.
-///
-/// Deliberately plain: no colours, no typography, no spacing scale. Those come
-/// from `design_system`, which arrives in phase 7.
 final class InboxScreen extends StatefulWidget {
   /// Creates the screen over [controller].
   const InboxScreen({required this.controller, super.key});
@@ -20,18 +19,40 @@ final class InboxScreen extends StatefulWidget {
   @override
   State<InboxScreen> createState() => _InboxScreenState();
 
-  /// Turns a failure into something a person can act on.
+  /// Which string a failure should be shown as.
   ///
   /// Exhaustive over `NotificationsFailure`, which is the point of it being
   /// sealed: the day notifications learns a new way to fail, this stops
   /// compiling instead of showing a courier the wrong sentence.
+  ///
+  /// It returns a key rather than a sentence. The mapping — *which* message a
+  /// failure gets — stays here, where the compiler checks it covers the union;
+  /// the wording is the app's, which is why `app_courier` can say "No signal"
+  /// to somebody in a van while `app_dispatcher` says "The service did not
+  /// answer" to somebody at a desk on ethernet.
+  @visibleForTesting
   static String describe(NotificationsFailure failure) => switch (failure) {
-    InboxUnavailable() => 'Your alerts could not be read.',
-    NotificationMissing() => 'That alert is no longer here.',
-    AlertsRefused() => 'Alerts are off. Turn them on to be told about work.',
-    AlertsBlocked() => 'Alerts are blocked in the system settings.',
-    AlertsUnreachable() => 'This device could not be registered for alerts.',
-    MalformedNotification() => 'An alert could not be read.',
+    InboxUnavailable() => NotificationsStrings.failureUnavailable,
+    NotificationMissing() => NotificationsStrings.failureMissing,
+    AlertsRefused() => NotificationsStrings.failureRefused,
+    AlertsBlocked() => NotificationsStrings.failureBlocked,
+    AlertsUnreachable() => NotificationsStrings.failureUnreachable,
+    MalformedNotification() => NotificationsStrings.failureMalformed,
+  };
+
+  /// Whether reading again is the answer to [failure].
+  ///
+  /// `PeykFailureView` draws no button when this is false, because an action
+  /// that cannot help is worse than no action: somebody taps it, nothing
+  /// changes, and they conclude the app is broken rather than that alerts are
+  /// switched off in the operating system.
+  @visibleForTesting
+  static bool canRetry(NotificationsFailure failure) => switch (failure) {
+    AlertsRefused() || AlertsBlocked() => false,
+    InboxUnavailable() ||
+    NotificationMissing() ||
+    AlertsUnreachable() ||
+    MalformedNotification() => true,
   };
 }
 
@@ -44,32 +65,44 @@ class _InboxScreenState extends State<InboxScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.controller,
-    builder: (context, _) => switch (widget.controller.state) {
-      InboxIdle() || InboxLoading() => const Text('inbox.loading'),
-      // An empty inbox is its own line rather than an empty list, because a
-      // screen with nothing on it reads as a screen that failed to load.
-      InboxReady(:final entries) when entries.isEmpty => const Text(
-        'inbox.empty',
+  Widget build(BuildContext context) {
+    final strings = PeykStrings.of(context);
+
+    return PeykScreen(
+      title: strings.resolve(NotificationsStrings.inboxTitle),
+      body: ListenableBuilder(
+        listenable: widget.controller,
+        builder: (context, _) => switch (widget.controller.state) {
+          InboxIdle() || InboxLoading() => const PeykLoadingView(),
+          // An empty inbox is its own view rather than an empty list, because
+          // a screen with nothing on it reads as a screen that failed to load
+          // — and a courier who thinks it failed will pull over and reload it.
+          InboxReady(:final entries) when entries.isEmpty => PeykEmptyView(
+            message: strings.resolve(NotificationsStrings.inboxEmpty),
+          ),
+          InboxReady(:final entries) => ListView.builder(
+            itemCount: entries.length,
+            itemBuilder: (context, index) =>
+                _Alert(entry: entries[index], controller: widget.controller),
+          ),
+          InboxFailed(:final failure) => PeykFailureView(
+            message: strings.resolve(InboxScreen.describe(failure)),
+            onRetry: InboxScreen.canRetry(failure)
+                ? () => unawaited(widget.controller.load())
+                : null,
+          ),
+        },
       ),
-      InboxReady(:final entries) => Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          for (final entry in entries)
-            _Alert(entry: entry, controller: widget.controller),
-        ],
-      ),
-      InboxFailed(:final failure) => Text(InboxScreen.describe(failure)),
-    },
-  );
+    );
+  }
 }
 
 /// One alert in the list.
 ///
-/// The label is a localisation key with its arguments appended, not a
-/// sentence: the strings belong to the app's localisation, which arrives in
-/// phase 7. Writing Turkish here would mean deleting it then.
+/// The subject is a key carried by the entry itself, with the arguments that
+/// go into it — the alert was raised somewhere that had no idea which language
+/// would read it. That is the same catalogue call every label makes, and it is
+/// the reason `StringCatalogue.resolve` takes arguments at all.
 class _Alert extends StatelessWidget {
   const _Alert({required this.entry, required this.controller});
 
@@ -77,15 +110,11 @@ class _Alert extends StatelessWidget {
   final InboxController controller;
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
+  Widget build(BuildContext context) => PeykListRow(
+    title: PeykStrings.of(
+      context,
+    ).resolve(entry.subject, arguments: entry.arguments),
+    trailing: entry.isUnread ? const PeykBadge(count: 1) : null,
     onTap: entry.isUnread ? () => controller.markRead(entry.id) : null,
-    child: Semantics(
-      button: entry.isUnread,
-      child: Text(
-        entry.arguments.isEmpty
-            ? entry.subject
-            : '${entry.subject} ${entry.arguments}',
-      ),
-    ),
   );
 }

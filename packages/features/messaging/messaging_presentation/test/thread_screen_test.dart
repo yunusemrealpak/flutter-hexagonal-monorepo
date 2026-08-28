@@ -1,6 +1,7 @@
 @Tags(['widget'])
 library;
 
+import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:messaging_api/messaging_api.dart';
@@ -13,8 +14,7 @@ import 'package:messaging_testing/messaging_testing.dart';
 /// `messaging_core`, which runs the store contract kit — and between them they
 /// are the reason messaging has a `_testing` package while the other six light
 /// features do not.
-Widget _wrap(Widget child) =>
-    Directionality(textDirection: TextDirection.ltr, child: child);
+Widget _wrap(Widget child) => PeykTheme.wrap(child: child);
 
 void main() {
   late FakeMessagingFacade messaging;
@@ -37,7 +37,7 @@ void main() {
     await tester.pumpWidget(_wrap(ThreadScreen(controller: controller)));
     await tester.pumpAndSettle();
 
-    expect(find.text('thread.empty'), findsOneWidget);
+    expect(find.text(MessagingStrings.threadEmpty), findsOneWidget);
   });
 
   testWidgets('a message shows what the person actually typed', (tester) async {
@@ -58,10 +58,17 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('no signal here'), findsOneWidget);
-    expect(find.text('thread.queued 1'), findsOneWidget);
+    expect(
+      find.text('${MessagingStrings.threadQueued}(count=1)'),
+      findsOneWidget,
+    );
   });
 
-  testWidgets('the status of a message is a key, not a sentence', (
+  // The status used to be a semantics label only, which meant a screen reader
+  // could hear "written but not sent" and a person looking at the phone could
+  // not. That is the wrong way round: the courier who needs it most is the one
+  // glancing at a screen in a van.
+  testWidgets('a queued message says so on the screen, not only aloud', (
     tester,
   ) async {
     messaging.offline = true;
@@ -70,13 +77,10 @@ void main() {
     await controller.send('waiting');
     await tester.pumpAndSettle();
 
-    expect(
-      tester.getSemantics(find.text('waiting')).label,
-      contains('thread.status.queued'),
-    );
+    expect(find.text(MessagingStrings.statusQueued), findsOneWidget);
   });
 
-  testWidgets('a failure is rendered as a sentence, not a type name', (
+  testWidgets('a failure is rendered as the key an app answers', (
     tester,
   ) async {
     messaging.failNextWith = const ThreadUnavailable();
@@ -84,7 +88,24 @@ void main() {
     await tester.pumpWidget(_wrap(ThreadScreen(controller: controller)));
     await tester.pumpAndSettle();
 
-    expect(find.text('This conversation could not be opened.'), findsOneWidget);
+    expect(
+      find.text(MessagingStrings.failureThreadUnavailable),
+      findsOneWidget,
+    );
+  });
+
+  test('every failure maps to a key an app is asked to answer', () {
+    const failures = <MessagingFailure>[
+      ThreadUnavailable(),
+      DeliveryDeferred(),
+      DeliveryRefused(reason: 'too long'),
+      MessageMissing('m-1'),
+      MalformedMessage(field: 'body', reason: 'it is empty'),
+    ];
+
+    for (final failure in failures) {
+      expect(MessagingStrings.all, contains(ThreadScreen.describe(failure)));
+    }
   });
 
   test('a change to another thread does not reload this one', () async {
