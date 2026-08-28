@@ -291,7 +291,7 @@ At the **end** of a phase: verify the acceptance criteria in the spec, push, ope
 
 This section is the handoff between sessions. It is rewritten at every phase boundary and it is the only part of this file that is expected to go stale — everything above is the constitution. Read it after section 9, then check it against `git log` before trusting it.
 
-**Branch:** `phase/07-composition-roots`. **Last tag:** `phase-06`. **Working tree:** clean; `arch_check` clean across 73 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace.
+**Branch:** `phase/08-ci-and-docs`. **Last tag:** `phase-07`. **Working tree:** clean; `arch_check` clean across 73 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace.
 
 ### Phase 7 is code-complete
 
@@ -323,19 +323,24 @@ Five packages added — `design_tokens`, `design_system`, `app_harness`, `app_co
 - **An adapter may live in an app when it answers a capability the device lacks.** `DeskAlertChannel` returns `AlertsRefused` because a desk has no push client. It declines rather than pretending, and `notifications` has no business knowing that some apps are desks.
 - **A feature can be composed without being mounted.** `app_dispatcher` resolves `DeliveryFacade` and mounts no delivery route. A feature is a set of use cases *and* a set of destinations.
 
-### The one thing phase 7 found and did not fix
+### Phase 8, item 1 — settled: driving ports are per audience
 
-`RoutingCoordinator` takes `RecalculateOnDeviation`, which takes a `LocationStreamPort`; `DeliveryCoordinator` takes `StartAttempt`, which takes a `GeoFencePort`. Both adapters read *this device's* position, and on a dispatcher's desk that is the desk. They are bound in `app_dispatcher` and are safe only because nothing on its screens calls those use cases — a runtime guarantee where the rest of the workspace has compile-time ones.
+The debt phase 7 deferred is closed. It is **[`docs/research/facade-port-coupling.md`](docs/research/facade-port-coupling.md)**, now marked resolved, and the rule it produced is **[`docs/DEPENDENCY_RULES.md` §2.3](docs/DEPENDENCY_RULES.md)** with its non-mechanical half in §8. Read §2.3 before writing `docs/ARCHITECTURE.md`.
 
-**The seam is that a facade whose constructor demands every use case forces every app to bind every port**, including ones its audience can never trigger — and writing it up showed the constructor is the symptom rather than the cause: `RoutingFacade` and `DeliveryFacade` *declare* operations no dispatcher can perform, so an app that wants any of the interface must supply all of it.
+What changed: `RoutingFacade` became `RoutePlanning` / `RouteSupervision` / `RouteFollowing`, and `DeliveryFacade` became `DeliveryExecution` / `DeliverySettlement` / `DeliveryHistory`. `app_dispatcher` composes only what a desk can answer and no longer depends on `location_service`; its container test asserts `RouteFollowing` and `DeliveryExecution` are *not registered*.
 
-It is written up in **[`docs/research/facade-port-coupling.md`](docs/research/facade-port-coupling.md)**, with the evidence, what has already been ruled out, three candidate directions, the constraints any answer must satisfy, and the acceptance criteria for closing it. **Read that file before writing `docs/ARCHITECTURE.md`** — the answer changes what that document says about facades and about scenario 5.
+Three things worth not rediscovering:
+
+- **Phase 7's own account of the seam was wrong.** It said no dispatcher screen called the courier-only use cases. `RouteScreen` is mounted at `routing.courierRoute`, its `initState` calls `load`, and `load` called `recalculateOnDeviation`. The desk's GPS stayed out of the answer only because the desk's *local* route cache is empty — an accident of adapter choice. "Nothing calls it" is a claim about every call site forever; do not accept it as a guarantee again.
+- **Segregating an interface is not segregating a composition.** `IdentityCoordinator` implements three ports from one constructor; that limits what a caller may ask and not what an app must supply. Routing and delivery needed one coordinator per port, plus a `RouteChannel` / `DeliveryChannel` for the change stream the split would otherwise have split too.
+- **Capability absence and intent absence want opposite answers.** A driven port a device cannot answer gets an adapter that declines — `DeskAlertChannel`. A driving operation an audience never performs is absent from the interface it holds. §2.3 is that table.
+
+Still outstanding from the note: `docs/ARCHITECTURE.md` owes scenario 5 the summary in §3 of the research file.
 
 ### Left to do
 
-1. **Phase-end flow** — section 6: push, open the pull request, merge **without squashing**, tag `phase-07`, push the tag.
-2. **Phase 8's first item** — research and settle [`docs/research/facade-port-coupling.md`](docs/research/facade-port-coupling.md). The instruction that opened it: find what the literature says *first*, then integrate. It is first because it changes `docs/ARCHITECTURE.md`, not because the rest waits on it.
-3. **Phase 8** — `test_runner`, `dep_graph`, the CI files, `docs/ARCHITECTURE.md`, `docs/TESTING.md`, `docs/CI_CD.md`, and the generated dependency graph.
+1. **Phase 8** — `test_runner`, `dep_graph`, the CI files, `docs/ARCHITECTURE.md` (scenario 5 must carry §2.3), `docs/TESTING.md`, `docs/CI_CD.md`, and the generated dependency graph.
+2. **Phase-end flow** — section 6: push, open the pull request, merge **without squashing**, tag `phase-08`, push the tag.
 
 ### Verification, before every commit
 

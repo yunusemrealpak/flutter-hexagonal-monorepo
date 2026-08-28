@@ -1,131 +1,75 @@
-# Research: a facade forces every app to bind every port
+# Resolved: a facade forced every app to bind every port
 
-**Status:** open. Carried from phase 7 into phase 8.
-**Opened:** 2026-08-28, at the `phase-07` tag.
-**Owner of the next step:** whoever starts the phase 8 session. Read this file *before* touching `docs/ARCHITECTURE.md` — the answer changes what that document says about facades.
+**Status:** resolved on 2026-08-28, in phase 8, by the two commits titled
+`refactor(routing): one driving port per audience…` and
+`refactor(delivery): three driving ports…`.
 
-This is a research note, not a rule. Nothing here is binding until it lands in [`DEPENDENCY_RULES.md`](../DEPENDENCY_RULES.md) or [`CLAUDE.md`](../../CLAUDE.md) through the process §9 of the dependency rules describes.
+**Where the rule now lives:** [`DEPENDENCY_RULES.md` §2.3, "How wide a driving port is"](../DEPENDENCY_RULES.md), with its non-mechanical half listed in §8. `docs/ARCHITECTURE.md` does not exist yet; when it is written, scenario 5 has to carry the summary in section 4 of this file and this file becomes a footnote to it.
 
----
-
-## 1. What was observed
-
-`app_dispatcher` binds two adapters that would produce wrong answers if anything called them. They are safe only because nothing on a dispatcher's screens does.
-
-| Port | Adapter bound | What it actually reads | Why that is wrong at a desk |
-|---|---|---|---|
-| `LocationStreamPort` | `DeviceLocationStream` | this device's GPS | recalculating a *courier's* route against the *desk's* position |
-| `GeoFencePort` | `HttpGeoFence` | this device's position, checked server-side | asking whether the desk is at the consignee's door |
-
-Evidence, at `phase-07`:
-
-- `packages/features/routing/routing_application/lib/src/routing_coordinator.dart:24` — `RoutingCoordinator` requires `_recalculate`.
-- `packages/features/routing/routing_application/lib/src/recalculate_on_deviation.dart:43` — which requires a `LocationStreamPort`.
-- `packages/features/delivery/delivery_application/lib/src/delivery_coordinator.dart:26` — `DeliveryCoordinator` requires `_startAttempt`.
-- `packages/features/delivery/delivery_application/lib/src/start_attempt.dart:46` — which requires a `GeoFencePort`.
-- `apps/app_dispatcher/lib/src/di/dispatcher_features.dart:211` and `:418` — the two bindings, with the seam named in their doc comments.
-
-## 2. The sharper framing, found while writing this note
-
-The constructor is the *symptom*. The cause is one layer up, in the contract.
-
-```dart
-// packages/features/routing/routing_api/lib/src/routing_facade.dart
-abstract interface class RoutingFacade {
-  Future<Result<RoutePlan, RoutingFailure>> planRoute({...});        // both audiences
-  Future<Result<RoutePlan, RoutingFailure>> resequence({...});       // dispatcher only
-  Future<Result<StopId?, RoutingFailure>> nextStop({...});           // courier only
-  Future<Result<RoutePlan, RoutingFailure>> recalculateOnDeviation({...}); // courier only
-  Stream<RoutePlan> changes();                                       // both
-}
-```
-
-`RoutingFacade` declares operations **no dispatcher can perform** and `DeliveryFacade` declares operations **no dispatcher can perform**. A composition root that wants any of the interface must supply all of it, so it must bind every port every use case behind it needs.
-
-So the question is not "how does an app avoid binding a port" but **"is one facade per feature the right granularity when a feature has two audiences?"**
-
-This also reframes the cost. It is not only two odd bindings in one app:
-
-- `app_dispatcher` compiles in `location_service` and `geolocator_platform_interface` for use cases it never calls.
-- `DispatcherPlatform` carries a `GeolocatorPlatform` field whose doc comment says it should not be there.
-- The guarantee that this is safe is a *runtime* one — "no screen calls it" — in a repository whose entire claim is that its guarantees are compile-time.
-
-## 3. What has already been ruled out, and why
-
-Do not re-propose these without new information.
-
-- **Widen a rule in §2.** Nothing here is a dependency violation. `arch_check` is clean at 73 packages and correctly so; the problem is a contract's shape, not an edge.
-- **Make the ports nullable or optional in the coordinator.** A facade whose behaviour depends on which collaborators an app happened to pass is a facade with a hidden mode, and the failure moves from "wrong answer" to "silent no-op".
-- **Bind a throwing stub in `app_dispatcher`.** Rule 1.2.9 — no exception crosses a port boundary — and it converts a compile-time question into a crash.
-- **Bind a fake from `_testing` in the product app.** `app_dispatcher` already does this once, for `InMemoryOutboxStore`, and that is defensible because the specification's table names it and the contract kit runs against it. Doing it to paper over a shape problem is a different thing.
-- **Split the *apps* further.** The number of apps is fixed by §3 of the specification.
-
-## 4. Candidate directions, to be checked against the literature
-
-Written from memory in phase 7 and **not researched**. The first job of the next session is to find what the literature actually says, then decide. Treat these as hypotheses to falsify.
-
-### 4a. Role interfaces instead of one header interface
-
-Split `RoutingFacade` into the roles its two audiences actually play — something like `RoutePlanning` (both), `RouteFollowing` (courier), `RouteSupervision` (dispatcher). One coordinator may implement several, exactly as `IdentityCoordinator` already implements `IdentityFacade`, `SessionReader` and `PermissionChecker`.
-
-**The precedent is already in this repository**, which is the strongest argument for it: `identity` solved this in phase 4 and nobody called it a facade problem. `app_harness`'s container test asserts the three registrations resolve to one object.
-
-To research: Fowler's *RoleInterface* vs *HeaderInterface*; the Interface Segregation Principle as originally argued (Martin, the Xerox printer case); whether hexagonal-architecture writing treats a driving port as one-per-actor. **Cockburn's own framing of ports as "one per conversation type / per actor" is the specific thing to check** — if that is what he says, this is not a new idea and the repository has been under-applying its own architecture.
-
-### 4b. Separate the read model from the write model
-
-`nextStop` and `changes()` are reads; `planRoute` and `recalculateOnDeviation` are writes. `reporting` already demonstrates a read model that accumulates from events (phase 6). A dispatcher may want only the read half of routing.
-
-To research: CQS as distinct from CQRS; whether the split falls on the same line as 4a or a different one. If both splits are defensible, which one the *audience* boundary follows matters more than which one is tidier.
-
-### 4c. Leave it, and make the absence explicit in the contract
-
-A `RoutingFacade` whose `recalculateOnDeviation` returns a documented failure when the app has no device position. This is the "null object with an honest answer" shape `DeskAlertChannel` already uses in `app_dispatcher` — and that precedent is worth taking seriously, because it was judged correct three days ago for the same class of problem.
-
-The difference to argue about: `DeskAlertChannel` answers a *device capability* the desk lacks, which is a fact about the machine. Recalculating somebody else's route is a fact about the *audience*. If those are different kinds of absence, they want different solutions; if they are not, 4c is the consistent answer and 4a is over-engineering.
-
-**Do not assume 4a wins because it is more architectural.** The question this repository exists to answer is which one a reader learns more from.
-
-## 5. Constraints any answer must satisfy
-
-- A `_presentation` package may depend on its own `_api` and foreign `_api` only (§2). Any new interface goes in the feature's `_api`.
-- `_api` holds no implementation (S8). Splitting a facade adds interfaces, never a base class with behaviour.
-- Every port method returns `Result` where it can fail, a plain value where it cannot (CLAUDE.md §3). A split must not introduce a failure branch that can never be taken.
-- Contract kits in `_testing` are held against every implementation. A split changes what the kits are held to, so `routing_testing` and `delivery_testing` change with it.
-- Whatever lands must keep all three container tests passing and must let `app_dispatcher` **stop** depending on `location_service` — that is the observable outcome, and it is the acceptance criterion below.
-
-## 6. Acceptance criteria for closing this note
-
-1. `app_dispatcher/pubspec.yaml` has no `location_service` and no `geolocator_platform_interface`.
-2. `DispatcherPlatform` has no `location` field.
-3. No doc comment in `apps/app_dispatcher/` says a port is bound and never called. The four places listed in §7 are gone or rewritten.
-4. All three `container_test.dart` files pass unchanged in intent — every facade an app composes still resolves.
-5. `arch_check` clean; `dart analyze --fatal-infos --fatal-warnings .` clean; `melos run test` green.
-6. The decision and its reasoning are written into `docs/ARCHITECTURE.md` under the scenario 5 heading, and this file is deleted or marked resolved with a pointer to it.
-
-## 7. Where the current workarounds are
-
-Clean these up when the note is closed:
-
-- `apps/app_dispatcher/lib/src/di/dispatcher_features.dart:211` — `locationSource`, doc comment naming the seam.
-- `apps/app_dispatcher/lib/src/di/dispatcher_features.dart:409` — `start`, "a dispatcher never does".
-- `apps/app_dispatcher/lib/src/di/dispatcher_features.dart:418` — `fence`, "the second of the two ports a desk cannot honestly answer".
-- `apps/app_dispatcher/lib/src/di/dispatcher_platform.dart` — the `location` field's doc comment.
-- `apps/app_dispatcher/README.md` — the section "Two ports a desk cannot honestly answer".
-- `CLAUDE.md` §10 — "The one thing phase 7 found and did not fix".
+This file is kept rather than deleted because the *wrong* answer it started from is half the lesson.
 
 ---
 
-## Notes to myself, for the session that picks this up
+## 1. What was observed, and what phase 7 got wrong
 
-**Research first, code second.** The user's instruction at the end of phase 7 was explicit: find the literature's answer, then integrate it. Do not open an editor before the search. The last time an architectural question came up mid-phase — where `PeykIntent` belongs — the answer came from the constitution rather than from taste, and it was better for it.
+The observation was right: `app_dispatcher` bound `DeviceLocationStream` over the desk's GPS and `HttpGeoFence` over the desk's position, and neither could give a true answer.
 
-**Search terms worth trying:** `hexagonal architecture one port per actor`, `Cockburn ports and adapters primary port granularity`, `role interface vs header interface Fowler`, `interface segregation principle facade`, `application service granularity DDD`, `use case interactor per use case vs facade`. Vaughn Vernon's *Implementing DDD* on application services, and Cockburn's own 2005 article, are the two primary sources most likely to settle 4a.
+The **explanation was wrong**. Phase 7 recorded them as "safe only because nothing on a dispatcher's screens calls those use cases". Phase 8 checked, and found:
 
-**The strongest evidence is in this repository already.** `IdentityCoordinator` implements three interfaces and every app registers it three times. If the literature says "one port per actor", then identity is the pattern and routing/delivery are the exceptions — and phase 8 is applying an existing decision rather than making a new one. Check that framing before proposing anything novel.
+- `apps/app_dispatcher/lib/src/router/dispatcher_routes.dart` mounts `RouteScreen` at `routing.courierRoute`.
+- `RouteScreen.initState` calls `RouteController.load`.
+- `load` called `recalculateOnDeviation` — because routing had no read-only "what is planned", and the controller's own doc comment argued it "should not grow one for this".
 
-**Watch for the wrong fix.** Writing `RemoteLocationStream` and a server-side geofence adapter would make the symptom disappear and leave the contract exactly as coupled. It might still be worth doing for its own sake — a dispatcher genuinely wants to see where a van is — but it does not close this note, and doing it *instead* of the research would be the mistake.
+So the screen *did* call it. What actually kept the desk's GPS out of the answer was unrelated: `RecalculateOnDeviation` reads the route cache first, `app_dispatcher` binds a **local** `KeyValueRouteCache`, and a desk's local cache is normally empty, so the use case returned before reaching the position. That is an accident of adapter choice, not a guarantee — and it disappears the moment a desk gets the remote route cache it obviously wants.
 
-**Do not let this block phase 8's other work.** `test_runner`, `dep_graph`, the CI files and `docs/ARCHITECTURE.md` are the phase's scope. This note is the first item because the answer changes what `ARCHITECTURE.md` says about facades and scenario 5 — not because the rest waits on it.
+**The lesson to carry:** "nothing calls it" is not a guarantee. It is a claim about every call site in the workspace, present and future, and this one was already false when it was written.
 
-**If the research is inconclusive, say so and pick 4c.** An honest "the literature does not settle this, and here is why we chose the smaller change" is a better artifact than a speculative refactor across four packages. The repository's value is that its decisions are argued, not that they are maximal.
+## 2. What the literature said
+
+Searched first, as the instruction that opened this note required.
+
+- **ISP, in its original form** (Martin, the Xerox `Job` class): a fat class used by every client made each client depend on methods it did not use, and the cost was paid in build and deployment. Canonical statement: *"Many client-specific interfaces are better than one general-purpose interface."* `RoutingFacade` was that class.
+- **CRP — the Common Reuse Principle** (*Clean Architecture*, ch. 13) is ISP's package-level counterpart and is the one that actually governs a 73-package workspace: *don't force users of a component to depend on things they don't need*. The harm here was transitive and visible in a `pubspec.yaml`.
+- **Fowler, `RoleInterface` vs `HeaderInterface`.** A header interface mirrors one class's public methods. `RoutingFacade` was one, and its own doc comment admitted it — *"It is not called `RoutingFacadeImpl`"*. Fowler: *"I much prefer role interfaces, so I suggest pushing towards them as much as you can."*
+- **Cockburn.** A port is *"the purpose of the conversation"*, and he favours a small number of them. The counter-evidence had to be taken seriously: his Figure 2 shows a test suite, a person, a remote application and a local one driving **one** port through four adapters. But that figure varies the *technology*, and the canonical port list in the pattern's own description includes a separate **administration** port — a different actor with a different purpose, not a different transport.
+- **Graça**, the strongest opposing quote: *"a port is a consumer agnostic entry and exit point."* Resolved rather than dismissed: consumer-agnostic means **technology**-agnostic. Two audiences that differ in how they connect share a port; two audiences that differ in what they are permitted or physically able to do are two conversations.
+- **CQS** (Meyer) turned out to be the other half of the problem rather than an alternative to it. See §1: a screen was asking a question by issuing a command.
+
+## 3. The decision
+
+Both features got one driving port per audience, drawn where a driven port stops being answerable.
+
+| routing | operations | composed by |
+|---|---|---|
+| `RoutePlanning` | `planRoute`, `currentPlan`, `changes` | both apps |
+| `RouteSupervision` | `resequence` | `app_dispatcher` |
+| `RouteFollowing` | `nextStop`, `recalculateOnDeviation` | `app_courier` |
+
+| delivery | operations | composed by |
+|---|---|---|
+| `DeliveryExecution` | `startAttempt` | `app_courier` |
+| `DeliverySettlement` | `completeWithProof`, `failWithReason` | both apps |
+| `DeliveryHistory` | `attemptsFor`, `changes` | both apps |
+
+`app_harness` composes all six, which is what makes it the one place the split is legible as a split rather than as a subset.
+
+**Candidate 4a was right and incomplete.** Splitting the interfaces alone would have left every app building the same coordinator, whose constructor demanded every use case. `identity` was the precedent for interface segregation and *not* for composition segregation — `IdentityCoordinator` implements three ports from one constructor. Routing and delivery needed both halves: three coordinators each, sharing a `RouteChannel` / `DeliveryChannel` because the change stream is one fact that three interfaces report.
+
+**Candidate 4b was not an alternative axis, it was a missing method.** `CurrentPlan` is the query the screen should always have had. The read/write line does not fall where the audience line falls — `resequence` and `recalculateOnDeviation` are both writes performed by different people — so CQS did not decide the split, but ignoring it is what produced the defect.
+
+**Candidate 4c was rejected, and the reason generalised into a rule.** `DeskAlertChannel` answers a *capability* the device lacks, on a **driven** port, where the domain still asks and "cannot" is a real answer. `recalculateOnDeviation` on a desk is an absence of *intent*, on a **driving** port, where nobody asks and a documented refusal is unreachable code standing in for a compile-time fact. §2.3 of the dependency rules is that distinction.
+
+## 4. Acceptance criteria, checked
+
+1. `app_dispatcher/pubspec.yaml` has no `location_service` and no `geolocator_platform_interface` — **done**.
+2. `DispatcherPlatform` has no `location` field; it is five fields where it was six — **done**.
+3. No doc comment in `apps/app_dispatcher/` says a port is bound and never called; the README section is rewritten around what replaced it — **done**.
+4. All three `container_test.dart` files pass, and two of them gained the stronger assertion: `app_dispatcher` asserts `RouteFollowing` and `DeliveryExecution` are **not registered**, `app_courier` asserts the same of `RouteSupervision` — **done**.
+5. `arch_check` clean at 73 packages; `dart analyze --fatal-infos --fatal-warnings` clean; the affected suites green — **done**.
+6. The reasoning is in `DEPENDENCY_RULES.md` §2.3 and in this file. `docs/ARCHITECTURE.md` still owes scenario 5 the summary — **outstanding, and the only thing left of this note**.
+
+## 5. What was ruled out and stayed ruled out
+
+Unchanged from the phase 7 note: widening a rule in §2, nullable ports in a coordinator, a throwing stub, a `_testing` fake in a product app, or splitting the apps. One more can be added now:
+
+- **Writing `RemoteLocationStream` and a server-side geofence.** It would have made the symptom disappear and left the contract exactly as coupled — every app still binding every port, and a desk still holding an interface declaring operations it cannot perform. It may still be worth building for its own sake, because a dispatcher genuinely wants to see where a van is. It would not have closed this note.
