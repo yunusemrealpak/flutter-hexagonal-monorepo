@@ -1,89 +1,120 @@
-# Phase 3 — `arch_check` and `scaffold`
+# Phase 8 — test runner, CI/CD and the documentation
 
-Two tooling packages. From this phase on, the dependency constitution is enforced by a program rather than by attention, and a new feature is generated with it already obeyed.
+The last phase. Two tooling packages, the whole pipeline, and the four documents the specification asks for by name — plus the architectural debt phase 7 deferred, researched and settled before anything else was written.
 
 ## Scope
 
 | | |
 |---|---|
-| Packages added | 2 — `tooling/arch_check`, `tooling/scaffold` |
-| Workspace total | 15 packages |
-| Commits | 15 |
-| Tests | **325** across the workspace, of which **99** are new (42 in `arch_check`, 57 in `scaffold`) |
+| Packages added | 2 — `tooling/dep_graph`, `tooling/test_runner` |
+| Workspace total | **75 packages** |
+| Commits | 8 |
+| Tests | **1,530** across 161 files, of which **61** are new (20 in `dep_graph`, 41 in `test_runner`) |
+| `arch_check` | clean — 75 packages, no violations |
+| `melos run test` | SUCCESS |
+| `gen:check`, `graph:check` | clean |
 
-Nothing under `packages/` changed. The two documents that describe the rules did: `docs/DEPENDENCY_RULES.md` now states the mechanical reading of four rules that were written for a human reader, and `CLAUDE.md` §7 describes a scaffolder that exists instead of one that will.
+Two features changed shape: `routing` and `delivery`. That was not a phase-8 goal; it was the answer to the question phase 7 left open, and it is the most useful thing in this branch.
 
 ## What became visible in this phase
 
-**A rule that cannot be checked is a rule that is already being broken somewhere.** Writing the checker forced four sentences in the constitution to become decidable, and each one taught something:
+### A runtime guarantee, believed for three days, that was already false
 
-- **S4, "a barrel leaks nothing"** → *a barrel re-exports and does nothing else*. The original wording asks about intent. The mechanical version asks two questions with answers: does the barrel declare a type, and does it republish another package's URI.
-- **A5, "`throw` across a port's public boundary"** → *a `throw` or `rethrow` in a member whose declared return type is a `Result`, or a Future/FutureOr/Stream of one*. The original needs to know what a port is; the mechanical one only needs to know what the method promised, which is the same thing said in the type system.
-- **G4, "enables the builders it needs and disables the rest explicitly"** → the second half is **not** checkable, and this is the interesting one. Naming a builder that is not a dev dependency of the package *fails* the build rather than tightening it, so "the rest" is only ever the rest that is present — which is why `push_messaging`'s `build.yaml` names `json_serializable` and not `freezed`. What is checked is what is decidable: a `build.yaml` exists, it turns something on, and everything it turns on is narrowed with `generate_for`.
-- **§1, "derived from its path and name"** → *the directory name, not the pubspec's `name:`*. They are required to be equal by S5, so the choice is invisible until they disagree — and then believing the pubspec drops the package out of every type and replaces one obvious violation with silence about the other twenty.
+Phase 7 recorded a seam: `app_dispatcher` binds a `LocationStreamPort` over the desk's own GPS and an `HttpGeoFence` that asks whether the desk is at a consignee's door. It called them safe *because no dispatcher screen calls the use cases behind them*.
 
-**§5 has to be checked against an AST, and the workspace proves it.** Every occurrence of `DateTime.now()` in this repository today is inside a comment explaining why the call is banned; `core_ports/clock.dart` documents the port with the very call it exists to remove. A text-scanning checker reports the packages most careful about a rule the loudest. The `broken_apis` fixture is written the same way on purpose, so the test that counts five violations is also the test that proves comments are not scanned.
+That was wrong, and finding out how wrong is the phase's best lesson. `app_dispatcher` mounts `RouteScreen` at `routing.courierRoute`; `RouteScreen.initState` calls `RouteController.load`; `load` called `recalculateOnDeviation` — a command that reads the calling device's position and may replace the plan. The desk's GPS stayed out of the answer for an entirely unrelated reason: `RecalculateOnDeviation` reads the route cache first, and a desk's *local* cache is normally empty. That is an accident of adapter choice, and it disappears the day a desk gets the remote route cache it obviously wants.
 
-**The scaffolder's failure mode is the name it was first tried with.** Three separate lints — `sort_pub_dependencies`, `directives_ordering`, `lines_longer_than_80_chars` — break only for feature names on one side of a sort boundary or past a length. `billing_api` sorts before `core_kernel`; `faq_api` sorts after it. A hand-written template passes the first time anyone tries the tool and fails in someone's first commit. All three are computed at render time, generated Dart goes through `dart_style` before it is written, and `templates_test.dart` runs every assertion against a feature on each side of that line.
+**"Nothing calls it" is a claim about every call site in the workspace, present and future.** It is not a guarantee, and this repository's entire claim is that its guarantees are compile-time.
 
-## `arch_check`
+### The literature had already answered it, twice
 
-Reads `tooling/arch_check/rules.yaml` — every rule, every violation code and every remedy string. Sources are **parsed, not resolved**: resolution needs a working pub solution for every package, which is exactly what a workspace in trouble does not have, and every rule in the constitution is decidable from syntax.
+The instruction that opened the research note was: find what the literature says *first*, then integrate. It said:
 
-| Check | Section | Codes |
+- **ISP in its original form** (Martin, the Xerox `Job` class) — a fat class made every client depend on methods it did not use, and the cost was paid in build and deployment.
+- **CRP, the Common Reuse Principle** (*Clean Architecture* ch. 13) — the package-level counterpart, and the one that actually governs a 75-package workspace: *do not force a component's users to depend on things they do not need.* The harm here was transitive and visible in a `pubspec.yaml` as `location_service`.
+- **Fowler on role versus header interfaces** — `RoutingFacade` was a textbook header interface, and its own doc comment admitted it: *"It is not called `RoutingFacadeImpl`."*
+- **Cockburn** — a port is "the purpose of the conversation". His Figure 2 shows four clients driving one port, which had to be taken seriously as counter-evidence; it varies the *technology*, and the pattern's own canonical port list includes a separate **administration** port for a different actor.
+- **Graça's "a port is a consumer agnostic entry point"** — resolved rather than dismissed: consumer-agnostic means *technology*-agnostic. Two audiences that differ in how they connect share a port; two audiences that differ in what they may or physically can do are two conversations.
+
+### Splitting an interface is not splitting a composition
+
+The obvious fix — role interfaces — was right and insufficient. `IdentityCoordinator` already implements three ports from one constructor, which segregates what a caller may *ask* and not what a composition root must *supply*. An app that still had to build an object whose constructor demanded `RecalculateOnDeviation` would still have needed a GPS.
+
+So the implementations split too: one coordinator per port, and a `RouteChannel` / `DeliveryChannel` for the change stream — one fact that three interfaces report, which would otherwise have been split along with them.
+
+| routing | operations | composed by |
 |---|---|---|
-| loader | §1 | `unknown_package_type` |
-| `DependencyCheck` | §2 | `forbidden_dependency`, `tooling_depends_on_product`, `dev_dependency_in_lib` |
-| `StructureCheck` | §3 (S1–S6, S8) | `missing_barrel`, `stray_lib_file`, `barrel_leak`, `name_mismatch`, `unregistered_package`, `deep_import`, `implementation_in_api` |
-| `ImportCheck` | §4 | `kernel_dependency`, `flutter_in_pure_dart`, `technology_in_domain`, `serialization_in_api`, `locator_outside_app`, `annotation_di_outside_app` |
-| `ApiCheck` | §5 | `ambient_clock`, `ambient_random`, `ambient_id`, `ambient_print`, `exception_at_port_boundary` |
-| `CodegenCheck` | §6 | `codegen_in_kernel`, `serialization_in_api`, `annotation_di_outside_app`, `unpinned_builders` |
-| `CycleCheck` | S7 | `dependency_cycle` |
+| `RoutePlanning` | `planRoute`, `currentPlan`, `changes` | both |
+| `RouteSupervision` | `resequence` | the desk |
+| `RouteFollowing` | `nextStop`, `recalculateOnDeviation` | the vehicle |
 
-Every violation carries four fields — code, location, what, remedy — in both formats. Three exit codes, not two: **0** clean, **1** violations, **64** could not run. A tool that exits 1 both for "the architecture is broken" and for "I could not read my own rules" teaches CI to treat the second as the first.
+| delivery | operations | composed by |
+|---|---|---|
+| `DeliveryExecution` | `startAttempt` | the courier |
+| `DeliverySettlement` | `completeWithProof`, `failWithReason` | both |
+| `DeliveryHistory` | `attemptsFor`, `changes` | both |
 
-Eight fixtures under `test/fixtures/`, each a real mini workspace with real pubspecs. `clean` obeys every rule, so any violation reported against it is a false positive and every other fixture's count means something. Each test asserts the **exact multiset** of codes rather than containment: containment lets a rule start firing everywhere and still pass, and a checker that cries wolf is worked around within a week.
+`CurrentPlan` is the query that was missing — the reason a screen was opening on a command. Command-query separation was the rule being broken, and ignoring it is what produced the defect.
+
+### The rule that came out of it
+
+New **§2.3 of `docs/DEPENDENCY_RULES.md`**, with its non-mechanical half listed in §8:
+
+| | Absence of *capability* | Absence of *intent* |
+|---|---|---|
+| Which side | a driven port | a driving port |
+| Example | a desk has no push client | a desk never stands at a consignee's door |
+| The right answer | an adapter that declines (`DeskAlertChannel` → `AlertsRefused`) | the operation is not on the interface that audience holds |
+| Why | the domain still *asks*, and "cannot" is a real answer | nobody asks, so a refusal is unreachable code standing in for a compile-time fact |
+
+### Which scope you draw is the whole design of a graph tool
+
+`dep_graph` renders four views, and the choice of scope is the decision. Seventy-five nodes and four hundred edges in Mermaid render as a wall; a diagram nobody can read is a diagram nobody checks against the code. So Mermaid gets three views that each carry an argument — the type-level graph you hold against §2, the payments/shipments pair that shows a mutual need with no cycle, and one full-split feature — and the complete graph goes out as DOT, which has a layout engine.
+
+It reads `arch_check`'s `rules.yaml` as **data at a path** rather than importing `arch_check`, because §2 gives a tooling package an empty allow-list. The workspace walk is duplicated on purpose; the decision about a package's *type* is not, because a diagram that classified a package differently from the checker would be a diagram that lies.
+
+### Six capabilities, six decisions that are easy to get quietly wrong
+
+`test_runner`'s specification is a list of features. Each one turned out to contain a judgement:
+
+- **Affected** asks git four questions and takes the union — committed, staged, unstaged, untracked. A pre-push hook that asked only the first would pass on work not yet committed, which is the one moment it exists to catch. A diff git cannot answer runs *everything*.
+- **Runner selection** reads `sdk: flutter` from the pubspec, never the path: a `platform/*` package and an `_api` package live at the same depth.
+- **Bundling** is a flag, not a default, because a library-level `@Tags` belongs to the file that carries it and a bundle is a different file.
+- **Hash-skip** covers the package's dependencies' sources, or it would skip `routing_application` after a change to `core_kernel` — the one case the cache exists to get right.
+- **Bucketing** is by measured cost, not count. Ties break on name, so a flake can be reproduced on the machine that saw it.
+- **Reporting** is one JUnit case per *package*: parsing two machine reporters into per-test cases would make this a third, worse test framework.
+
+### The earliest gate that can afford it
+
+Every check in the pipeline is placed by one rule, and `docs/CI_CD.md` names it for each. Two pairs that look redundant and are not: `fetch-depth: 0` **and** an explicit `git fetch origin main` (checkout gives you history, not that ref, and two tools name it); `arch_check` on both hooks (the `skip:` block leaves merge commits unchecked, so pre-push is the last local gate that sees one).
+
+## Packages added
+
+| Package | Tests | What it is for |
+|---|---|---|
+| `tooling/dep_graph` | 20 | the graph, four views, cycle detection, staleness gate |
+| `tooling/test_runner` | 41 | affected selection, runner choice, bundling, hash-skip, bucketing, JUnit |
+
+## Files added
+
+`.github/workflows/{pr,main,nightly,release}.yml`, `.github/CODEOWNERS`, `.github/pull_request_template.md`, `.github/ISSUE_TEMPLATE/{config,bug,architecture}.yml`, `codemagic.yaml`, `fastlane/Fastfile`, `docs/{ARCHITECTURE,TESTING,CI_CD,dependency-graph}.md`.
+
+## Known gaps
+
+**`codemagic.yaml` and `fastlane/Fastfile` cannot run against this repository as it stands.** There is no `apps/*/android/`, no `apps/*/ios/` and no `apps/*/config/<flavour>.json` — the specification explicitly does not require iOS or Android builds, so the native projects were never generated. Both files state this at the top and `docs/CI_CD.md` §7 repeats it; everything else in them is real.
+
+**No golden test and no integration test exists.** The tags, the presets, the CI steps and the exclusions are all wired. Wiring first is deliberate: a golden added to a repository with no tag, no preset excluding it and no nightly running it becomes a flaky pull-request check within a week and then gets deleted.
+
+**Branch protection is a repository setting, not a file.** The required status checks — the `pr` workflow's `verify` job and the merge queue's ten buckets — have to be enabled after this merges.
+
+**Eight commits, at the low end of the 15–40 the constitution calls normal.** Each is a complete unit that passes every gate on its own; a cross-package contract change cannot be split further without commits that do not compile.
+
+## Verification
 
 ```
-$ dart run melos run arch:check
-arch_check: clean — 15 packages, no violations.
+dart analyze --fatal-infos --fatal-warnings .   No issues found!
+dart run melos run arch:check                   clean — 75 packages, no violations
+dart run melos run gen:check                    SUCCESS
+dart run melos run graph:check                  docs/dependency-graph.md is current
+dart run melos run test                         SUCCESS — 1,530 cases, 161 files
 ```
-
-## `scaffold`
-
-```bash
-dart run tooling/scaffold/bin/scaffold.dart new-feature --name billing --split full
-dart run tooling/scaffold/bin/scaffold.dart new-feature --name faq --split reduced
-dart run tooling/scaffold/bin/scaffold.dart new-feature --name shipments \
-  --split full --with-testing --presentation courier,dispatcher
-```
-
-Each generated package gets a pubspec whose dependency list is one row of §2 and nothing more, a barrel, seed sources that compile, a test that passes, a `README.md` naming what must never live there, a `dart_test.yaml`, and an entry in the root `workspace:` list. `--codegen` adds the `build.yaml` and dev dependencies for the roles that generate; `--dry-run`, `--force` and `--root` do what they say.
-
-Its acceptance test generates five shapes into a throwaway workspace and runs `arch_check` over each as a **subprocess** — rule I7 applies to tools too, and running the real binary against the real rule file is the only way the test proves what it claims.
-
-The seeds are meant to be deleted. They exist to show the shape: a sealed failure hierarchy and a port in `_api`, a use case whose collaborators arrive through its constructor in `_application`, an adapter that returns a `Failed` instead of throwing and a DTO that never crosses into the domain in `_infrastructure`, a `RouteModule` in `_presentation`, a behavioural fake in `_testing`.
-
-## Acceptance
-
-| Criterion | Result |
-|---|---|
-| `dart analyze --fatal-infos --fatal-warnings .` | clean |
-| `dart run melos run format:check` | clean, 233 files |
-| `dart run melos run arch:check` | clean, 15 packages, 0 violations |
-| `dart run melos run gen:check` | clean |
-| `dart run melos run test` | 325 passing |
-| `arch_check` fixtures | 8 workspaces, every rule proved to fire |
-| scaffold output compiles, tests, and passes `arch_check` | yes, for both splits, multiple presentation packages, and `--codegen` |
-
-## Known gaps, and one rule to decide in phase 7
-
-**Rule S1 will meet `apps/` in phase 7.** The document says *every* package has a barrel at `lib/<package_name>.dart`, and `rules.yaml` encodes that for every type including `app`. A Flutter application conventionally has `lib/main.dart` instead. This is flagged rather than pre-decided: phase 7 either gives each app a barrel or amends §3 through the process in §9. It is not bent here.
-
-**Third-party dependencies in `core_ports`, `core_navigation` and `core_testing`.** §2's table says those may not depend on "everything else", and its closing sentence says third-party packages are unrestricted except where §4 forbids them. `rules.yaml` follows the closing sentence, and only the two rows that name third-party code in so many words — `core_kernel` and `design_tokens` — forbid it. The reading is recorded in a comment in `rules.yaml`; if the intent was stricter, that is a one-line change plus a fixture.
-
-**`--codegen` resolves a tension rather than hiding it.** The specification says the scaffolder puts the correct `build.yaml` in every package it produces; `CLAUDE.md` §7.6 says a package with no generated files has no `build.yaml` and no `build_runner` dependency, and calls that the cheapest configuration rather than a missing one. A freshly scaffolded feature generates nothing, so the default follows §7.6 and the flag serves the other reading.
-
-**Three rules stay a review responsibility** (§8 of the dependency rules): whether a cycle was resolved with contracts or with a new `shared` package, whether a mapper really maps, and whether an adapter has quietly taken on a use case's job.
-
-**`test_runner` and `dep_graph` are phase 8.** `melos run test:affected` still falls back to the whole `pr` preset, and `docs/dependency-graph.md` does not exist yet, so the "graph with no cycles" criterion is currently proved by `arch_check`'s `CycleCheck` rather than by a rendered graph.

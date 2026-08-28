@@ -173,15 +173,16 @@ Types: `feat`, `fix`, `refactor`, `test`, `docs`, `build`, `ci`, `chore`, `perf`
 
 The body matters more here than in a normal repository. This is a reference repository, so the *why* is as valuable as the code. Every commit that makes an architectural decision gets a body.
 
-**Before every commit**, these three must be clean:
+**Before every commit**, these must be clean:
 
 ```bash
 dart run melos run gen
 dart analyze
 dart run tooling/arch_check/bin/arch_check.dart
+dart run tooling/dep_graph/bin/dep_graph.dart --check
 ```
 
-Plus the tests of the affected packages. Before `arch_check` exists (phases 0–2), verify the rules by hand and state in the commit body which rule you verified.
+Plus the tests of the affected packages — `dart run melos run test:affected` from phase 8 on. The fourth line is there for the same reason the first is: `docs/dependency-graph.md` is generated and committed, so a commit that adds a package or moves an edge carries the regenerated graph with it. Before `arch_check` exists (phases 0–2), verify the rules by hand and state in the commit body which rule you verified.
 
 **Never:** force-push, rebase-rewrite `main`, split generated files from their sources into a separate commit, or commit for the sake of committing.
 
@@ -291,66 +292,65 @@ At the **end** of a phase: verify the acceptance criteria in the spec, push, ope
 
 This section is the handoff between sessions. It is rewritten at every phase boundary and it is the only part of this file that is expected to go stale — everything above is the constitution. Read it after section 9, then check it against `git log` before trusting it.
 
-**Branch:** `phase/08-ci-and-docs`. **Last tag:** `phase-07`. **Working tree:** clean; `arch_check` clean across 73 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace.
+**Branch:** `phase/08-ci-and-docs`. **Last tag:** `phase-07`. **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,530 cases in 161 files); `melos run gen:check` and `graph:check` clean.
 
-### Phase 7 is code-complete
+### Phase 8 is code-complete
 
-Five packages added — `design_tokens`, `design_system`, `app_harness`, `app_courier`, `app_dispatcher` — and all fourteen presentation packages retrofitted onto the design system.
+Two tooling packages added — `dep_graph` and `test_runner` — the CI files written, and the four documents the specification asks for by name.
 
-| Package | What it is for | What it demonstrates |
+| Added | What it is for | What it demonstrates |
 |---|---|---|
-| `design_tokens` | palette, spacing, type, motion, breakpoints | the narrowest row after `core_kernel`: the Flutter SDK and nothing else, with a WCAG contrast test that makes it more than a constants file |
-| `design_system` | the component library, and `StringCatalogue` | the driven-port inversion applied to the UI layer — a contract declared where a presentation package can see it and satisfied where an app can answer it |
-| `app_harness` | every feature on fakes | the container test: 128 registrations, thirteen facades, and a graph that fails in milliseconds rather than at whichever screen somebody opened |
-| `app_courier` | offline-first, device-bound | column one of the §5.5 table, asserted rather than described |
-| `app_dispatcher` | online, single sign-on | column two, plus the two ports a desk cannot honestly answer |
+| `tooling/dep_graph` | renders the graph into `docs/dependency-graph.md`, fails on a cycle | success criterion 4, checked rather than described; four views, because *which* scope you draw is the whole design |
+| `tooling/test_runner` | affected selection, runner choice, bundling, hash-skip, bucketing, JUnit | how a 100,000-test suite stays runnable: nobody ever runs all of it for one change |
+| `.github/workflows/*`, `codemagic.yaml`, `fastlane/` | the pipeline | every gate placed by one rule — the earliest place that can afford it |
+| `docs/ARCHITECTURE.md`, `TESTING.md`, `CI_CD.md`, `dependency-graph.md` | the explanation half | the seven scenarios, the pyramid, and where each gate lives |
 
-### What phase 7 added to the constitution
+### Phase 8's first item — settled: driving ports are per audience
 
-**Rule S1 and S2 grew an `app` shape.** Both were written for a package with dependents: "the public surface is one barrel named after the package" is a promise to whoever imports it, and nothing imports an app. What an app has is an entry point, and Flutter looks for it directly under `lib/` — one per flavour, which the phase 7 specification asks for explicitly. `docs/DEPENDENCY_RULES.md` §3 states the amendment; `rules.yaml` encodes it as `structure.entry_point`; two fixtures prove both halves.
+The debt phase 7 deferred is closed. The note is **[`docs/research/facade-port-coupling.md`](docs/research/facade-port-coupling.md)**, now resolved; the rule it produced is **[`docs/DEPENDENCY_RULES.md` §2.3](docs/DEPENDENCY_RULES.md)** with its non-mechanical half in §8; the narrative lives in `docs/ARCHITECTURE.md` under scenario 5.
 
-**`melos run l10n` exists, and `gen:check` runs it.** `flutter gen-l10n` is the one generator in §4.1 that build_runner does not drive, and a stale `.arb` has to fail the same gate a stale `.g.dart` does. See §4.4.
-
-### Decisions made in phase 7 — do not re-litigate
-
-- **The vocabulary lives in `design_system`, not `design_tokens`.** A presentation package must be able to write `PeykIntent.danger`; section 2 does not put `design_tokens` on that row and rule S4 forbids re-exporting it. The constitution made the placement visible, and it was the right split anyway: the tokens package holds five colour triples, and *which one a situation calls for* is a question about the component API.
-- **A `describe` returns a key, not a sentence.** The mapping from a sealed failure to a message stays in the presentation package where the compiler checks it covers the union; the wording moves to the app. `identity` is why it matters beyond localisation: `InvalidCredentials` and `DeviceNotRegistered` map to one key, so two apps cannot accidentally give them different wording and leak whether an account exists.
-- **Anything a locale owns crosses unformatted.** A byte count, a percentage, a money amount, an arrival time. `routing`'s `hhmm` is gone; money crosses as `minorUnits`, a currency code and a scale.
-- **A key manifest is derived wherever the keys are.** `SettingsStrings.all` is built from the enums it labels, so a new `SyncPolicy` fails an app's coverage test until somebody writes the sentence.
-- **The coverage test runs in both directions.** A key nobody answers is a bug; a sentence nobody asks for is a translation maintained forever. The second half found that `app_dispatcher` carried eighteen delivery sentences for screens it does not draw.
-- **`PeykRouter` is duplicated in all three apps.** A shared router package would compile and would be the first `common` package in the workspace. Ninety lines each is the price of not having that negotiation.
-- **A composition root takes its own dependencies.** `CourierPlatform` gathers the plugin platform interfaces; `main.dart` passes the real ones and a test passes stubs, and the container in between is identical. That works only because every `platform/*` adapter took an interface rather than a singleton in phase 2.
-- **An adapter may live in an app when it answers a capability the device lacks.** `DeskAlertChannel` returns `AlertsRefused` because a desk has no push client. It declines rather than pretending, and `notifications` has no business knowing that some apps are desks.
-- **A feature can be composed without being mounted.** `app_dispatcher` resolves `DeliveryFacade` and mounts no delivery route. A feature is a set of use cases *and* a set of destinations.
-
-### Phase 8, item 1 — settled: driving ports are per audience
-
-The debt phase 7 deferred is closed. It is **[`docs/research/facade-port-coupling.md`](docs/research/facade-port-coupling.md)**, now marked resolved, and the rule it produced is **[`docs/DEPENDENCY_RULES.md` §2.3](docs/DEPENDENCY_RULES.md)** with its non-mechanical half in §8. Read §2.3 before writing `docs/ARCHITECTURE.md`.
-
-What changed: `RoutingFacade` became `RoutePlanning` / `RouteSupervision` / `RouteFollowing`, and `DeliveryFacade` became `DeliveryExecution` / `DeliverySettlement` / `DeliveryHistory`. `app_dispatcher` composes only what a desk can answer and no longer depends on `location_service`; its container test asserts `RouteFollowing` and `DeliveryExecution` are *not registered*.
+`RoutingFacade` became `RoutePlanning` / `RouteSupervision` / `RouteFollowing`, and `DeliveryFacade` became `DeliveryExecution` / `DeliverySettlement` / `DeliveryHistory`. `app_dispatcher` composes only what a desk can answer and no longer depends on `location_service`; its container test asserts `RouteFollowing` and `DeliveryExecution` are *not registered*.
 
 Three things worth not rediscovering:
 
 - **Phase 7's own account of the seam was wrong.** It said no dispatcher screen called the courier-only use cases. `RouteScreen` is mounted at `routing.courierRoute`, its `initState` calls `load`, and `load` called `recalculateOnDeviation`. The desk's GPS stayed out of the answer only because the desk's *local* route cache is empty — an accident of adapter choice. "Nothing calls it" is a claim about every call site forever; do not accept it as a guarantee again.
 - **Segregating an interface is not segregating a composition.** `IdentityCoordinator` implements three ports from one constructor; that limits what a caller may ask and not what an app must supply. Routing and delivery needed one coordinator per port, plus a `RouteChannel` / `DeliveryChannel` for the change stream the split would otherwise have split too.
-- **Capability absence and intent absence want opposite answers.** A driven port a device cannot answer gets an adapter that declines — `DeskAlertChannel`. A driving operation an audience never performs is absent from the interface it holds. §2.3 is that table.
+- **Capability absence and intent absence want opposite answers.** A driven port a device cannot answer gets an adapter that declines (`DeskAlertChannel`). A driving operation an audience never performs is absent from the interface it holds. §2.3 is that table.
 
-Still outstanding from the note: `docs/ARCHITECTURE.md` owes scenario 5 the summary in §3 of the research file.
+### Decisions made in phase 8 — do not re-litigate
+
+- **`dep_graph` reads `arch_check`'s `rules.yaml` as data, and does not import `arch_check`.** §2 gives a tooling package an empty allow-list, so the workspace walk is a second copy on purpose. The *type decision* stays single-sourced: a diagram that classified a package differently from the checker would be a diagram that lies.
+- **Mermaid never draws the whole workspace.** Seventy-five nodes and four hundred edges render as a wall. Mermaid gets three views that carry an argument; the complete graph goes out as DOT, which has a layout engine.
+- **Nothing generated is time-stamped.** A generated file that changed one byte per run would fail the staleness gate on every commit and be ignored within a week.
+- **`test_runner` enumerates the workspace from the root pubspec's `workspace:` list**, not by walking directories. That list is what pub resolves against.
+- **A failed git diff runs everything.** A selective run built on a failed diff silently covers nothing, and a green CI on an unfetched base is the failure nobody notices.
+- **Affected selection walks `dev_dependencies` too.** A broken contract kit breaks its consumers' suites and nobody's build.
+- **The hash-skip cache is never shared between machines.** It is a claim that *this machine* saw a package pass. CI passes `--no-cache`.
+- **Bundling is a flag, not the default.** A library-level `@Tags` belongs to the file that carries it and a bundle is a different file, so any run that filters by tag stays unbundled. The merge queue bundles; the pull request does not.
+- **JUnit is one test case per package.** The runner reads exit codes; parsing two machine reporters into per-test cases would make it a third, worse test framework.
+- **A Fastlane lane never builds.** Codemagic builds and signs; a lane moves an artefact that already exists, so a failed upload stays distinguishable from a failed compile.
+
+### The one thing phase 8 states rather than fixes
+
+`codemagic.yaml` and `fastlane/Fastfile` are real and consistent and **cannot run in this repository as it stands**. There is no `apps/*/android/`, no `apps/*/ios/` and no `apps/*/config/<flavour>.json`, because the specification explicitly does not require iOS or Android builds. Both files say so at the top, and `docs/CI_CD.md` §7 repeats it. `flutter create --platforms=android,ios .` inside an app is the step that closes it.
 
 ### Left to do
 
-1. **Phase 8** — `test_runner`, `dep_graph`, the CI files, `docs/ARCHITECTURE.md` (scenario 5 must carry §2.3), `docs/TESTING.md`, `docs/CI_CD.md`, and the generated dependency graph.
-2. **Phase-end flow** — section 6: push, open the pull request, merge **without squashing**, tag `phase-08`, push the tag.
+1. **Phase-end flow** — section 6: push, open the pull request, merge **without squashing**, tag `phase-08`, push the tag.
+2. **After the tag** — enable the required status checks on `main` (§8 of `docs/CI_CD.md`): the `pr` workflow's `verify` job and the merge queue's ten buckets. The workflow files exist; the protection rule is a repository setting.
 
 ### Verification, before every commit
 
 ```bash
-dart run melos run gen      # only where build_runner is a dev dependency
-dart run melos run l10n     # only where an l10n.yaml exists
+dart run melos run gen         # only where build_runner is a dev dependency
+dart run melos run l10n        # only where an l10n.yaml exists
 dart analyze --fatal-infos --fatal-warnings .
 dart run melos run arch:check
-dart run melos run test
+dart run melos run graph:check # the graph is generated and committed too
+dart run melos run test:affected
 ```
+
+`melos run test` still runs the whole workspace, and `test:affected` is what the hook and CI run. Prefer the second while working and the first before a phase pull request.
 
 The pre-commit hook runs format, analyze **on staged files only**, and `arch_check` over the whole workspace. Analyze on staged files is the gap, and phase 7 hit it: a half-migrated `settings_presentation` was staged while its fix was not, and the hook refused the commit for the right reason but with a confusing message. Run `dart analyze` over the workspace before a phase PR.
 
