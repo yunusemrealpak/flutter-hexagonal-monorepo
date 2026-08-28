@@ -90,15 +90,12 @@ void main() {
     });
   });
 
-  group('DeliveryCoordinator', () {
+  group('the three coordinators', () {
     test('announces an attempt it opened', () async {
-      final coordinator = harness.coordinator;
-      addTearDown(coordinator.dispose);
-
       final seen = <DeliveryAttempt>[];
-      coordinator.changes().listen(seen.add);
+      harness.history.changes().listen(seen.add);
 
-      await coordinator.startAttempt(
+      await harness.execution.startAttempt(
         shipment: DeliveryFixtures.shipment(),
         courier: DeliveryFixtures.courier(),
       );
@@ -110,14 +107,12 @@ void main() {
     test('announces nothing for a call it refused', () async {
       // The record did not change, and a screen that redrew on it would
       // flicker for no reason.
-      final coordinator = harness.coordinator;
-      addTearDown(coordinator.dispose);
       harness.fence.standAt(900);
 
       final seen = <DeliveryAttempt>[];
-      coordinator.changes().listen(seen.add);
+      harness.history.changes().listen(seen.add);
 
-      await coordinator.startAttempt(
+      await harness.execution.startAttempt(
         shipment: DeliveryFixtures.shipment(),
         courier: DeliveryFixtures.courier(),
       );
@@ -126,14 +121,32 @@ void main() {
       expect(seen, isEmpty);
     });
 
-    test('reads go straight through without an announcement', () async {
-      final coordinator = harness.coordinator;
-      addTearDown(coordinator.dispose);
+    test('an attempt settled by one role reaches the reader', () async {
+      // The reason `DeliveryChannel` exists. `changes()` is declared on
+      // `DeliveryHistory`, and a settlement — which a desk performs and a
+      // courier performs — has to reach a screen holding that interface.
+      final opened = (await harness.execution.startAttempt(
+        shipment: DeliveryFixtures.shipment(),
+        courier: DeliveryFixtures.courier(),
+      )).fold((a) => a, (f) => throw StateError('$f'));
 
       final seen = <DeliveryAttempt>[];
-      coordinator.changes().listen(seen.add);
+      harness.history.changes().listen(seen.add);
 
-      await coordinator.attemptsFor(DeliveryFixtures.shipment());
+      await harness.settlement.failWithReason(
+        attempt: opened,
+        reason: const NonDeliveryReason.recipientAbsent(),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      expect(seen, hasLength(1));
+    });
+
+    test('reads go straight through without an announcement', () async {
+      final seen = <DeliveryAttempt>[];
+      harness.history.changes().listen(seen.add);
+
+      await harness.history.attemptsFor(DeliveryFixtures.shipment());
       await Future<void>.delayed(Duration.zero);
 
       expect(seen, isEmpty);

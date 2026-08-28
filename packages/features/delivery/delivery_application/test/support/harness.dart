@@ -65,16 +65,27 @@ final class Harness {
   /// The read side.
   AttemptReads get reads => AttemptReads(gateway: gateway);
 
-  /// The facade, wired the way a composition root would wire it.
-  DeliveryCoordinator get coordinator => DeliveryCoordinator(
-    startAttempt: start,
+  /// The one stream the three coordinators announce on.
+  late final DeliveryChannel channel = DeliveryChannel();
+
+  /// Arriving, wired the way a courier's composition root would wire it.
+  DeliveryExecutionCoordinator get execution =>
+      DeliveryExecutionCoordinator(startAttempt: start, channel: channel);
+
+  /// Closing an attempt — which both apps compose.
+  DeliverySettlementCoordinator get settlement => DeliverySettlementCoordinator(
     complete: complete,
     fail: fail,
-    reads: reads,
+    channel: channel,
   );
+
+  /// Reading attempts back.
+  DeliveryHistoryCoordinator get history =>
+      DeliveryHistoryCoordinator(reads: reads, channel: channel);
 
   /// Releases what the harness holds open.
   Future<void> dispose() async {
+    await channel.dispose();
     await queue.dispose();
     await events.dispose();
   }

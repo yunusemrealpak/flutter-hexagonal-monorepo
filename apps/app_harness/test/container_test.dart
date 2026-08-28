@@ -51,7 +51,9 @@ void main() {
       expect(container<RoutePlanning>(), isNotNull);
       expect(container<RouteSupervision>(), isNotNull);
       expect(container<RouteFollowing>(), isNotNull);
-      expect(container<DeliveryFacade>(), isNotNull);
+      expect(container<DeliveryExecution>(), isNotNull);
+      expect(container<DeliverySettlement>(), isNotNull);
+      expect(container<DeliveryHistory>(), isNotNull);
       expect(container<PaymentsFacade>(), isNotNull);
       expect(container<SyncFacade>(), isNotNull);
     });

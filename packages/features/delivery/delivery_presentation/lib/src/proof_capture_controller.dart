@@ -8,11 +8,17 @@ import 'proof_capture_state.dart';
 
 /// Drives the screen a courier taps *done* on.
 ///
-/// It holds three ports and no implementations: `DeliveryFacade` to open and
-/// close an attempt, `SessionReader` to know whose afternoon it is, and
-/// `PermissionChecker` to know whether they may record a hand-over at all.
-/// All three are declared in an `_api` package and all three arrive through
-/// the constructor.
+/// It holds four ports and no implementations: `DeliveryExecution` to open an
+/// attempt, `DeliverySettlement` to close one, `SessionReader` to know whose
+/// afternoon it is, and `PermissionChecker` to know whether they may record a
+/// hand-over at all. All four are declared in an `_api` package and all four
+/// arrive through the constructor.
+///
+/// **Opening and closing are two ports because only one of them needs a
+/// device.** `startAttempt` asks a geofence whether this device is at the
+/// address; settling an attempt asks a store and a queue. A desk composes the
+/// second and not the first, so this screen — which needs both — is a
+/// courier's.
 ///
 /// **`canComplete` is scenario 6.** The screen asks whether the signed-in
 /// actor holds `Permission.completeDelivery` and never learns how identity
@@ -26,14 +32,16 @@ import 'proof_capture_state.dart';
 /// evidence, through `ProofOfDelivery.from`, rather than from a time source
 /// this layer is not allowed to hold.
 final class ProofCaptureController extends ChangeNotifier {
-  /// Creates the controller over its three ports.
+  /// Creates the controller over its four ports.
   ProofCaptureController({
-    required this._delivery,
+    required this._execution,
+    required this._settlement,
     required this._session,
     required this._permissions,
   });
 
-  final DeliveryFacade _delivery;
+  final DeliveryExecution _execution;
+  final DeliverySettlement _settlement;
   final SessionReader _session;
   final PermissionChecker _permissions;
 
@@ -64,7 +72,7 @@ final class ProofCaptureController extends ChangeNotifier {
 
     _emit(const Arriving());
 
-    final opened = await _delivery.startAttempt(
+    final opened = await _execution.startAttempt(
       shipment: shipment,
       courier: courier,
       grade: grade,
@@ -144,7 +152,7 @@ final class ProofCaptureController extends ChangeNotifier {
           proof = value;
       }
 
-      final settled = await _delivery.completeWithProof(
+      final settled = await _settlement.completeWithProof(
         attempt: state.attempt,
         proof: proof,
       );
@@ -168,7 +176,7 @@ final class ProofCaptureController extends ChangeNotifier {
   /// leave the visit unrecorded rather than leaving it undone.
   Future<void> couldNotDeliver(NonDeliveryReason reason) async {
     if (_state case final AtTheDoor state) {
-      final settled = await _delivery.failWithReason(
+      final settled = await _settlement.failWithReason(
         attempt: state.attempt,
         reason: reason,
       );

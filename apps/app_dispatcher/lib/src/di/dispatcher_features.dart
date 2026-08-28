@@ -7,7 +7,6 @@ import 'package:identity_api/identity_api.dart';
 import 'package:identity_application/identity_application.dart';
 import 'package:identity_infrastructure/identity_infrastructure.dart';
 import 'package:injectable/injectable.dart';
-import 'package:location_service/location_service.dart';
 import 'package:payments_api/payments_api.dart';
 import 'package:payments_application/payments_application.dart';
 import 'package:payments_infrastructure/payments_infrastructure.dart';
@@ -21,8 +20,6 @@ import 'package:sync_api/sync_api.dart';
 import 'package:sync_application/sync_application.dart';
 import 'package:sync_infrastructure/sync_infrastructure.dart';
 import 'package:sync_testing/sync_testing.dart';
-
-import 'dispatcher_platform.dart';
 
 /// The six full-split features, on the adapters a desk needs.
 ///
@@ -206,17 +203,6 @@ abstract class DispatcherFeatures {
   RouteCache routeCache(KeyValueStore store) =>
       KeyValueRouteCache(store: store);
 
-  /// The device's GPS.
-  ///
-  /// Bound for `HttpGeoFence` only, which is delivery's. Routing no longer
-  /// asks this app for a position at all: `RouteFollowing` is the interface
-  /// that needs one, and a desk does not compose it.
-  @lazySingleton
-  LocationSource locationSource(
-    DispatcherPlatform platform,
-    PermissionRequester permissions,
-  ) => GeolocatorLocationSource(platform.location, permissions);
-
   /// Ordering a day's stops.
   @lazySingleton
   PlanRoute plan(
@@ -381,10 +367,12 @@ abstract class DispatcherFeatures {
 
   /// Getting a photograph under the size a queued write can carry.
   ///
-  /// Bound although this app has no camera, because `CompleteWithProof` takes
-  /// it and use cases are the same package in every app. A compressor with
-  /// nothing to compress costs one object; a use case with an app-shaped hole
-  /// in it costs the claim this phase is making.
+  /// Bound although this app has no camera, and that is not the same kind of
+  /// binding the GPS used to be. A desk composes `DeliverySettlement` because
+  /// correcting a record is something a desk genuinely does, and settling an
+  /// attempt whose proof carries a photograph has to compress it wherever the
+  /// call was made. The compressor answers a question about *bytes*, not about
+  /// where the caller is standing — so this app can answer it honestly.
   @lazySingleton
   MediaCompressorPort get compressor => const BudgetMediaCompressor();
 
@@ -392,26 +380,6 @@ abstract class DispatcherFeatures {
   @lazySingleton
   DeliveryGateway deliveryGateway(HttpTransport transport) =>
       RestDeliveryGateway(transport: transport);
-
-  /// Arriving.
-  ///
-  /// A dispatcher never does. It is here because `DeliveryCoordinator` takes
-  /// it, and the coordinator is `delivery_application`'s class rather than
-  /// this app's to trim.
-  @lazySingleton
-  StartAttempt start(GeoFencePort fence, Clock clock, IdGenerator ids) =>
-      StartAttempt(fence: fence, clock: clock, ids: ids);
-
-  /// Whether the courier is at the address.
-  ///
-  /// The second of the two ports a desk cannot honestly answer.
-  /// `HttpGeoFence` asks the operation whether *this device's* position is
-  /// inside a fence, and on a desk that position is the desk. It is bound
-  /// because `DeliveryCoordinator` takes `StartAttempt`, and it is never
-  /// called because a dispatcher never stands at a door.
-  @lazySingleton
-  GeoFencePort fence(HttpTransport transport, LocationSource location) =>
-      HttpGeoFence(transport: transport, location: location);
 
   /// Handing over. Scenario 3: it queues through `sync` and publishes an event.
   @lazySingleton
@@ -439,19 +407,36 @@ abstract class DispatcherFeatures {
   AttemptReads attemptReads(DeliveryGateway gateway) =>
       AttemptReads(gateway: gateway);
 
-  /// The one implementation of `DeliveryFacade`.
+  /// The one stream delivery announces on.
   @lazySingleton
-  DeliveryFacade delivery(
-    StartAttempt start,
+  DeliveryChannel get deliveryChannel => DeliveryChannel();
+
+  /// Closing an attempt — a desk's correction of somebody else's afternoon.
+  ///
+  /// **`DeliveryExecution` is not bound here, and that is the whole of what
+  /// phase 8 changed in this app.** Opening an attempt asks a `GeoFencePort`
+  /// whether *this device* is at the address; a desk has no answer to that.
+  /// Until the split, one coordinator took all four use cases, so this app had
+  /// to bind `StartAttempt`, `HttpGeoFence` and a `LocationSource` over the
+  /// desk's own GPS in order to read an attempt back. Those three bindings are
+  /// gone, and `location_service` is no longer a dependency of this app.
+  @lazySingleton
+  DeliverySettlement deliverySettlement(
     CompleteWithProof complete,
     FailWithReason fail,
-    AttemptReads reads,
-  ) => DeliveryCoordinator(
-    startAttempt: start,
+    DeliveryChannel channel,
+  ) => DeliverySettlementCoordinator(
     complete: complete,
     fail: fail,
-    reads: reads,
+    channel: channel,
   );
+
+  /// Reading attempts back — the half of delivery a board is made of.
+  @lazySingleton
+  DeliveryHistory deliveryHistory(
+    AttemptReads reads,
+    DeliveryChannel channel,
+  ) => DeliveryHistoryCoordinator(reads: reads, channel: channel);
 
   // -- payments ------------------------------------------------------------
 

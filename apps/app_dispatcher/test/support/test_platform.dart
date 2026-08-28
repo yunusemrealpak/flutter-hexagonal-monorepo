@@ -3,7 +3,6 @@ import 'package:connectivity_plus_platform_interface/connectivity_plus_platform_
 import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
-import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
 import 'package:opentelemetry/api.dart' as otel;
 import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart'
     as handler;
@@ -25,7 +24,6 @@ DispatcherPlatform testPlatform() => DispatcherPlatform(
   secureStorage: _SecureStorage(),
   connectivity: _Connectivity(),
   permissions: _Permissions(),
-  location: _Location(),
   tracer: otel.globalTracerProvider.getTracer('peyk.dispatcher.test'),
 );
 
@@ -103,17 +101,4 @@ final class _Permissions extends handler.PermissionHandlerPlatform {
 
   @override
   Future<bool> openAppSettings() async => true;
-}
-
-final class _Location extends GeolocatorPlatform {
-  @override
-  Future<LocationPermission> checkPermission() async =>
-      LocationPermission.always;
-
-  @override
-  Future<LocationPermission> requestPermission() async =>
-      LocationPermission.always;
-
-  @override
-  Future<bool> isLocationServiceEnabled() async => true;
 }

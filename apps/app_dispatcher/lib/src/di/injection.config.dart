@@ -11,15 +11,14 @@
 // ignore_for_file: no_leading_underscores_for_library_prefixes
 import 'package:core_ports/core_ports.dart' as _i398;
 import 'package:delivery_api/delivery_api.dart' as _i1041;
-import 'package:delivery_application/delivery_application.dart' as _i719;
+import 'package:delivery_application/delivery_application.dart' as _i718;
 import 'package:get_it/get_it.dart' as _i174;
 import 'package:http_dio/http_dio.dart' as _i62;
 import 'package:identity_api/identity_api.dart' as _i966;
 import 'package:identity_application/identity_application.dart' as _i902;
 import 'package:incidents_api/incidents_api.dart' as _i499;
-import 'package:incidents_core/incidents_core.dart' as _i718;
+import 'package:incidents_core/incidents_core.dart' as _i719;
 import 'package:injectable/injectable.dart' as _i526;
-import 'package:location_service/location_service.dart' as _i281;
 import 'package:messaging_api/messaging_api.dart' as _i280;
 import 'package:messaging_core/messaging_core.dart' as _i111;
 import 'package:notifications_api/notifications_api.dart' as _i60;
@@ -61,11 +60,14 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i1041.MediaCompressorPort>(
       () => dispatcherFeatures.compressor,
     );
+    gh.lazySingleton<_i718.DeliveryChannel>(
+      () => dispatcherFeatures.deliveryChannel,
+    );
     gh.lazySingleton<_i780.ResolveLanguage>(
       () => dispatcherLightFeatures.resolveLanguage,
     );
     gh.lazySingleton<_i60.AlertChannel>(() => dispatcherLightFeatures.alerts);
-    gh.lazySingleton<_i718.ReasonClassifier>(
+    gh.lazySingleton<_i719.ReasonClassifier>(
       () => dispatcherLightFeatures.classifier,
     );
     gh.lazySingleton<_i398.Clock>(() => dispatcherPorts.clock);
@@ -137,7 +139,7 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i502.LoadReviewQueue>(
       () => dispatcherFeatures.reviewQueue(gh<_i202.OutboxStore>()),
     );
-    gh.lazySingleton<_i719.AttemptReads>(
+    gh.lazySingleton<_i718.AttemptReads>(
       () => dispatcherFeatures.attemptReads(gh<_i1041.DeliveryGateway>()),
     );
     gh.lazySingleton<_i490.ShipmentGateway>(
@@ -163,6 +165,12 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i901.PaymentStatusOf>(
       () => dispatcherFeatures.statusOf(gh<_i243.PaymentsGateway>()),
+    );
+    gh.lazySingleton<_i1041.DeliveryHistory>(
+      () => dispatcherFeatures.deliveryHistory(
+        gh<_i718.AttemptReads>(),
+        gh<_i718.DeliveryChannel>(),
+      ),
     );
     gh.lazySingleton<_i502.ReadSyncStatus>(
       () => dispatcherFeatures.syncStatus(
@@ -242,13 +250,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i398.KeyValueStore>(),
       ),
     );
-    gh.lazySingleton<_i281.LocationSource>(
-      () => dispatcherFeatures.locationSource(
-        gh<_i973.DispatcherPlatform>(),
-        gh<_i398.PermissionRequester>(),
-      ),
-    );
-    gh.lazySingleton<_i718.ResolveIncident>(
+    gh.lazySingleton<_i719.ResolveIncident>(
       () => dispatcherLightFeatures.resolveIncident(
         gh<_i499.IncidentLog>(),
         gh<_i398.Clock>(),
@@ -307,14 +309,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i398.IdGenerator>(),
       ),
     );
-    gh.lazySingleton<_i718.EscalateOverdue>(
+    gh.lazySingleton<_i719.EscalateOverdue>(
       () => dispatcherLightFeatures.escalate(
         gh<_i499.IncidentLog>(),
         gh<_i398.Clock>(),
         gh<_i398.Logger>(),
       ),
     );
-    gh.lazySingleton<_i718.ReportIncident>(
+    gh.lazySingleton<_i719.ReportIncident>(
       () => dispatcherLightFeatures.reportIncident(
         gh<_i499.IncidentLog>(),
         gh<_i398.Clock>(),
@@ -363,25 +365,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i398.Logger>(),
       ),
     );
-    gh.lazySingleton<_i718.ShipmentFailureWatcher>(
+    gh.lazySingleton<_i719.ShipmentFailureWatcher>(
       () => dispatcherLightFeatures.incidentWatcher(
         gh<_i398.DomainEventBus>(),
-        gh<_i718.ReportIncident>(),
-        gh<_i718.ReasonClassifier>(),
+        gh<_i719.ReportIncident>(),
+        gh<_i719.ReasonClassifier>(),
         gh<_i398.Logger>(),
-      ),
-    );
-    gh.lazySingleton<_i1041.GeoFencePort>(
-      () => dispatcherFeatures.fence(
-        gh<_i62.HttpTransport>(),
-        gh<_i281.LocationSource>(),
-      ),
-    );
-    gh.lazySingleton<_i719.StartAttempt>(
-      () => dispatcherFeatures.start(
-        gh<_i1041.GeoFencePort>(),
-        gh<_i398.Clock>(),
-        gh<_i398.IdGenerator>(),
       ),
     );
     gh.lazySingleton<_i901.RefundCollection>(
@@ -399,7 +388,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i302.ReadRange>(),
       ),
     );
-    gh.lazySingleton<_i718.ListOpenIncidents>(
+    gh.lazySingleton<_i719.ListOpenIncidents>(
       () => dispatcherLightFeatures.listIncidents(gh<_i499.IncidentLog>()),
     );
     gh.lazySingleton<_i111.SendMessage>(
@@ -445,7 +434,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i398.Logger>(),
       ),
     );
-    gh.lazySingleton<_i719.FailWithReason>(
+    gh.lazySingleton<_i718.FailWithReason>(
       () => dispatcherFeatures.fail(gh<_i202.SyncFacade>(), gh<_i398.Clock>()),
     );
     gh.lazySingleton<_i966.IdentityFacade>(
@@ -481,7 +470,7 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i111.DeliverMessage>(),
       ),
     );
-    gh.lazySingleton<_i719.CompleteWithProof>(
+    gh.lazySingleton<_i718.CompleteWithProof>(
       () => dispatcherFeatures.complete(
         gh<_i1041.ProofStorePort>(),
         gh<_i1041.MediaCompressorPort>(),
@@ -490,27 +479,19 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i398.Clock>(),
       ),
     );
-    gh.lazySingleton<_i1041.DeliveryFacade>(
-      () => dispatcherFeatures.delivery(
-        gh<_i719.StartAttempt>(),
-        gh<_i719.CompleteWithProof>(),
-        gh<_i719.FailWithReason>(),
-        gh<_i719.AttemptReads>(),
-      ),
-    );
     gh.singleton<_i642.DispatcherWatchers>(
       () => _i642.DispatcherWatchers(
         reconciler: gh<_i901.CollectionReconciler>(),
-        incidents: gh<_i718.ShipmentFailureWatcher>(),
+        incidents: gh<_i719.ShipmentFailureWatcher>(),
         reporting: gh<_i302.ShipmentOutcomeWatcher>(),
       ),
     );
     gh.lazySingleton<_i499.IncidentsFacade>(
       () => dispatcherLightFeatures.incidents(
-        gh<_i718.ReportIncident>(),
-        gh<_i718.ListOpenIncidents>(),
-        gh<_i718.EscalateOverdue>(),
-        gh<_i718.ResolveIncident>(),
+        gh<_i719.ReportIncident>(),
+        gh<_i719.ListOpenIncidents>(),
+        gh<_i719.EscalateOverdue>(),
+        gh<_i719.ResolveIncident>(),
       ),
     );
     gh.lazySingleton<_i901.PaymentsCoordinator>(
@@ -527,6 +508,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i111.SendMessage>(),
         gh<_i111.MarkThreadRead>(),
         gh<_i111.DrainQueue>(),
+      ),
+    );
+    gh.lazySingleton<_i1041.DeliverySettlement>(
+      () => dispatcherFeatures.deliverySettlement(
+        gh<_i718.CompleteWithProof>(),
+        gh<_i718.FailWithReason>(),
+        gh<_i718.DeliveryChannel>(),
       ),
     );
     gh.lazySingleton<_i722.SettingsFacade>(

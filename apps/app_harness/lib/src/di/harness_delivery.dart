@@ -76,17 +76,33 @@ abstract class HarnessDelivery {
   @lazySingleton
   AttemptReads reads(DeliveryGateway gateway) => AttemptReads(gateway: gateway);
 
-  /// The one implementation of `DeliveryFacade`.
+  /// The one stream the three coordinators announce on.
   @lazySingleton
-  DeliveryFacade delivery(
-    StartAttempt start,
+  DeliveryChannel get deliveryChannel => DeliveryChannel();
+
+  /// Arriving at a door.
+  @lazySingleton
+  DeliveryExecution execution(StartAttempt start, DeliveryChannel channel) =>
+      DeliveryExecutionCoordinator(startAttempt: start, channel: channel);
+
+  /// Closing an attempt.
+  @lazySingleton
+  DeliverySettlement settlement(
     CompleteWithProof complete,
     FailWithReason fail,
-    AttemptReads reads,
-  ) => DeliveryCoordinator(
-    startAttempt: start,
+    DeliveryChannel channel,
+  ) => DeliverySettlementCoordinator(
     complete: complete,
     fail: fail,
-    reads: reads,
+    channel: channel,
   );
+
+  /// Reading attempts back.
+  ///
+  /// **All three are bound here, and only here.** This app composes every
+  /// feature, so it is the one place delivery's whole driving surface is put
+  /// together.
+  @lazySingleton
+  DeliveryHistory history(AttemptReads reads, DeliveryChannel channel) =>
+      DeliveryHistoryCoordinator(reads: reads, channel: channel);
 }

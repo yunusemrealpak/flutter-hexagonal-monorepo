@@ -98,7 +98,8 @@ PeykRouter buildCourierRouter(GetIt container) {
         (shipment) => ProofCaptureScreen(
           shipment: shipment,
           controller: ProofCaptureController(
-            delivery: container<DeliveryFacade>(),
+            execution: container<DeliveryExecution>(),
+            settlement: container<DeliverySettlement>(),
             permissions: permissions,
             session: sessions,
           ),

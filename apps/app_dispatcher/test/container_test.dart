@@ -51,7 +51,14 @@ void main() {
       expect(container<RoutePlanning>(), isNotNull);
       expect(container<RouteSupervision>(), isNotNull);
       expect(container.isRegistered<RouteFollowing>(), isFalse);
-      expect(container<DeliveryFacade>(), isNotNull);
+      // Two of delivery's three. `DeliveryExecution` is absent: opening an
+      // attempt asks a geofence whether *this device* is at the address, and a
+      // desk has no answer. Settling and reading are answered from a store, a
+      // queue and a server, so both are composed here — which is also what
+      // keeps `RemoteProofStore` a binding with a caller.
+      expect(container<DeliverySettlement>(), isNotNull);
+      expect(container<DeliveryHistory>(), isNotNull);
+      expect(container.isRegistered<DeliveryExecution>(), isFalse);
       expect(container<PaymentsFacade>(), isNotNull);
       expect(container<SyncFacade>(), isNotNull);
     });

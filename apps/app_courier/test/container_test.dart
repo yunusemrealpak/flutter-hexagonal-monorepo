@@ -49,7 +49,11 @@ void main() {
       expect(container<RoutePlanning>(), isNotNull);
       expect(container<RouteFollowing>(), isNotNull);
       expect(container.isRegistered<RouteSupervision>(), isFalse);
-      expect(container<DeliveryFacade>(), isNotNull);
+      // All three of delivery's driving ports: a courier arrives, settles and
+      // reads back.
+      expect(container<DeliveryExecution>(), isNotNull);
+      expect(container<DeliverySettlement>(), isNotNull);
+      expect(container<DeliveryHistory>(), isNotNull);
       expect(container<PaymentsFacade>(), isNotNull);
       expect(container<SyncFacade>(), isNotNull);
     });

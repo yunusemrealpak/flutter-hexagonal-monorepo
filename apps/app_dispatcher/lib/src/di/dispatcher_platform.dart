@@ -2,19 +2,22 @@ import 'package:connectivity_plus_platform_interface/connectivity_plus_platform_
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart';
 import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
-import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
 import 'package:opentelemetry/api.dart' as otel;
 import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
 
 /// Everything this app needs from a device, gathered into one object.
 ///
-/// **Six, where `CourierPlatform` has eight.** There is no camera and no push
-/// client: nothing on a dispatcher's screen photographs a parcel, and an alert
-/// at a desk is a row on the board rather than a notification. Those two
-/// plugins are not dependencies of this app, so they are not compiled into it.
+/// **Five, where `CourierPlatform` has eight.** There is no camera, no push
+/// client and no GPS: nothing on a dispatcher's screen photographs a parcel,
+/// an alert at a desk is a row on the board rather than a notification, and a
+/// desk's position answers no question the product asks. All three plugins are
+/// absent from this app's pubspec, so none of them is compiled into it.
 ///
-/// The GPS is here and should not be, and the README says why in one section
-/// rather than being quiet about it.
+/// The GPS was here until phase 8, and it was here because of a contract
+/// rather than a device: routing and delivery each declared one driving port
+/// covering both audiences, so composing the half a desk performs meant
+/// supplying the half it cannot. Splitting those ports by audience removed the
+/// field.
 ///
 /// **This is the composition root taking its own dependencies**, and it is
 /// here for a reason worth stating: every adapter in `platform/*` already
@@ -37,7 +40,6 @@ final class DispatcherPlatform {
     required this.database,
     required this.http,
     required this.secureStorage,
-    required this.location,
     required this.connectivity,
     required this.permissions,
     required this.tracer,
@@ -51,13 +53,6 @@ final class DispatcherPlatform {
 
   /// The keychain or keystore.
   final FlutterSecureStoragePlatform secureStorage;
-
-  /// What produces a position fix.
-  ///
-  /// Here for a reason worth reading before copying: two ports this app
-  /// composes take one, and neither can be honestly answered from a desk. See
-  /// the README.
-  final GeolocatorPlatform location;
 
   /// What reports whether there is a network.
   final ConnectivityPlatform connectivity;

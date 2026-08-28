@@ -39,12 +39,14 @@ final class _Session implements SessionReader {
   Stream<Session?> changes() => Stream.value(current);
 }
 
-/// A `DeliveryFacade` this test steers.
+/// The two driving ports this screen holds, in one object the test steers.
 ///
-/// A stand-in rather than the real coordinator, and it has to be: this package
-/// may not depend on `delivery_application`. What it can name is the port,
-/// which is exactly the point.
-final class _Facade implements DeliveryFacade {
+/// A stand-in rather than the real coordinators, and it has to be: this
+/// package may not depend on `delivery_application`. What it can name is the
+/// ports, which is exactly the point. One class answering both is a test's
+/// privilege — the apps build two coordinators so that a desk is never asked
+/// to construct the one holding a `GeoFencePort`.
+final class _Facade implements DeliveryExecution, DeliverySettlement {
   Result<DeliveryAttempt, DeliveryFailure>? startAnswer;
   Result<DeliveryAttempt, DeliveryFailure>? completeAnswer;
 
@@ -85,7 +87,7 @@ final class _Facade implements DeliveryFacade {
     return Success(DeliveryFixtures.failed(reason: reason));
   }
 
-  /// Every other method of the port, which this test does not use.
+  /// Every other method of the ports, which this test does not use.
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -95,7 +97,8 @@ ProofCaptureController _controller(
   Set<Permission> granted = const {Permission.completeDelivery},
   bool signedIn = true,
 }) => ProofCaptureController(
-  delivery: facade,
+  execution: facade,
+  settlement: facade,
   session: _Session(
     signedIn ? SessionBuilder().actor('courier-1').build() : null,
   ),

@@ -5,7 +5,6 @@ import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
-import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
 import 'package:opentelemetry/api.dart' as otel;
 import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
 
@@ -56,7 +55,6 @@ Future<void> main() async {
       secureStorage: FlutterSecureStoragePlatform.instance,
       connectivity: ConnectivityPlatform.instance,
       permissions: PermissionHandlerPlatform.instance,
-      location: GeolocatorPlatform.instance,
       tracer: otel.globalTracerProvider.getTracer('peyk.dispatcher'),
     ),
   );

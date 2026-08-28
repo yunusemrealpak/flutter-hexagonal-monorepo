@@ -434,19 +434,38 @@ abstract class CourierFeatures {
   AttemptReads attemptReads(DeliveryGateway gateway) =>
       AttemptReads(gateway: gateway);
 
-  /// The one implementation of `DeliveryFacade`.
+  /// The one stream delivery announces on.
   @lazySingleton
-  DeliveryFacade delivery(
+  DeliveryChannel get deliveryChannel => DeliveryChannel();
+
+  /// Arriving at a door.
+  ///
+  /// The one delivery role that needs a device. `app_dispatcher` does not
+  /// bind it, which is why that app needs no geofence and no GPS.
+  @lazySingleton
+  DeliveryExecution deliveryExecution(
     StartAttempt start,
+    DeliveryChannel channel,
+  ) => DeliveryExecutionCoordinator(startAttempt: start, channel: channel);
+
+  /// Closing an attempt.
+  @lazySingleton
+  DeliverySettlement deliverySettlement(
     CompleteWithProof complete,
     FailWithReason fail,
-    AttemptReads reads,
-  ) => DeliveryCoordinator(
-    startAttempt: start,
+    DeliveryChannel channel,
+  ) => DeliverySettlementCoordinator(
     complete: complete,
     fail: fail,
-    reads: reads,
+    channel: channel,
   );
+
+  /// Reading attempts back.
+  @lazySingleton
+  DeliveryHistory deliveryHistory(
+    AttemptReads reads,
+    DeliveryChannel channel,
+  ) => DeliveryHistoryCoordinator(reads: reads, channel: channel);
 
   // -- payments ------------------------------------------------------------
 

@@ -35,7 +35,8 @@ void main() {
   });
 
   // The one that is worth a test of its own: this app *composes* delivery —
-  // DeliveryFacade resolves, and RemoteProofStore is row 4 of the table — and
+  // DeliverySettlement and DeliveryHistory resolve, RemoteProofStore is row 4
+  // of the table, DeliveryExecution is deliberately absent — and
   // mounts none of its destinations. A dispatcher reads an attempt and never
   // stands at a door. A feature is a set of use cases and a set of screens,
   // and an app can want one without the other.

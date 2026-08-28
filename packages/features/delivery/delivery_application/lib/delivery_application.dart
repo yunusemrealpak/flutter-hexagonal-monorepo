@@ -24,15 +24,29 @@
 /// the handle and let the bytes stop here, queue rather than send. A courier
 /// who has just handed over a parcel is not made to wait for a server.
 ///
-/// `DeliveryCoordinator` implements `DeliveryFacade` by delegating to the four
-/// use cases. It stays thin on purpose: if it ever grows a decision of its
-/// own, that is the signal a use case is missing.
+/// **Three coordinators, one per driving port.**
+/// `DeliveryExecutionCoordinator` holds the use case with a `GeoFencePort`
+/// behind it and is the one a desk does not compose;
+/// `DeliverySettlementCoordinator` and `DeliveryHistoryCoordinator` are
+/// composed by both apps. They share a `DeliveryChannel`, because
+/// `DeliveryHistory.changes` reports attempts the other two produce.
+///
+/// They were a single `DeliveryCoordinator` until phase 8. Splitting the
+/// interfaces alone would not have been enough: a constructor demanding every
+/// use case is what forced every app to bind every port, so the
+/// implementations had to split with them.
+///
+/// They stay thin on purpose: if one ever grows a decision of its own, that is
+/// the signal a use case is missing.
 library;
 
 export 'src/attempt_reads.dart';
 export 'src/complete_delivery_command.dart';
 export 'src/complete_with_proof.dart';
-export 'src/delivery_coordinator.dart';
+export 'src/delivery_channel.dart';
+export 'src/delivery_execution_coordinator.dart';
+export 'src/delivery_history_coordinator.dart';
+export 'src/delivery_settlement_coordinator.dart';
 export 'src/fail_delivery_command.dart';
 export 'src/fail_with_reason.dart';
 export 'src/start_attempt.dart';
