@@ -121,7 +121,20 @@ Everything else in both files — the triggers, the flavour matrix, the obfuscat
 
 ## 8. Branch protection
 
-`main` is protected: direct pushes are rejected and history is never rewritten. The required status checks are the `pr` workflow's `verify` job and the merge queue's ten buckets.
+`main` is protected: direct pushes are rejected and history is never rewritten. What is actually set:
+
+| Setting | Value | Why |
+|---|---|---|
+| Required status check | `verify` | the `pr` workflow's only job, and every gate in §3 |
+| Require branches up to date | on | see below |
+| Include administrators | on | a rule the author is exempt from is a rule this repository cannot demonstrate |
+| Force pushes, deletions | blocked | §5 of the constitution, enforced rather than asked for |
+| Conversation resolution | required | |
+| Approving reviews | none required | a solo repository cannot approve its own pull request, and a rule nobody can satisfy blocks everything |
+
+**The merge queue's ten buckets are deliberately not required checks, and the reason is a trigger, not an opinion.** `verify` runs on `pull_request`; the buckets run on `merge_group`. GitHub evaluates one list of required checks, and once a queue is enabled that list is evaluated against the *merge group* — where `verify` never runs, so it would never arrive and the queue would hold every pull request forever. Three ways out: give `pr.yml` a `merge_group` trigger as well and pay for `verify` twice per queue entry; require only the buckets and let a red `verify` merge, which is exactly what happened to #13; or leave the queue off. The third is what is set. `main.yml`'s `push: main` trigger — written as the fallback for a disabled queue — is therefore the one that runs, and the buckets report **after** a merge rather than gating it.
+
+**"Require branches up to date" is what stands in for the queue.** It is the weaker half of the same guarantee: a pull request cannot merge until it contains the current `main`, so `verify` runs against the combination rather than against a branch that was green a week ago. What it does not do is test two queued branches against each other — that is the queue's own job, and it is the reason to turn the queue on the day this repository has more than one branch in flight at a time.
 
 A phase ends the same way every time (§6 of the constitution): push the phase branch, open a pull request, **merge without squashing** — the in-phase history is the lesson — then tag `phase-NN` and push the tag.
 
