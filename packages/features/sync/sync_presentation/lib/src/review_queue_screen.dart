@@ -1,10 +1,12 @@
 import 'dart:async';
 
+import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:sync_api/sync_api.dart';
 
 import 'review_queue_controller.dart';
 import 'review_queue_state.dart';
+import 'sync_strings.dart';
 
 /// The screen a depot opens when the badge says something needs a person.
 ///
@@ -28,6 +30,19 @@ final class ReviewQueueScreen extends StatefulWidget {
 
   @override
   State<ReviewQueueScreen> createState() => _ReviewQueueScreenState();
+
+  /// Which string a failure should be shown as.
+  ///
+  /// `SyncFailure` is not sealed over a small set this package can exhaust —
+  /// it carries cases only an adapter produces — so the wildcard is real
+  /// rather than lazy. The two named cases are the two a person on this screen
+  /// can do something about.
+  @visibleForTesting
+  static String describe(SyncFailure failure) => switch (failure) {
+    SyncOffline() => SyncStrings.failureOffline,
+    OutboxUnavailable() => SyncStrings.failureOutboxUnavailable,
+    _ => SyncStrings.failureOther,
+  };
 }
 
 class _ReviewQueueScreenState extends State<ReviewQueueScreen> {
@@ -42,37 +57,45 @@ class _ReviewQueueScreenState extends State<ReviewQueueScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: widget.controller,
-    builder: (context, _) => switch (widget.controller.state) {
-      ReviewIdle() || ReviewLoading() => const Center(
-        child: Text('Checking the queue'),
-      ),
-      ReviewReady(:final entries) when entries.isEmpty => const Center(
-        // Not an error. This is the state the screen is in most of the time.
-        child: Text('Nothing needs you'),
-      ),
-      ReviewReady(:final entries) => ListView(
-        children: [
-          for (final entry in entries)
-            _BlockedTile(
-              entry: entry,
-              onRetry: () => unawaited(widget.controller.retry(entry.id)),
-            ),
-        ],
-      ),
-      ReviewFailed(:final failure) => Center(child: Text(_describe(failure))),
-    },
-  );
+  Widget build(BuildContext context) {
+    final strings = PeykStrings.of(context);
 
-  /// Turns a failure into something a person can act on.
-  static String _describe(SyncFailure failure) => switch (failure) {
-    SyncOffline() => 'No signal. This list is from this device.',
-    OutboxUnavailable() => 'The queue on this device could not be read.',
-    _ => 'Something went wrong. Try again.',
-  };
+    return PeykScreen(
+      title: strings.resolve(SyncStrings.reviewTitle),
+      body: ListenableBuilder(
+        listenable: widget.controller,
+        builder: (context, _) => switch (widget.controller.state) {
+          ReviewIdle() || ReviewLoading() => const PeykLoadingView(),
+          // Not an error. This is the state the screen is in most of the time,
+          // and showing a failure for it would send somebody looking for a
+          // problem that does not exist.
+          ReviewReady(:final entries) when entries.isEmpty => PeykEmptyView(
+            message: strings.resolve(SyncStrings.reviewEmpty),
+          ),
+          ReviewReady(:final entries) => ListView.builder(
+            itemCount: entries.length,
+            itemBuilder: (context, index) => _BlockedTile(
+              entry: entries[index],
+              onRetry: () =>
+                  unawaited(widget.controller.retry(entries[index].id)),
+            ),
+          ),
+          ReviewFailed(:final failure) => PeykFailureView(
+            message: strings.resolve(ReviewQueueScreen.describe(failure)),
+            onRetry: () => unawaited(widget.controller.load()),
+          ),
+        },
+      ),
+    );
+  }
 }
 
+/// One piece of work the queue gave up on.
+///
+/// `entry.type` is a routing key — `delivery.complete` — and it is shown
+/// unresolved on purpose where the other labels are not. It is the one string
+/// on this screen that sync did not choose: a feature put it there, and only
+/// the app that mounted both features can say what it means in words.
 final class _BlockedTile extends StatelessWidget {
   const _BlockedTile({required this.entry, required this.onRetry});
 
@@ -80,19 +103,20 @@ final class _BlockedTile extends StatelessWidget {
   final VoidCallback onRetry;
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.all(8),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(entry.type),
-        Text(entry.blockedReason ?? ''),
-        Text('${entry.attempts} attempts'),
-        GestureDetector(
-          onTap: onRetry,
-          child: const Text('Try again'),
+  Widget build(BuildContext context) {
+    final strings = PeykStrings.of(context);
+
+    return PeykListRow(
+      title: strings.resolve(entry.type),
+      subtitle: entry.blockedReason,
+      trailing: PeykChip(
+        label: strings.resolve(
+          SyncStrings.attempts,
+          arguments: {'count': entry.attempts},
         ),
-      ],
-    ),
-  );
+        intent: PeykIntent.danger,
+      ),
+      onTap: onRetry,
+    );
+  }
 }

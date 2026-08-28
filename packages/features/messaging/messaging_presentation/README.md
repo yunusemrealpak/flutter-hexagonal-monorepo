@@ -6,7 +6,7 @@ The messaging UI: the thread a courier reads and writes in, queued messages and 
 
 The list carries sent and unsent messages together, in the order they were typed, because the store *is* the queue. A screen that moved unsent messages to a separate tray would be showing a courier something the domain does not model, and they would have to look in two places to reconstruct what they said.
 
-The status of each message is a semantics label — `thread.status.queued` — because "written but not sent" is a distinction people read as a shade rather than as a word, and the shades arrive with `design_system` in phase 7.
+The status of each message is a chip beside the line. It was a semantics label until phase 7, which meant a screen reader could hear "written but not sent" and a person looking at the phone could not — the wrong way round, because the courier who needs it most is the one glancing at a screen in a van. The chip carries a word as well as a colour, so the distinction survives for somebody who cannot tell the two washes apart.
 
 ## The body is the one string here that is not a key
 

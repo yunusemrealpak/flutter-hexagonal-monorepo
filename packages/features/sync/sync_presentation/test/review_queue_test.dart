@@ -4,7 +4,7 @@ library;
 import 'dart:async';
 
 import 'package:core_kernel/core_kernel.dart';
-import 'package:flutter/widgets.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sync_api/sync_api.dart';
 import 'package:sync_presentation/sync_presentation.dart';
@@ -174,12 +174,12 @@ void main() {
   });
 
   group('SyncStatusBadge', () {
-    test('says something different for every state', () {
+    test('asks for a different key for every state', () {
       // Five cases, five sentences — the whole reason SyncStatus is a union
       // rather than a count plus a boolean. "You are in a basement" and "the
       // server said no, we are trying again" send a courier to different
       // places.
-      final sentences = <SyncStatus>[
+      final keys = <SyncStatus>[
         const SyncStatus.idle(),
         const SyncStatus.draining(pending: 2),
         const SyncStatus.waitingForNetwork(pending: 2),
@@ -190,16 +190,44 @@ void main() {
         const SyncStatus.blocked(pending: 2, needingReview: 1),
       ].map(SyncStatusBadge.describe).toList();
 
-      expect(sentences.toSet(), hasLength(5));
+      expect(keys.toSet(), hasLength(5));
+      expect(SyncStrings.all, containsAll(keys));
+    });
+
+    test('only the blocked queue is drawn as something wrong', () {
+      // The mapping design_system deliberately cannot make: a component knows
+      // what danger looks like, and only sync knows that "given up on" is one.
+      expect(
+        SyncStatusBadge.intentOf(
+          const SyncStatus.blocked(
+            pending: 2,
+            needingReview: 1,
+          ),
+        ),
+        PeykIntent.danger,
+      );
+      expect(
+        SyncStatusBadge.intentOf(const SyncStatus.idle()),
+        PeykIntent.success,
+      );
+    });
+
+    test('an idle queue carries no count', () {
+      // A status with no number is not a status with a zero in it.
+      expect(
+        SyncStatusBadge.argumentsFor(const SyncStatus.idle()),
+        isEmpty,
+      );
+      expect(
+        SyncStatusBadge.argumentsFor(const SyncStatus.draining(pending: 2)),
+        {'count': 2},
+      );
     });
 
     testWidgets('redraws when the queue moves', (tester) async {
       controller.watch();
       await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: SyncStatusBadge(controller: controller),
-        ),
+        PeykTheme.wrap(child: SyncStatusBadge(controller: controller)),
       );
 
       facade.emit(const SyncStatus.waitingForNetwork(pending: 4));
@@ -209,7 +237,10 @@ void main() {
       await tester.pump();
       await tester.pump();
 
-      expect(find.text('4 waiting for signal'), findsOneWidget);
+      expect(
+        find.text('${SyncStrings.statusWaitingForNetwork}(count=4)'),
+        findsOneWidget,
+      );
     });
   });
 
@@ -222,16 +253,16 @@ void main() {
       // reaching into delivery_api, and sync would have learned a feature's
       // name.
       await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: ReviewQueueScreen(controller: controller),
-        ),
+        PeykTheme.wrap(child: ReviewQueueScreen(controller: controller)),
       );
       await tester.pump();
 
       expect(find.text('delivery.completeAttempt'), findsOneWidget);
       expect(find.text('rejected: unknown shipment'), findsOneWidget);
-      expect(find.text('1 attempts'), findsOneWidget);
+      expect(
+        find.text('${SyncStrings.attempts}(count=1)'),
+        findsOneWidget,
+      );
       expect(find.textContaining('{'), findsNothing);
     });
 
@@ -241,28 +272,22 @@ void main() {
       facade.answersWith(const Success([]));
 
       await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: ReviewQueueScreen(controller: controller),
-        ),
+        PeykTheme.wrap(child: ReviewQueueScreen(controller: controller)),
       );
       await tester.pump();
 
-      expect(find.text('Nothing needs you'), findsOneWidget);
+      expect(find.text(SyncStrings.reviewEmpty), findsOneWidget);
     });
 
     testWidgets('asks the facade to retry when the row is tapped', (
       tester,
     ) async {
       await tester.pumpWidget(
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: ReviewQueueScreen(controller: controller),
-        ),
+        PeykTheme.wrap(child: ReviewQueueScreen(controller: controller)),
       );
       await tester.pump();
 
-      await tester.tap(find.text('Try again'));
+      await tester.tap(find.text('delivery.completeAttempt'));
       await tester.pump();
 
       expect(facade.retried, ['e-1']);

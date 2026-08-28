@@ -18,6 +18,7 @@
 library;
 
 export 'src/messaging_routes.dart';
+export 'src/messaging_strings.dart';
 export 'src/thread_controller.dart';
 export 'src/thread_screen.dart';
 export 'src/thread_state.dart';

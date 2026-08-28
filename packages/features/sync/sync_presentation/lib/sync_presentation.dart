@@ -23,3 +23,4 @@ export 'src/review_queue_screen.dart';
 export 'src/review_queue_state.dart';
 export 'src/sync_routes.dart';
 export 'src/sync_status_badge.dart';
+export 'src/sync_strings.dart';

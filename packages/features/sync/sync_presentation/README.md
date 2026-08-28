@@ -42,7 +42,11 @@ Two people can be looking at the same review queue. A list that removed a row op
 
 Not `sync_application`, not `sync_infrastructure`. What actually answers `SyncFacade` is whichever app composed this: the real coordinator in `app_courier`, a fake in `app_harness`.
 
-`design_system` is missing because it arrives in phase 7. The widgets here carry no colours, no typography and no spacing scale for the same reason — inventing them now would mean deleting them then.
+`design_system` is on that list, and the badge is what it changed. `SyncStatusBadge.intentOf` is the mapping the design system deliberately cannot make: a component knows what `danger` looks like, and only `sync` knows that "given up on" is one. Being blocked is the single status that needs a person, so it is the single one drawn as something wrong.
+
+`SyncStrings` declares the keys and `describe` maps a status or a failure onto one. `argumentsFor` is separate because `SyncIdle` contributes no count — a status with no number is not a status with a zero in it.
+
+One string on the review screen is resolved and is not sync's own: `entry.type`, the routing key a feature put there. Only the app that mounted both features can say what `delivery.complete` means in words, which is the same reason this screen never renders a payload.
 
 ## What must never live here
 

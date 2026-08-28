@@ -1,15 +1,11 @@
+import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:sync_api/sync_api.dart';
 
 import 'review_queue_controller.dart';
+import 'sync_strings.dart';
 
 /// The queue indicator every screen in a courier app carries.
-///
-/// Deliberately plain: no colours, no typography, no spacing scale. Those come
-/// from `design_system`, which arrives in phase 7, and inventing them here
-/// would mean deleting them then. What this widget demonstrates now is the
-/// part that will not change — a screen renders a sealed state exhaustively
-/// and reaches nothing but ports.
 ///
 /// The five cases are five *different sentences*, which is the whole reason
 /// `SyncStatus` is a union rather than a count plus a boolean. "You are in a
@@ -24,25 +20,64 @@ final class SyncStatusBadge extends StatelessWidget {
   final ReviewQueueController controller;
 
   @override
-  Widget build(BuildContext context) => ListenableBuilder(
-    listenable: controller,
-    builder: (context, _) => Text(describe(controller.status)),
-  );
+  Widget build(BuildContext context) {
+    final strings = PeykStrings.of(context);
 
-  /// Turns a queue status into something a courier can act on.
+    return ListenableBuilder(
+      listenable: controller,
+      builder: (context, _) {
+        final status = controller.status;
+        return PeykChip(
+          label: strings.resolve(
+            describe(status),
+            arguments: argumentsFor(status),
+          ),
+          intent: intentOf(status),
+        );
+      },
+    );
+  }
+
+  /// Which string a queue status should be shown as.
   ///
-  /// Static and public so that a test can assert on the sentence without
-  /// pumping a widget tree, and so that an app that renders the same status in
-  /// a different shape — a tile, a banner — does not reimplement the wording.
-  ///
-  /// The translation happens here rather than in `SyncStatus`, because this is
-  /// where the locale is known. A status carrying a formatted English string
-  /// would be untranslatable a phase later.
+  /// Static and public so a test can assert on the key without pumping a
+  /// widget tree, and so an app rendering the same status in another shape — a
+  /// tile, a banner — does not reimplement the mapping.
+  @visibleForTesting
   static String describe(SyncStatus status) => switch (status) {
-    SyncIdle() => 'Everything is sent',
-    SyncDraining(:final pending) => 'Sending $pending',
-    SyncWaitingForNetwork(:final pending) => '$pending waiting for signal',
-    SyncWaitingToRetry(:final pending) => '$pending will be retried',
-    SyncBlocked(:final needingReview) => '$needingReview need you',
+    SyncIdle() => SyncStrings.statusIdle,
+    SyncDraining() => SyncStrings.statusDraining,
+    SyncWaitingForNetwork() => SyncStrings.statusWaitingForNetwork,
+    SyncWaitingToRetry() => SyncStrings.statusWaitingToRetry,
+    SyncBlocked() => SyncStrings.statusBlocked,
+  };
+
+  /// The count [status] contributes to its own sentence.
+  ///
+  /// `SyncIdle` contributes nothing, which is why this is a separate function
+  /// rather than a field on the key: a status with no number is not a status
+  /// with a zero in it.
+  @visibleForTesting
+  static Map<String, Object?> argumentsFor(SyncStatus status) =>
+      switch (status) {
+        SyncIdle() => const {},
+        SyncDraining(:final pending) ||
+        SyncWaitingForNetwork(:final pending) ||
+        SyncWaitingToRetry(:final pending) => {'count': pending},
+        SyncBlocked(:final needingReview) => {'count': needingReview},
+      };
+
+  /// How loudly [status] should be drawn.
+  ///
+  /// This is the mapping the design system deliberately cannot make: a
+  /// component knows what `danger` looks like, and only `sync` knows that
+  /// "given up on" is one. Being blocked is the single case that needs a
+  /// person, so it is the single case that is not neutral or informational.
+  @visibleForTesting
+  static PeykIntent intentOf(SyncStatus status) => switch (status) {
+    SyncIdle() => PeykIntent.success,
+    SyncDraining() || SyncWaitingForNetwork() => PeykIntent.neutral,
+    SyncWaitingToRetry() => PeykIntent.warning,
+    SyncBlocked() => PeykIntent.danger,
   };
 }
