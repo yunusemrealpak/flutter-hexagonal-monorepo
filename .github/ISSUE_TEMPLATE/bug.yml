@@ -1,0 +1,55 @@
+name: Bug
+description: Something behaves differently from what the code says it should.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: >-
+        A bug report in this repository is most useful when it names the
+        package. The package boundaries are the whole point: "delivery is
+        broken" is four packages, and "delivery_application refuses a proof
+        the policy accepts" is one.
+
+  - type: input
+    id: package
+    attributes:
+      label: Package
+      description: The package the wrong behaviour is in, if you know it.
+      placeholder: packages/features/delivery/delivery_application
+    validations:
+      required: false
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What should happen
+      description: Quote the contract, the doc comment or the test that says so.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: What happens instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to see it
+      description: >-
+        A failing test is the best form of this. Every port has a fake and
+        every feature has a `_testing` package, so a reproduction rarely needs
+        a device.
+      render: dart
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Flutter version
+      description: From `flutter --version`. The repository pins 3.47.1.
+    validations:
+      required: false

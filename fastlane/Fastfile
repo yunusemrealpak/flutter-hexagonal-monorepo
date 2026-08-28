@@ -1,0 +1,88 @@
+# Fastlane lanes for the two shippable apps.
+#
+# Three lanes and one rule: **a lane never builds**. Codemagic builds and
+# signs; these lanes take an artefact that already exists and move it. Mixing
+# the two makes a failed upload indistinguishable from a failed compile, and
+# makes "ship the build we already tested" impossible to express.
+#
+# WHAT THIS REPOSITORY DOES NOT HAVE YET: `apps/<app>/android/` and
+# `apps/<app>/ios/`. The specification states that iOS and Android builds are
+# explicitly not required of this reference repository, so the native projects
+# were never generated and the paths below have nothing to point at.
+# `flutter create --platforms=android,ios .` inside an app adds them.
+
+default_platform(:ios)
+
+APPS = %w[app_courier app_dispatcher].freeze
+
+def app_from(options)
+  app = options[:app]
+  UI.user_error!("Pass app:<one of #{APPS.join(', ')}>") unless APPS.include?(app)
+  app
+end
+
+def artefact(app, extension)
+  path = Dir[File.join('..', 'apps', app, 'build', '**', "*.#{extension}")].first
+  UI.user_error!("No .#{extension} for #{app}. Codemagic builds it; this lane ships it.") if path.nil?
+  path
+end
+
+platform :ios do
+  desc 'Upload an existing .ipa to TestFlight.'
+  desc 'Usage: fastlane ios beta app:app_courier'
+  lane :beta do |options|
+    app = app_from(options)
+
+    upload_to_testflight(
+      ipa: artefact(app, 'ipa'),
+      # The build is already tested; a review queue between the merge and the
+      # tester adds a day and finds nothing the suite did not.
+      skip_waiting_for_build_processing: true,
+      distribute_external: false,
+      changelog: last_git_commit[:message]
+    )
+  end
+end
+
+platform :android do
+  desc 'Upload an existing .aab to the internal track.'
+  desc 'Usage: fastlane android internal app:app_dispatcher'
+  lane :internal do |options|
+    app = app_from(options)
+
+    upload_to_play_store(
+      package_name: "com.peyk.#{app.sub('app_', '')}",
+      aab: artefact(app, 'aab'),
+      track: 'internal',
+      # Never `completed`: a release that goes live because somebody typed a
+      # lane name is a release nobody decided to make.
+      release_status: 'draft',
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc 'Promote what is already on one track to the next one.'
+  desc 'Usage: fastlane android promote_staged app:app_courier from:internal to:beta'
+  lane :promote_staged do |options|
+    app = app_from(options)
+    from = options[:from] || 'internal'
+    to = options[:to] || 'beta'
+
+    # No artefact and no version: promotion moves the build that is already
+    # there. Naming a version here would let a promotion ship something other
+    # than what was tested on the track it came from.
+    upload_to_play_store(
+      package_name: "com.peyk.#{app.sub('app_', '')}",
+      track: from,
+      track_promote_to: to,
+      track_promote_release_status: 'draft',
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+end

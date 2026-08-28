@@ -16,10 +16,11 @@
 # amend or a second commit. It is affordable because arch_check runs from a
 # compiled snapshot; see the arch:check script in the root pubspec.
 #
-# pre-push runs what is not: the code generation gate and the tests. Running
-# build_runner on every commit would tax every commit for a mistake that only
-# becomes expensive once it reaches CI, and pre-push is the last point where
-# catching it still costs nothing.
+# pre-push runs what is not: the two staleness gates — generated code and the
+# generated dependency graph — and the tests of everything the push can break.
+# Running build_runner on every commit would tax every commit for a mistake
+# that only becomes expensive once it reaches CI, and pre-push is the last
+# point where catching it still costs nothing.
 # ---------------------------------------------------------------------------
 
 # Hooks would otherwise fire on every step of a rebase or on merge commits,
@@ -81,14 +82,14 @@ pre-push:
       # been checked. This is the last local gate before CI sees it.
       run: dart run melos run arch:check
 
-    3_test_affected:
-      # Guarded for the same reason; tooling/test_runner arrives in phase 8.
-      # Until then, fall back to the pr preset over the whole workspace, which
-      # is still correct, only slower.
-      run: |
-        if [ ! -f tooling/test_runner/bin/test_runner.dart ]; then
-          echo "test_runner not present yet (phase 8) — running the pr preset across the workspace."
-          dart run melos run test
-          exit $?
-        fi
-        dart run melos run test:affected
+    3_graph_check:
+      # The dependency graph is generated and committed, so it is a staleness
+      # gate like the codegen one above — and it is also where a cycle is
+      # caught. Cheap: it reads 75 pubspecs and writes nothing.
+      run: dart run melos run graph:check
+
+    4_test_affected:
+      # Only the packages this push can break, walked outwards from the diff
+      # against origin/main. The whole workspace would be minutes; this is
+      # usually seconds, and it is the same selection CI makes.
+      run: dart run melos run test:affected

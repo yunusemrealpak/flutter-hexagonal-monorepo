@@ -1,0 +1,122 @@
+name: nightly
+
+# What a pull request cannot afford. Four things run here and nowhere else,
+# and each of them exists because an incremental, selective, cached CI hides a
+# specific class of breakage.
+on:
+  schedule:
+    # 02:30 UTC. Late enough that the day's merges are in, early enough that a
+    # failure is on somebody's screen before the next day's work starts.
+    - cron: "30 2 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  FLUTTER_VERSION: "3.47.1"
+
+jobs:
+  full-suite:
+    name: full suite, goldens and integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve the workspace
+        run: flutter pub get
+
+      - name: Regenerate everything from scratch
+        # `melos run gen` on a pull request regenerates the *changed* packages
+        # and trusts build_runner's incremental cache for the rest. That cache
+        # can be wrong. gen:all is the only thing that catches a generator
+        # output which drifted from its source without either being touched.
+        run: |
+          rm -rf .dart_tool/build
+          dart run melos run gen:all
+          dart run melos run l10n
+          git diff --exit-code || {
+            echo "::error::A full regeneration changed committed files."
+            echo "Run 'dart run melos run gen:all' and commit the result."
+            exit 1
+          }
+
+      - name: Install the coverage formatter
+        # `dart test --coverage` writes the VM's own JSON; lcov is a second
+        # step. `flutter test --coverage` writes lcov directly, which is why
+        # only the pure Dart half needs this.
+        run: dart pub global activate coverage
+
+      - name: The whole suite, every tag
+        # No preset and no exclusions: goldens and integration tests run here.
+        # They are excluded from `pr` because they are slow and, for goldens,
+        # because a font or a renderer difference makes them fail for reasons a
+        # pull request cannot act on.
+        run: |
+          dart run melos exec --dir-exists=test --no-flutter -- \
+            'dart test --coverage=coverage && \
+             dart pub global run coverage:format_coverage \
+               --lcov --in=coverage --out=coverage/lcov.info \
+               --report-on=lib \
+               --packages="$MELOS_ROOT_PATH/.dart_tool/package_config.json"'
+          dart run melos exec --dir-exists=test --flutter -- \
+            flutter test --coverage
+
+      - name: Merge coverage
+        # Concatenation, not a merge tool: lcov records are per-file and every
+        # package reports on its own lib/, so no file appears twice.
+        run: |
+          mkdir -p build
+          find . -name 'lcov.info' -not -path './build/*' -print0 \
+            | xargs -0 cat > build/lcov.info
+          echo "$(grep -c '^SF:' build/lcov.info) files covered"
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: build/lcov.info
+          if-no-files-found: ignore
+
+      - name: Open an issue when the night run breaks
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh issue create \
+            --title "nightly failed on $(date -u +%Y-%m-%d)" \
+            --label nightly \
+            --body "The nightly run failed: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+
+  dependencies:
+    name: outdated dependencies
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Resolve the workspace
+        run: flutter pub get
+
+      - name: What has moved on pub
+        # Reported, never applied. A workspace resolves against one dependency
+        # solution, so a bump is a decision about 75 packages at once and
+        # belongs in a pull request somebody read.
+        run: flutter pub outdated --no-dev-dependencies --show-all
