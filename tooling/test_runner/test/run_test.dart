@@ -65,6 +65,21 @@ void main() {
       expect(result.out, contains('alpha_api'));
     });
 
+    test('a suite that selected no test is a pass, not a failure', () async {
+      // Exit 79 is `package:test`'s "No tests ran". A tag selection that
+      // matches nothing in a package is an answer, not a break — and the
+      // `pr` workflow learned that the expensive way.
+      commands.answer(
+        'dart test --preset pr -j 4',
+        const CommandResult(exitCode: 79, stdout: 'No tests ran.', stderr: ''),
+      );
+
+      await run(['--no-cache', '--package=alpha_api', '--concurrency=4']);
+
+      expect(result.code, ExitCodes.clean);
+      expect(result.out, isNot(contains('Failed:')));
+    });
+
     test('an unknown package name is 64, not a silent empty run', () async {
       await run(['--package=nope']);
 

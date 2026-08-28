@@ -5,6 +5,18 @@ import 'model/package_result.dart';
 import 'model/test_package.dart';
 import 'process.dart';
 
+/// `package:test`'s exit code for *No tests ran*, returned by both runners
+/// when a tag selection matches nothing in a package.
+///
+/// It is not a failure. [SuiteRunner.excludeTags] and the `pr` preset are a
+/// *selection*, and a package whose whole suite is excluded has answered the
+/// question it was asked. Reading it as a failure is what turned the `pr`
+/// workflow's golden step into seventy-five red packages for a suite that
+/// does not exist yet; no package here is in that state today, and the day one
+/// is — a package carrying nothing but goldens — it must not take the run down
+/// with it.
+const int _noTestsRan = 79;
+
 /// Runs one package's suite with the runner that package needs.
 ///
 /// **Runner selection is read from the pubspec, never guessed from the path.**
@@ -60,7 +72,9 @@ final class SuiteRunner {
       stopwatch.stop();
       return PackageResult(
         package: package.name,
-        status: result.ok ? RunStatus.passed : RunStatus.failed,
+        status: result.ok || result.exitCode == _noTestsRan
+            ? RunStatus.passed
+            : RunStatus.failed,
         duration: stopwatch.elapsed,
         command: command,
         fileCount: bundled?.fileCount,
