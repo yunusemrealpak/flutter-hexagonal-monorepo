@@ -26,6 +26,24 @@ final class ReportController extends ChangeNotifier {
   /// Whether this actor may see reports.
   bool get canView => _permissions.can(Permission.viewReports);
 
+  (ReportingDay, ReportingDay)? _lastRange;
+
+  /// Reads the last range again.
+  ///
+  /// What the failure view's retry calls. The range is remembered here rather
+  /// than passed back in by the screen, because the screen never had it: an
+  /// app decides which days a report covers, and a widget that held them would
+  /// be a widget deciding what a dispatcher is looking at.
+  ///
+  /// Does nothing when nothing has been asked for yet. A retry before a first
+  /// read is not a state this screen can reach — the failure view only exists
+  /// after a load — and guessing a range would be worse than doing nothing.
+  Future<void> retry() async {
+    if (_lastRange case (final from, final to)) {
+      await load(from: from, to: to);
+    }
+  }
+
   /// Reads the totals for a range.
   ///
   /// The permission is checked **before** the read, not after. A screen that
@@ -41,6 +59,7 @@ final class ReportController extends ChangeNotifier {
       return;
     }
 
+    _lastRange = (from, to);
     _emit(const ReportLoading());
     final read = await _reporting.range(from: from, to: to);
     _emit(

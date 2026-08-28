@@ -2,6 +2,7 @@
 library;
 
 import 'package:core_kernel/core_kernel.dart';
+import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
@@ -79,8 +80,7 @@ OperationTally _day({
   return tally;
 }
 
-Widget _wrap(Widget child) =>
-    Directionality(textDirection: TextDirection.ltr, child: child);
+Widget _wrap(Widget child) => PeykTheme.wrap(child: child);
 
 void main() {
   late _Reporting reporting;
@@ -114,10 +114,24 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('reports.total 6'), findsOneWidget);
-    expect(find.text('reports.delivered 4'), findsOneWidget);
-    expect(find.text('2026-03-03 75%'), findsOneWidget);
-    expect(find.text('2026-03-04 50%'), findsOneWidget);
+    expect(
+      find.text('${ReportingStrings.total}(count=6)'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('${ReportingStrings.delivered}(count=4)'),
+      findsOneWidget,
+    );
+    // The rate crosses as a number, not as "75%". Where the sign goes and
+    // whether there is a space before it are the app's questions.
+    expect(
+      find.text('${ReportingStrings.dayRate}(day=2026-03-03, rate=75)'),
+      findsOneWidget,
+    );
+    expect(
+      find.text('${ReportingStrings.dayRate}(day=2026-03-04, rate=50)'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('an actor without the permission is told, and nothing is read', (
@@ -129,7 +143,7 @@ void main() {
     await subject.load(from: _today, to: _today);
     await tester.pumpAndSettle();
 
-    expect(find.text('reports.forbidden'), findsOneWidget);
+    expect(find.text(ReportingStrings.forbidden), findsOneWidget);
     expect(reporting.reads, 0);
   });
 
@@ -146,7 +160,10 @@ void main() {
     await subject.load(from: _today, to: _today);
     await tester.pumpAndSettle();
 
-    expect(find.text('That range starts after it ends.'), findsOneWidget);
+    expect(
+      find.text(ReportingStrings.failureRangeInverted),
+      findsOneWidget,
+    );
   });
 
   test('an empty range reads as zero rather than as forbidden', () async {
@@ -159,8 +176,38 @@ void main() {
   });
 
   test('a rate is rendered in whole points', () {
-    expect(ReportScreen.rate(0), '0%');
-    expect(ReportScreen.rate(2 / 3), '67%');
-    expect(ReportScreen.rate(1), '100%');
+    expect(ReportScreen.percent(0), 0);
+    expect(ReportScreen.percent(2 / 3), 67);
+    expect(ReportScreen.percent(1), 100);
+  });
+
+  group('how a rate is drawn', () {
+    // The thresholds are reporting's, not the design system's. Eighty-five per
+    // cent being the line between "fine" and "look at this" is an operational
+    // fact about a courier network; a component library that knew it would be
+    // a component library that had learned what a delivery is.
+    test('a bad day is drawn as danger and a good one is not', () {
+      expect(ReportScreen.intentOfRate(0.99), PeykIntent.success);
+      expect(ReportScreen.intentOfRate(0.5), PeykIntent.danger);
+    });
+
+    test('the thresholds are ordered', () {
+      const rates = [0.5, 0.75, 0.9, 0.99];
+      final intents = rates.map(ReportScreen.intentOfRate).toList();
+
+      expect(intents.toSet(), hasLength(rates.length));
+    });
+  });
+
+  test('every failure maps to a key an app is asked to answer', () {
+    const failures = <ReportingFailure>[
+      TallyUnavailable(),
+      RangeInverted(from: '2026-03-04', to: '2026-03-03'),
+      MalformedTally(field: 'day', reason: 'unreadable'),
+    ];
+
+    for (final failure in failures) {
+      expect(ReportingStrings.all, contains(ReportScreen.describe(failure)));
+    }
   });
 }

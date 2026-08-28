@@ -33,3 +33,13 @@ That list is section 2 of [`docs/DEPENDENCY_RULES.md`](../../../../docs/DEPENDEN
 ## Code generation
 
 None. The route is parameterised but there is one of it.
+
+## The size crosses as a number
+
+`DocumentsStrings.size` takes a `bytes` argument rather than a formatted string. "1.2 MB" and "1,2 MB" are the same size written two ways, and only the app knows which is right — the same reason a rate, a money amount and an arrival time all cross this boundary unformatted.
+
+## Only a refusal offers no retry
+
+`DocumentScreen.canRetry` is false for `DocumentRefused` and true for everything else, including `MalformedDocument`. That asymmetry is the archive's own property, written down in phase 6: this is the one store in the workspace whose contents can be produced again, so a corrupt stored copy is a transient problem here and a permanent one everywhere else.
+
+A refusal is the operation's decision. Asking twice gets the same answer with a longer wait, so the button is absent rather than useless.

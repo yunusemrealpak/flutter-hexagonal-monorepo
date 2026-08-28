@@ -20,3 +20,4 @@ export 'src/report_controller.dart';
 export 'src/report_screen.dart';
 export 'src/report_state.dart';
 export 'src/reporting_routes.dart';
+export 'src/reporting_strings.dart';

@@ -31,3 +31,13 @@ That list is section 2 of [`docs/DEPENDENCY_RULES.md`](../../../../docs/DEPENDEN
 ## Code generation
 
 None.
+
+## Missing is danger, unexpected is warning
+
+They are not the same thing and they are not drawn the same way. A parcel the manifest lists and the van does not have is a delivery that will not happen; a parcel nobody expected is paperwork. `CountScreen` draws the first as `PeykIntent.danger` and the second as `PeykIntent.warning`, and that mapping is this feature's — a component library that knew which one was worse would be a component library that had learned what a van is.
+
+The numbers still come off `LoadCount`. Phase 6 wrote the rule down: a count is derived, never stored, so a widget that added anything up would be a second place the total could be wrong.
+
+## A finished or missing count offers no retry
+
+`CountScreen.canRetry` is false for `CountClosed` and `CountMissing`. Neither is reopened by asking again — both need a *new* count, which is a different action on a different screen. The retry that is offered calls `resume()`, because what failed was the question "is a count already open", and asking again is exactly that question.

@@ -22,3 +22,4 @@ export 'src/document_controller.dart';
 export 'src/document_screen.dart';
 export 'src/document_state.dart';
 export 'src/documents_routes.dart';
+export 'src/documents_strings.dart';
