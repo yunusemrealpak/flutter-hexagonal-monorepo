@@ -184,31 +184,49 @@ final class PeykRouter {
   }
 
   /// The router itself.
-  GoRouter build() => GoRouter(
-    initialLocation: _definitions[_homeRoute]?.path ?? '/',
-    // The guard runs on navigation; this is what makes it run on a *session*.
-    // Without it a session that ended — signed out, expired, revoked — left
-    // whoever was looking at a screen on that screen until they happened to
-    // navigate somewhere. `redirectFor` was always right; it was simply not
-    // being asked. The subscription lives as long as the router, which lives
-    // as long as the app.
-    refreshListenable: SessionRefresh(_sessions.changes()),
-    routes: [
-      for (final definition in _definitions.values)
-        GoRoute(
-          name: definition.name,
-          path: definition.path,
-          builder: (context, state) =>
-              _screens[definition.name]?.call(
-                context,
-                state.pathParameters,
-              ) ??
-              const SizedBox.shrink(),
-          redirect: (context, state) =>
-              redirectFor(definition.name, at: state.uri),
-        ),
-    ],
-  );
+  GoRouter build() {
+    final signIn = _definitions[_signInRoute]?.path;
+    late final GoRouter router;
+
+    // The callback below closes over `router`, so the variable has to exist
+    // before the expression that fills it — which is why this is not written
+    // as one `return GoRouter(...)`.
+    // ignore: join_return_with_assignment
+    router = GoRouter(
+      initialLocation: _definitions[_homeRoute]?.path ?? '/',
+      // The guard runs on navigation; this is what makes it run on a
+      // *session*. Without it a session that ended — signed out, expired,
+      // revoked — left whoever was looking at a screen on that screen until
+      // they happened to navigate somewhere. `redirectFor` was always right;
+      // it was simply not being asked. The subscription lives as long as the
+      // router, which lives as long as the app.
+      refreshListenable: SessionRefresh(
+        _sessions.changes(),
+        // An ended session is refused wherever its owner happened to be, and
+        // the guard would carry that location into `?from=` — which is how the
+        // next person to sign in would land on the previous one's screen.
+        // Clearing the location first is what makes "signed out" mean the app
+        // forgot where you were.
+        onSessionEnded: signIn == null ? null : () => router.go(signIn),
+      ),
+      routes: [
+        for (final definition in _definitions.values)
+          GoRoute(
+            name: definition.name,
+            path: definition.path,
+            builder: (context, state) =>
+                _screens[definition.name]?.call(
+                  context,
+                  state.pathParameters,
+                ) ??
+                const SizedBox.shrink(),
+            redirect: (context, state) =>
+                redirectFor(definition.name, at: state.uri),
+          ),
+      ],
+    );
+    return router;
+  }
 
   /// Collects every module's definitions, refusing a collision.
   ///

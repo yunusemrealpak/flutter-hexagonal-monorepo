@@ -19,7 +19,7 @@ without shipping in anybody's product build.
 |---|---|
 | Packages | 75 |
 | Runtime edges | 414 |
-| Dev-dependency edges | 58 |
+| Dev-dependency edges | 59 |
 | Cycles | none |
 
 ## Cycles
@@ -1036,6 +1036,7 @@ digraph peyk {
   "app_courier" -> "delivery_testing" [style=dashed, color="#cfd8dc"];
   "app_courier" -> "identity_testing" [style=dashed, color="#cfd8dc"];
   "app_dispatcher" -> "core_testing" [style=dashed, color="#cfd8dc"];
+  "app_dispatcher" -> "identity_testing" [style=dashed, color="#cfd8dc"];
   "delivery_application" -> "core_testing" [style=dashed, color="#cfd8dc"];
   "delivery_application" -> "delivery_testing" [style=dashed, color="#cfd8dc"];
   "delivery_application" -> "sync_testing" [style=dashed, color="#cfd8dc"];
