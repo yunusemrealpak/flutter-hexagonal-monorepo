@@ -11,6 +11,7 @@ export 'src/di/injection.dart' show configureHarness, harnessContainer;
 export 'src/harness_app.dart';
 export 'src/router/harness_routes.dart';
 export 'src/router/peyk_router.dart';
+export 'src/router/session_refresh.dart';
 
 /// Stands every feature up on fakes.
 ///

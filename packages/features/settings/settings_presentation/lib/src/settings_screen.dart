@@ -9,12 +9,27 @@ import 'settings_state.dart';
 import 'settings_strings.dart';
 
 /// Where somebody chooses how the product behaves.
+///
+/// **Signing out arrives as a callback**, and it is the same shape as
+/// `ProofCaptureScreen.onCaptureSignature` for the same reason. Ending a
+/// session is identity's operation and the destination afterwards is the
+/// app's decision; §2.4 forbids this package from knowing either. So the app
+/// supplies the action, this screen offers the button, and an app that signs
+/// out somewhere else passes nothing and no button is drawn. `settings` still
+/// does not depend on `identity_api`.
 final class SettingsScreen extends StatefulWidget {
   /// Creates the screen over [controller].
-  const SettingsScreen({required this.controller, super.key});
+  const SettingsScreen({
+    required this.controller,
+    this.onSignOut,
+    super.key,
+  });
 
   /// What drives it.
   final SettingsController controller;
+
+  /// Ends the session, when this app offers that here.
+  final VoidCallback? onSignOut;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -57,31 +72,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget build(BuildContext context) {
     final strings = PeykStrings.of(context);
 
+    final signOut = widget.onSignOut;
+
     return PeykScreen(
       title: strings.resolve(SettingsStrings.title),
       scrollable: true,
-      body: ListenableBuilder(
-        listenable: widget.controller,
-        builder: (context, _) => switch (widget.controller.state) {
-          SettingsIdle() || SettingsLoading() => const PeykLoadingView(),
-          SettingsReady(:final preferences) => _Choices(
-            preferences: preferences,
-            controller: widget.controller,
-            busy: false,
+      // The sign-out button sits beside the state rather than inside it. A
+      // person whose preferences failed to load is exactly the person who
+      // might want to sign out and back in, and putting the button in the
+      // switch would take it away in the one state where it is most wanted.
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListenableBuilder(
+            listenable: widget.controller,
+            builder: (context, _) => switch (widget.controller.state) {
+              SettingsIdle() || SettingsLoading() => const PeykLoadingView(),
+              SettingsReady(:final preferences) => _Choices(
+                preferences: preferences,
+                controller: widget.controller,
+                busy: false,
+              ),
+              SettingsSaving(:final preferences) => _Choices(
+                preferences: preferences,
+                controller: widget.controller,
+                busy: true,
+              ),
+              SettingsFailed(:final failure) => PeykFailureView(
+                message: strings.resolve(
+                  SettingsScreen.describe(failure),
+                  arguments: SettingsScreen.argumentsFor(failure),
+                ),
+                onRetry: () => unawaited(widget.controller.load()),
+              ),
+            },
           ),
-          SettingsSaving(:final preferences) => _Choices(
-            preferences: preferences,
-            controller: widget.controller,
-            busy: true,
-          ),
-          SettingsFailed(:final failure) => PeykFailureView(
-            message: strings.resolve(
-              SettingsScreen.describe(failure),
-              arguments: SettingsScreen.argumentsFor(failure),
+          if (signOut != null) ...[
+            const PeykGap.vertical(PeykGapSize.betweenGroups),
+            PeykButton(
+              label: strings.resolve(SettingsStrings.signOut),
+              onPressed: signOut,
+              tone: PeykButtonTone.destructive,
             ),
-            onRetry: () => unawaited(widget.controller.load()),
-          ),
-        },
+          ],
+        ],
       ),
     );
   }

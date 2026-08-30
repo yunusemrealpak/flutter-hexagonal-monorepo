@@ -262,6 +262,9 @@ class PeykDispatcherLocalizationsTr extends PeykDispatcherLocalizations {
   String get settingsSyncSection => 'Kuryeler ne zaman göndersin';
 
   @override
+  String get settingsSignOut => 'Oturumu kapat';
+
+  @override
   String get settingsLanguageTr => 'Türkçe';
 
   @override

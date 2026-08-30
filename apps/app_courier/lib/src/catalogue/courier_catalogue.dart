@@ -246,6 +246,7 @@ final class CourierCatalogue implements StringCatalogue {
     'settings.language.section': (l, arguments) => l.settingsLanguageSection,
     'settings.theme.section': (l, arguments) => l.settingsThemeSection,
     'settings.sync.section': (l, arguments) => l.settingsSyncSection,
+    'settings.signOut': (l, arguments) => l.settingsSignOut,
     'settings.language.tr': (l, arguments) => l.settingsLanguageTr,
     'settings.theme.system': (l, arguments) => l.settingsThemeSystem,
     'settings.theme.light': (l, arguments) => l.settingsThemeLight,

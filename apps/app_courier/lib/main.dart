@@ -30,6 +30,7 @@ export 'src/di/courier_platform.dart';
 export 'src/di/injection.dart' show configureCourier, courierContainer;
 export 'src/router/courier_routes.dart';
 export 'src/router/peyk_router.dart';
+export 'src/router/session_refresh.dart';
 
 /// The courier app, in production.
 ///

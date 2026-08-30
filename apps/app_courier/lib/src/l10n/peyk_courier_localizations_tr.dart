@@ -359,6 +359,9 @@ class PeykCourierLocalizationsTr extends PeykCourierLocalizations {
   String get settingsSyncSection => 'Ne zaman gönderilsin';
 
   @override
+  String get settingsSignOut => 'Çıkış yap';
+
+  @override
   String get settingsLanguageTr => 'Türkçe';
 
   @override

@@ -28,6 +28,7 @@ export 'src/di/injection.dart' show configureDispatcher, dispatcherContainer;
 export 'src/dispatcher_app.dart';
 export 'src/router/dispatcher_routes.dart';
 export 'src/router/peyk_router.dart';
+export 'src/router/session_refresh.dart';
 
 /// The operations desk, in production.
 ///

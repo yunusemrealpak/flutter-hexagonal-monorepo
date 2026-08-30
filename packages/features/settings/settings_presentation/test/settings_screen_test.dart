@@ -150,6 +150,55 @@ void main() {
     expect(find.text(SettingsStrings.failureUnavailable), findsOneWidget);
   });
 
+  group('signing out', () {
+    testWidgets('no button when the app does not offer the action', (
+      tester,
+    ) async {
+      await tester.pumpWidget(_wrap(SettingsScreen(controller: controller)));
+      await tester.pumpAndSettle();
+
+      expect(find.text(SettingsStrings.signOut), findsNothing);
+    });
+
+    testWidgets('the button reports the tap and nothing else', (tester) async {
+      var taps = 0;
+
+      await tester.pumpWidget(
+        _wrap(
+          SettingsScreen(controller: controller, onSignOut: () => taps++),
+        ),
+      );
+      await tester.pumpAndSettle();
+      // The button is the last thing on a scrolling screen, so a test surface
+      // of 800x600 has it below the fold.
+      await tester.ensureVisible(find.text(SettingsStrings.signOut));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(SettingsStrings.signOut));
+
+      // The screen ends nothing and goes nowhere: settings does not depend on
+      // identity_api and does not know what comes after a session. The app
+      // that supplied the callback owns both — §2.4.
+      expect(taps, 1);
+    });
+
+    // A person whose preferences failed to load is exactly the person who
+    // wants to sign out and back in. Putting the button inside the state
+    // switch would take it away in the one state where it is most wanted.
+    testWidgets('the button survives a failure to read preferences', (
+      tester,
+    ) async {
+      settings.failWith = const PreferencesUnavailable();
+
+      await tester.pumpWidget(
+        _wrap(SettingsScreen(controller: controller, onSignOut: () {})),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text(SettingsStrings.failureUnavailable), findsOneWidget);
+      expect(find.text(SettingsStrings.signOut), findsOneWidget);
+    });
+  });
+
   group('what SettingsStrings.all covers', () {
     // The list is derived from the enums it labels rather than written out,
     // which is what makes it stay true: adding a SyncPolicy adds a row to the

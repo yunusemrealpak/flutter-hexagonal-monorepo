@@ -3,6 +3,8 @@ import 'package:flutter/widgets.dart';
 import 'package:go_router/go_router.dart';
 import 'package:identity_api/identity_api.dart';
 
+import 'session_refresh.dart';
+
 /// What draws one destination, given the path segments it was reached with.
 ///
 /// Not a `WidgetBuilder`, because half the screens in this product need a
@@ -93,10 +95,17 @@ final class PeykRouter {
 
   /// Where [name] should send somebody, or null when they may go there.
   ///
+  /// [at] is the location being attempted. It is what makes a guarded URL
+  /// survive a sign-in: the redirect to the sign-in screen carries it as a
+  /// `from` query parameter, and sign-in's own redirect reads it back once
+  /// there is a session. A field would not do. The router is rebuilt whenever
+  /// the session changes, and a cold start from a notification has no earlier
+  /// state to remember — the URL is the only thing that survives both.
+  ///
   /// Public and pure so that the guard can be tested without a router: the
   /// interesting cases are "no session" and "no permission", and neither needs
   /// a widget tree to be wrong in.
-  String? redirectFor(String name) {
+  String? redirectFor(String name, {Uri? at}) {
     final definition = _definitions[name];
     if (definition == null) {
       return null;
@@ -104,12 +113,17 @@ final class PeykRouter {
 
     final session = _sessions.current;
     if (definition.requiresSession && session == null) {
-      return _definitions[_signInRoute]?.path;
+      final signIn = _definitions[_signInRoute]?.path;
+      if (signIn == null || at == null) {
+        return signIn;
+      }
+      return '$signIn?from=${Uri.encodeComponent(at.toString())}';
     }
     // Somebody signed in who lands on sign-in goes home instead, or they are
-    // stuck on a screen whose only action they have already taken.
+    // stuck on a screen whose only action they have already taken — and they
+    // go on to whatever they were reaching for when the guard stopped them.
     if (!definition.requiresSession && session != null) {
-      return _definitions[_homeRoute]?.path;
+      return _intended(at) ?? _definitions[_homeRoute]?.path;
     }
 
     final required = definition.requiredPermission;
@@ -134,9 +148,40 @@ final class PeykRouter {
     return _definitions[_homeRoute]?.path;
   }
 
+  /// Where a `from` parameter says somebody was going, when it names a place
+  /// this app can go to.
+  ///
+  /// Two refusals, and neither is decoration. A `from` pointing back at
+  /// sign-in is the loop somebody who opened `/sign-in` directly would be put
+  /// in the moment they signed in. A `from` carrying a scheme or a host is not
+  /// this app's location at all, and following one would make the sign-in URL
+  /// a way to send a signed-in courier anywhere.
+  String? _intended(Uri? at) {
+    final from = at?.queryParameters['from'];
+    if (from == null || from.isEmpty) {
+      return null;
+    }
+
+    final target = Uri.decodeComponent(from);
+    if (!target.startsWith('/')) {
+      return null;
+    }
+    if (Uri.parse(target).path == _definitions[_signInRoute]?.path) {
+      return null;
+    }
+    return target;
+  }
+
   /// The router itself.
   GoRouter build() => GoRouter(
     initialLocation: _definitions[_homeRoute]?.path ?? '/',
+    // The guard runs on navigation; this is what makes it run on a *session*.
+    // Without it a session that ended — signed out, expired, revoked — left
+    // whoever was looking at a screen on that screen until they happened to
+    // navigate somewhere. `redirectFor` was always right; it was simply not
+    // being asked. The subscription lives as long as the router, which lives
+    // as long as the app.
+    refreshListenable: SessionRefresh(_sessions.changes()),
     routes: [
       for (final definition in _definitions.values)
         GoRoute(
@@ -148,7 +193,8 @@ final class PeykRouter {
                 state.pathParameters,
               ) ??
               const SizedBox.shrink(),
-          redirect: (context, state) => redirectFor(definition.name),
+          redirect: (context, state) =>
+              redirectFor(definition.name, at: state.uri),
         ),
     ],
   );

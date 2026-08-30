@@ -377,6 +377,10 @@
   "@settingsSyncSection": {
     "description": "The sentence behind \"settings.sync.section\"."
   },
+  "settingsSignOut": "Sign out",
+  "@settingsSignOut": {
+    "description": "The sentence behind \"settings.signOut\"."
+  },
   "settingsLanguageTr": "Türkçe",
   "@settingsLanguageTr": {
     "description": "The sentence behind \"settings.language.tr\"."

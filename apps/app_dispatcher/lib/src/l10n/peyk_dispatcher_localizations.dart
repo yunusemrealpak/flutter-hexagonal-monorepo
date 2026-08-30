@@ -509,6 +509,12 @@ abstract class PeykDispatcherLocalizations {
   /// **'When couriers send'**
   String get settingsSyncSection;
 
+  /// The sentence behind "settings.signOut".
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get settingsSignOut;
+
   /// The sentence behind "settings.language.tr".
   ///
   /// In en, this message translates to:
