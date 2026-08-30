@@ -370,30 +370,15 @@ Also closed, because both were gaps the code had already documented: `IdentityFa
 
 Everything below is merged: PR #16 (`ccee0a6`) closed the navigation work, `main` is protected and green, and nothing from the specification is outstanding — its acceptance criteria all hold and every phase is tagged `phase-00` … `phase-08`.
 
-Three items, in the order they should be taken.
+Three items, in the order they should be taken. The first is closed.
 
-#### 0. `core_navigation`'s `Navigation` port contradicts §2.4, and nothing uses it
+#### 0. `core_navigation`'s `Navigation` port — deleted, done
 
-Found while writing the handoff, not yet resolved. `packages/core/core_navigation/lib/src/navigation.dart` declares:
+`Navigation` (`goTo`, `replaceWith`, `back`) was candidate (b) of the navigation note written in phase 1 and never used: no package outside `core_navigation` and `core_testing` mentioned it, while its own doc comment taught the design §2.4 rejects. It is gone, with `RecordingNavigation`, `NavigationRecord` and their tests, and `core_testing` lost the `core_navigation` dependency it held only for them — the constitution permits that edge, but an unused dependency is still removed.
 
-```dart
-abstract interface class Navigation {
-  void goTo(RouteLocation location);
-  void replaceWith(RouteLocation location);
-  bool back();
-}
-```
+`RouteLocation` stays. Describing a destination and deciding to go there are different jobs, and the shell work below wants the first.
 
-Its own doc comment says *"Presentation packages depend on this rather than on a router library… The app supplies the adapter."* That is **candidate (b)** of the navigation note — the design §2.4 examined and rejected — sitting in the repository as a port. `core_testing` carries `RecordingNavigation` and `NavigationRecord` for it.
-
-**Product usage: zero.** No package outside `core_navigation` and `core_testing` mentions the type.
-
-So a reference repository currently ships an unused port whose documentation teaches the opposite of its own constitution. Two honest resolutions, and the choice is a decision to make rather than a fix to apply:
-
-- **Delete it** — along with `RecordingNavigation`, `NavigationRecord` and their test. Dead code that teaches the wrong lesson is worse than no code, and §7's "a package with no generated files has neither" is the same instinct. This is the recommendation.
-- **Keep it and rewrite the doc** — as an app-side abstraction over whichever router an app chose, never something a presentation package holds. Defensible only if something is actually going to hold it; today nothing is.
-
-Whichever is chosen, `RouteLocation` stays: it is a value object with real tests and the shell work below may want it.
+The rejected alternative and its reason are recorded in `docs/research/navigation-and-flows.md` §8: an app-side abstraction over the router is a layer with one implementation and no second candidate. It comes back the day a third app routes with something other than `go_router`.
 
 #### 1. The bottom navigation bar, and what it forces
 

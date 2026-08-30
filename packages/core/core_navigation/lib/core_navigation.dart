@@ -7,7 +7,6 @@
 /// with.
 library;
 
-export 'src/navigation.dart';
 export 'src/route_definition.dart';
 export 'src/route_location.dart';
 export 'src/route_module.dart';

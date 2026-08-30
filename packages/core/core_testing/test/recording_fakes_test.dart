@@ -2,7 +2,6 @@
 library;
 
 import 'package:core_kernel/core_kernel.dart';
-import 'package:core_navigation/core_navigation.dart';
 import 'package:core_ports/core_ports.dart';
 import 'package:core_testing/core_testing.dart';
 import 'package:test/test.dart';
@@ -198,34 +197,6 @@ void main() {
         expect(permissions.requested, isEmpty);
       },
     );
-  });
-
-  group('RecordingNavigation', () {
-    test('keeps a real history that back actually pops', () {
-      final navigation = RecordingNavigation()
-        ..goTo(RouteLocation('/stops'))
-        ..goTo(RouteLocation('/stops/s-1'));
-
-      expect(navigation.current, RouteLocation('/stops/s-1'));
-      expect(navigation.back(), isTrue);
-      expect(navigation.current, RouteLocation('/stops'));
-    });
-
-    test('back reports false at the root, so a bloc can branch on it', () {
-      final navigation = RecordingNavigation()..goTo(RouteLocation('/stops'));
-
-      expect(navigation.back(), isFalse);
-      expect(navigation.current, RouteLocation('/stops'));
-    });
-
-    test('replaceWith swaps the current entry instead of stacking', () {
-      final navigation = RecordingNavigation()
-        ..goTo(RouteLocation('/sign-in'))
-        ..replaceWith(RouteLocation('/stops'));
-
-      expect(navigation.history, [RouteLocation('/stops')]);
-      expect(navigation.records.last, isA<ReplacedWith>());
-    });
   });
 }
 

@@ -11,7 +11,6 @@ environment:
 
 dependencies:
   core_kernel: ^0.1.0
-  core_navigation: ^0.1.0
   core_ports: ^0.1.0
 
 dev_dependencies:

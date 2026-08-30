@@ -19,11 +19,10 @@ Twelve fakes, one for every cross-cutting port plus the navigation contract:
 | `FakeFeatureFlagReader` | `FeatureFlagReader` | honours the caller's `orElse` for unknown keys |
 | `RecordingEventBus` | `DomainEventBus` | really delivers *and* records |
 | `FakePermissionRequester` | `PermissionRequester` | a permanently denied permission shows no prompt |
-| `RecordingNavigation` | `Navigation` | real history, so `back` reports false at the root |
 
 ## What it may depend on
 
-`core_kernel`, `core_ports`, `core_navigation`.
+`core_kernel`, `core_ports` — and, when a fake needs it, `core_navigation`. Nothing here needs it today: the `Navigation` port these fakes stood in for was deleted, because a presentation package that navigates through a port is the design `DEPENDENCY_RULES.md` §2.4 rejects. The constitution permits the dependency; an unused one is still removed.
 
 Note what is **not** in `dependencies`: `package:test`. The fakes are plain classes with no matchers, so the test harness stays a dev dependency. A `_testing` package that put `test` in `dependencies` would drag it into the dependency graph of everything that consumes a fake.
 

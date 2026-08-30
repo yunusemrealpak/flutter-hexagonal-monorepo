@@ -1,10 +1,11 @@
 /// Behavioural fakes for the `core_ports` capabilities.
 ///
 /// Fakes, not mocks. Every one of these really does the thing: the store
-/// stores, the bus delivers, the navigation keeps a history that `back`
-/// actually pops. A test written against them exercises the caller's logic
-/// rather than a script of expected calls, which is why it keeps passing when
-/// the caller is refactored and starts failing when the caller is broken.
+/// stores, the bus delivers to every subscriber, the permission requester
+/// refuses to ask twice once a denial is permanent. A test written against
+/// them exercises the caller's logic rather than a script of expected calls,
+/// which is why it keeps passing when the caller is refactored and starts
+/// failing when the caller is broken.
 ///
 /// Three of them exist to remove ambient state from the suite —
 /// `FakeClock`, `FakeIdGenerator` and `FakeRandomSource`. Between them they
@@ -28,8 +29,6 @@ export 'src/fake_random_source.dart';
 export 'src/in_memory_key_value_store.dart';
 export 'src/in_memory_secure_store.dart';
 export 'src/log_record.dart';
-export 'src/navigation_record.dart';
 export 'src/recording_analytics_sink.dart';
 export 'src/recording_event_bus.dart';
 export 'src/recording_logger.dart';
-export 'src/recording_navigation.dart';

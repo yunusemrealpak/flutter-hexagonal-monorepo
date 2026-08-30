@@ -18,7 +18,7 @@ without shipping in anybody's product build.
 | | |
 |---|---|
 | Packages | 75 |
-| Runtime edges | 415 |
+| Runtime edges | 414 |
 | Dev-dependency edges | 57 |
 | Cycles | none |
 
@@ -92,7 +92,6 @@ graph LR
   core_navigation --> core_kernel
   core_ports --> core_kernel
   core_testing --> core_kernel
-  core_testing --> core_navigation
   core_testing --> core_ports
   design_system --> design_tokens
   feature_api --> core_kernel
@@ -276,7 +275,6 @@ graph LR
   core_navigation --> core_kernel
   core_ports --> core_kernel
   core_testing --> core_kernel
-  core_testing --> core_navigation
   core_testing --> core_ports
   http_dio --> core_kernel
   identity_api --> core_kernel
@@ -352,7 +350,7 @@ graph LR
 | `core_kernel` | core_kernel | — |
 | `core_navigation` | core_navigation | `core_kernel` |
 | `core_ports` | core_ports | `core_kernel` |
-| `core_testing` | core_testing | `core_kernel`, `core_navigation`, `core_ports` |
+| `core_testing` | core_testing | `core_kernel`, `core_ports` |
 | `design_system` | design_system | `design_tokens` |
 | `design_tokens` | design_tokens | — |
 | `delivery_api` | feature_api | `core_kernel`, `identity_api`, `shipments_api` |
@@ -785,7 +783,6 @@ digraph peyk {
   "core_navigation" -> "core_kernel";
   "core_ports" -> "core_kernel";
   "core_testing" -> "core_kernel";
-  "core_testing" -> "core_navigation";
   "core_testing" -> "core_ports";
   "delivery_api" -> "core_kernel";
   "delivery_api" -> "identity_api";

@@ -9,7 +9,6 @@ Route contracts shared by presentation packages and assembled by an app.
 | `RouteLocation` | A concrete destination. A `ValueObject` over the encoded location string, so two locations built the same way compare equal. |
 | `RouteDefinition` | One destination a feature offers: name, path pattern, whether a session is required, and which permission it needs. |
 | `RouteModule` | What a `_presentation` package exposes so an app can mount its screens. |
-| `Navigation` | The port a bloc uses to say "go there" without importing anything that draws. |
 
 ## What it may depend on
 
@@ -22,7 +21,9 @@ Route contracts shared by presentation packages and assembled by an app.
 - **Guard logic.** `RouteDefinition` states that a destination needs `shipments.assign`; deciding whether the current actor holds it is the app's guard asking identity's `PermissionChecker`.
 - **Generated code.** No `build_runner` dependency and no `build.yaml`.
 
-## Two decisions worth reading
+## Three decisions worth reading
+
+**There is no `Navigation` port here, and its absence is deliberate.** One existed until it was deleted: `goTo`, `replaceWith`, `back`, held by a presentation package and adapted by an app. It is the design `DEPENDENCY_RULES.md` §2.4 examined and rejected — a port that navigates has to name destinations, so either it names every feature's routes (which is `shared` wearing a router's clothes) or it takes an unchecked string. A screen reports an outcome; the app decides the destination. `RouteLocation` survives because describing a destination and deciding to go there are different jobs.
 
 **Query parameters are sorted before encoding.** Navigation is routinely deduplicated — a double tap must not push the same screen twice — and that check is a value comparison. Without sorting, the same destination built from two differently ordered maps would compare unequal and the deduplication would silently stop working.
 
