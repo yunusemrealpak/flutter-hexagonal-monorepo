@@ -56,6 +56,18 @@ The split is the same one §2.4 draws for flows, one level down: `PeykNavigation
 
 Everything mounted is behind exactly one tab except `identity.signIn`, and the shell test asserts that partition exactly. A route added to a feature has to be given a home rather than quietly becoming unreachable.
 
+## A pressed notification is an entry, and entry is a URL
+
+`PushEntry` watches `PushMessagingClient.openings()` and `launchMessage()`, asks `CourierEntryPoints` where the message leads, and navigates by name. `CourierEntryPoints` is a pure function to the same `(route, parameters)` record `CourierFlow` produces, and its test asserts every route it can name is one this app mounted.
+
+**Receipt is not intent.** `messages()` — a push arriving while the app runs — is deliberately not acted on: taking a courier off a half-drawn signature for something they have not read is worse than making them press the notification. `openings()` is the press.
+
+**This is the case §2.4 reserves for a URL rather than a callback.** A notification tap is not a screen and cannot invoke one. Going through the router means going through the guard, and the round trip is what the test pins down: a tap while signed out lands on sign-in carrying `?from=/threads/…`, and the courier arrives at the thread once there is a session — not at whatever screen the app starts on.
+
+**Null is an answer.** A kind this version does not recognise, and a dispatch message that names no thread, both open nothing and are logged. A fleet updates over weeks, so a newer server must not be a crash on an older handset, and guessing a thread would open somebody else's conversation.
+
+`shipmentAssigned` opens the manifest rather than a detail screen, because a courier's app has no screen for one shipment and the point of an assignment is that a stop appeared in the list.
+
 ## An ended session forgets where it was
 
 The guard sends anybody without a session to `/sign-in?from=<where they were going>`, so that a parcel somebody followed a link to survives signing in. An *ended* session is refused at whatever screen its owner was on — so without a second decision, the next person to sign in on a shared handset would land on the previous courier's parcel.
