@@ -292,7 +292,7 @@ At the **end** of a phase: verify the acceptance criteria in the spec, push, ope
 
 This section is the handoff between sessions. It is rewritten at every phase boundary and it is the only part of this file that is expected to go stale — everything above is the constitution. Read it after section 9, then check it against `git log` before trusting it.
 
-**Branch:** `refactor/drop-navigation-port`. **Last tag:** `phase-08`. The eight phases the specification defines are complete, merged and tagged; `main` is protected. What follows the spec is ordinary product work under the same constitution, and this is the first of it. **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,895 cases in 172 test files); `melos run gen:check` and `graph:check` clean.
+**Branch:** `feat/push-deep-links`. **Last tag:** `phase-08`. The eight phases the specification defines are complete, merged and tagged; `main` is protected. What follows the spec is ordinary product work under the same constitution, and this is the first of it. **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,895 cases in 172 test files); `melos run gen:check` and `graph:check` clean.
 
 ### Phase 8 is complete, merged and tagged
 
@@ -370,7 +370,7 @@ Also closed, because both were gaps the code had already documented: `IdentityFa
 
 `main` is protected and green, and nothing from the specification is outstanding — its acceptance criteria all hold and every phase is tagged `phase-00` … `phase-08`. PR #16 (`ccee0a6`) closed the navigation work; the shell work below sits on `refactor/drop-navigation-port`.
 
-Three items, in the order they should be taken. The first two are closed.
+Three items, in the order they should be taken. All three are closed; what follows them is in the last section.
 
 #### 0. `core_navigation`'s `Navigation` port — deleted, done
 
@@ -394,9 +394,30 @@ Three things worth not rediscovering.
 
 Open, and deliberately not in this change: `app_dispatcher` has no shell (a desk wants a sidebar, a different component with the same split), and the inbox tab has no unread badge (`PeykBadge` exists; where the subscription lives is its own decision).
 
-#### 2. Deep-link entry from a push payload
+#### 2. Deep-link entry from a push payload — done
 
-The URL contract (`RouteDefinition.path`), the guard (`redirectFor`) and the return-to-intended (`?from=`) are all in place and tested. What is missing is the platform side: `push_messaging` delivers a payload, and nothing turns one into a location. That is an app-level adapter — the same shape as `SyncOrchestrator` — and it is the case §4.1 of the navigation note reserved for a URL rather than a callback.
+`PushEntry` and `CourierEntryPoints` in `app_courier` are the caller §4.1 of the navigation note reserved a row for. The note is [`docs/research/push-entry.md`](docs/research/push-entry.md); nothing in `DEPENDENCY_RULES.md` changed, because entry-stays-a-URL was already the rule.
+
+The platform contract grew the distinction it was missing: `messages()` is a push *arriving*, `openings()` is somebody *pressing* it, and `launchMessage()` is the press that started the app from nothing. Acting on the first would take a courier off a half-drawn signature for a message they have not read.
+
+Three things worth not rediscovering.
+
+- **`launchMessage()` is consumed by reading, and the fake consumes it too.** The provider hands it over once, so an app that read it twice would navigate to the same push again on its next resume. A fake that kept answering would let a test pass against behaviour the device will not repeat.
+- **It answers `null`, not a `Result`.** Web and desktop do not implement `getInitialMessage`; a launch this app cannot read about and a launch nobody caused mean the same thing to a caller. §3's rule — `Result` when the caller can act on the failure — decided it.
+- **`PushMessage` carries `shipmentId` and `threadId` now.** The DTO decoded them and the mapper dropped them, so the app would have read `data['thread_id']` and become a second place a server rename breaks.
+
+The test that pays for the design: a notification pressed while signed out lands on `/sign-in?from=/threads/shipment%3ASHP-1` and arrives at the thread once there is a session. Every arrow in that chain already existed and had nothing entering from outside the app.
+
+Open, and deliberately so: the scanned barcode and the pasted URL produce no locations yet (both need no new mechanism — `shipments.courier.scan` is mounted at `/stops/scan`), a push that merely arrives shows nothing in-app, and `app_dispatcher` has no `PushEntry` because a desk does not run on notification presses.
+
+#### What is worth taking next
+
+Nothing here is owed. These are the threads the last three notes left hanging, in the order they would pay off.
+
+1. **`app_dispatcher` has no shell.** A desk wants a persistent sidebar, not a bottom bar: the same split as `courierTabs` / `PeykNavigationBar` / `CourierShell`, with a different component and a different tab set. It is the cheapest way to find out whether the shell split generalises or whether it was shaped by one app.
+2. **An unread badge on the inbox tab.** `PeykBadge` exists and `PeykNavigationDestination` does not carry a count. The real question is not the widget: it is where the subscription lives, because a bar that reads a facade would be a component that knows a feature.
+3. **A push that merely arrives shows nothing.** `messages()` is deliberately not acted on, and an in-app banner is a design decision with no component behind it.
+4. **The first golden or integration test.** The tags, presets, exclusions and CI steps are all in place and nothing carries the tags, so two gates have never run against a real selection. The shell is the obvious first golden.
 
 The two gaps the repository states rather than fixes are unchanged and deliberate: `codemagic.yaml` and `fastlane/Fastfile` cannot run without `apps/*/android/`, `apps/*/ios/` and `apps/*/config/<flavour>.json` (the specification excludes native builds), and no test carries the `golden` or `integration` tag yet — the tags, presets, exclusions and CI steps are the mechanism, and the images arrive with the screens that need them.
 

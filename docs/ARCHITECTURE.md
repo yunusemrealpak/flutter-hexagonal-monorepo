@@ -264,6 +264,24 @@ And one asymmetry that is a UX decision rather than an architectural one: proof 
 
 The full argument, including what the sign-out test found, is in [`docs/research/tabbed-shell.md`](research/tabbed-shell.md).
 
+#### And the entry a callback cannot serve
+
+A screen reports an outcome and the app decides where it leads. A **notification tap is not a screen**, so entry stays a URL — which is what `PushEntry` and `CourierEntryPoints` in `app_courier` finally exercise:
+
+```text
+no session
+  ↓ a notification about thread shipment:SHP-1 is pressed
+router.goNamed('messaging.thread', {threadId: 'shipment:SHP-1'})
+  ↓ redirectFor: the route requires a session and there is none
+/sign-in?from=/threads/shipment%3ASHP-1
+  ↓ the session begins
+ThreadScreen
+```
+
+Every arrow was a mechanism this repository already had and nothing entered from outside the app. The mapping from a push to a destination is a pure function to the same `(route, parameters)` record `CourierFlow` produces, in the app for the same reason: route names live in presentation packages and `platform/*` may see neither.
+
+One distinction had to be added to the platform contract to make it correct. **Receipt is not intent**: `messages()` is a push arriving while the app runs, `openings()` is somebody pressing it. Acting on the first would take a courier off a half-drawn signature for something they have not read. See [`docs/research/push-entry.md`](research/push-entry.md).
+
 ---
 
 ## 4. Following one request through the packages

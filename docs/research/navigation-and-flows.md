@@ -111,6 +111,12 @@ app's job and becomes an outcome. The split is exact:
 | Continuation — "this screen is finished" | outcome callback | app | **no** |
 | Session change — sign-in, sign-out, expiry | `refreshListenable` | app | **no** |
 
+**The entry row had a contract and no caller until later**, which is a
+different thing from being done. `PushEntry` in `app_courier` is that caller,
+and the note is [`push-entry.md`](push-entry.md): a pressed notification
+becomes a location, goes through the guard, and survives a signed-out tap by
+the `?from=` mechanism the third row of this table already provided.
+
 ### 4.2 The rule that keeps it from becoming two conventions
 
 An unwritten rule that everyone happens to follow is a rule that breaks the
