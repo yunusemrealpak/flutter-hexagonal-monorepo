@@ -54,6 +54,16 @@ This is the driven-port inversion applied to the UI layer, and it exists because
 
 **Colour is never the only signal.** `PeykChip` always draws its label; `PeykOptionRow` marks the chosen option three ways — a wash, a word, and `Semantics(selected:)`. Roughly one courier in twelve cannot tell the success wash from the danger one, and both are chips of the same size in the same place. The component tests assert this rather than trusting it.
 
+## The bar takes data and returns an index
+
+`PeykNavigationBar` is the one component that could plausibly have been given a router, and it was not. It draws a list of `PeykNavigationDestination` — a resolved label and a `PeykIcon` — and reports the index that was tapped. It names no route, holds no `Navigator`, and does not know that tapping the second one leads to a map.
+
+That is §2.4 of [`docs/DEPENDENCY_RULES.md`](../../../docs/DEPENDENCY_RULES.md) one level below where that section argues it. A bar that navigated would need destinations by name, and the set of tabs belongs to the audience an app serves: a courier's four are not a dispatcher's. The app owns the set, the order, the words and what an index means; this package owns what a bar looks like.
+
+`PeykIcon` is the same inversion as `PeykIntent`, and its values are named for the **picture** rather than for the product — `list`, not `stops`. A design system that spelled `stops` would be one that has to change when a tab is renamed.
+
+Two behaviours the tests pin down. **Every destination is labelled**, not only the selected one, for the reason in the section above: the icons are grey glyphs of the same size and the alternative is a bar you have to tap to read. And **a tap on the destination already in force is reported**, because that repeat is how somebody three screens deep gets back to the top of their tab — a bar that swallowed it would make that behaviour impossible to build above.
+
 ## `PeykTheme.wrap` is a test helper that lives in `lib/`
 
 Fourteen presentation packages write widget tests against these components. Each of them needs a tree carrying a palette, a locale, the generated delegates and a catalogue. Leaving that to the callers produced fourteen wrappers that drift; putting it here means a component which grows a new ambient requirement is fixed once.
@@ -62,7 +72,8 @@ Its default catalogue is `KeyEchoCatalogue`, which is what lets a widget test as
 
 ## What must never live here
 
-- **A feature's word.** `PeykIntent.danger`, never `PeykIntent.overdue`. A component that took a `ShipmentStatus` would be a design system that had learnt what a shipment is.
+- **A feature's word.** `PeykIntent.danger`, never `PeykIntent.overdue`; `PeykIcon.map`, never `PeykIcon.route`. A component that took a `ShipmentStatus` would be a design system that had learnt what a shipment is.
+- **A route name.** Including in the navigation bar. A component that knows where a tap leads is a component that has to be recompiled when an app rearranges its tabs.
 - **A product sentence.** See the table above.
 - **A raw number or colour reaching a caller.** Callers get components and vocabulary; `design_tokens` is not re-exported, and rule S4 would not allow it if somebody tried.
 - **A `core_ports` dependency.** Not on this row, and nothing here needs a `Clock`.

@@ -294,4 +294,83 @@ void main() {
       );
     });
   });
+
+  group('PeykNavigationBar', () {
+    const destinations = [
+      PeykNavigationDestination(
+        label: 'courier.tab.stops',
+        icon: PeykIcon.list,
+      ),
+      PeykNavigationDestination(label: 'courier.tab.route', icon: PeykIcon.map),
+      PeykNavigationDestination(
+        label: 'courier.tab.more',
+        icon: PeykIcon.more,
+      ),
+    ];
+
+    Widget bar({
+      required ValueChanged<int> onSelected,
+      int current = 0,
+    }) => PeykTheme.wrap(
+      child: Scaffold(
+        bottomNavigationBar: PeykNavigationBar(
+          destinations: destinations,
+          currentIndex: current,
+          onSelected: onSelected,
+        ),
+      ),
+    );
+
+    // An icon is never the only signal, for the same reason a chip's colour
+    // never is: the bar is used one-handed in a moving van by somebody who
+    // learned this app in an afternoon.
+    testWidgets('labels every destination, not just the selected one', (
+      tester,
+    ) async {
+      await tester.pumpWidget(bar(onSelected: (_) {}));
+
+      for (final destination in destinations) {
+        expect(find.text(destination.label), findsOneWidget);
+      }
+    });
+
+    testWidgets('reports the index that was tapped', (tester) async {
+      final taps = <int>[];
+      await tester.pumpWidget(bar(onSelected: taps.add));
+
+      await tester.tap(find.text('courier.tab.route'));
+      await tester.pumpAndSettle();
+
+      expect(taps, [1]);
+    });
+
+    // The re-tap is not a no-op anywhere else in the industry, and this app
+    // needs it: tapping the tab you are already on is how a courier three
+    // screens deep gets back to the top of that tab. Swallowing it here would
+    // make that impossible to implement above.
+    testWidgets('reports a tap on the destination already selected', (
+      tester,
+    ) async {
+      final taps = <int>[];
+      await tester.pumpWidget(bar(current: 1, onSelected: taps.add));
+
+      await tester.tap(find.text('courier.tab.route'));
+      await tester.pumpAndSettle();
+
+      expect(taps, [1]);
+    });
+
+    testWidgets('says which destination is the current one', (tester) async {
+      await tester.pumpWidget(bar(current: 2, onSelected: (_) {}));
+
+      expect(
+        tester.getSemantics(find.text('courier.tab.more')),
+        isSemantics(isSelected: true),
+      );
+      expect(
+        tester.getSemantics(find.text('courier.tab.stops')),
+        isSemantics(isSelected: false),
+      );
+    });
+  });
 }
