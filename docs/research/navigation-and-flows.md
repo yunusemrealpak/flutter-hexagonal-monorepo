@@ -260,8 +260,19 @@ than on a router library… The app supplies the adapter."* That is candidate
 (b), written in phase 1 and never used: no package outside `core_navigation`
 and `core_testing` mentions the type.
 
-So the repository currently ships an unused port whose documentation teaches
-the design §4 rejects. It is recorded in `CLAUDE.md` §10 as the first thing to
-settle, and the recommendation there is to delete it: dead code that teaches
-the wrong lesson is worse than no code. `RouteLocation` stays either way — it
-is a tested value object, and a shell route may want it.
+So the repository shipped an unused port whose documentation taught the design
+§4 rejects. **Settled after this note: it was deleted**, along with
+`RecordingNavigation`, `NavigationRecord` and their tests, and `core_testing`
+lost the `core_navigation` dependency it kept only for them. Dead code that
+teaches the wrong lesson is worse than no code, and a reference repository is
+read as much as it is run.
+
+The alternative — keeping it, rewritten as an app-side abstraction over
+whichever router an app chose — was rejected for a reason worth naming: both
+apps use `go_router` directly and neither wants a second vocabulary for it. An
+abstraction with one implementation and no second candidate is a layer that
+only costs. If a third app ever routes with something else, the abstraction
+comes back with a caller.
+
+`RouteLocation` stays: it is a tested value object, describing a destination is
+not deciding to go there, and the shell work wants it.

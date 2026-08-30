@@ -18,8 +18,8 @@ without shipping in anybody's product build.
 | | |
 |---|---|
 | Packages | 75 |
-| Runtime edges | 415 |
-| Dev-dependency edges | 57 |
+| Runtime edges | 414 |
+| Dev-dependency edges | 59 |
 | Cycles | none |
 
 ## Cycles
@@ -92,7 +92,6 @@ graph LR
   core_navigation --> core_kernel
   core_ports --> core_kernel
   core_testing --> core_kernel
-  core_testing --> core_navigation
   core_testing --> core_ports
   design_system --> design_tokens
   feature_api --> core_kernel
@@ -276,7 +275,6 @@ graph LR
   core_navigation --> core_kernel
   core_ports --> core_kernel
   core_testing --> core_kernel
-  core_testing --> core_navigation
   core_testing --> core_ports
   http_dio --> core_kernel
   identity_api --> core_kernel
@@ -352,7 +350,7 @@ graph LR
 | `core_kernel` | core_kernel | — |
 | `core_navigation` | core_navigation | `core_kernel` |
 | `core_ports` | core_ports | `core_kernel` |
-| `core_testing` | core_testing | `core_kernel`, `core_navigation`, `core_ports` |
+| `core_testing` | core_testing | `core_kernel`, `core_ports` |
 | `design_system` | design_system | `design_tokens` |
 | `design_tokens` | design_tokens | — |
 | `delivery_api` | feature_api | `core_kernel`, `identity_api`, `shipments_api` |
@@ -785,7 +783,6 @@ digraph peyk {
   "core_navigation" -> "core_kernel";
   "core_ports" -> "core_kernel";
   "core_testing" -> "core_kernel";
-  "core_testing" -> "core_navigation";
   "core_testing" -> "core_ports";
   "delivery_api" -> "core_kernel";
   "delivery_api" -> "identity_api";
@@ -1037,7 +1034,9 @@ digraph peyk {
   "analytics_otel" -> "core_testing" [style=dashed, color="#cfd8dc"];
   "app_courier" -> "core_testing" [style=dashed, color="#cfd8dc"];
   "app_courier" -> "delivery_testing" [style=dashed, color="#cfd8dc"];
+  "app_courier" -> "identity_testing" [style=dashed, color="#cfd8dc"];
   "app_dispatcher" -> "core_testing" [style=dashed, color="#cfd8dc"];
+  "app_dispatcher" -> "identity_testing" [style=dashed, color="#cfd8dc"];
   "delivery_application" -> "core_testing" [style=dashed, color="#cfd8dc"];
   "delivery_application" -> "delivery_testing" [style=dashed, color="#cfd8dc"];
   "delivery_application" -> "sync_testing" [style=dashed, color="#cfd8dc"];

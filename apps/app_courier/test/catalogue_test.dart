@@ -30,12 +30,28 @@ void main() {
     }
   });
 
+  // The shell's own four. They are not a feature's words — which tabs exist is
+  // this app's decision, so what they are called is too — and without this
+  // they would be the only strings in the product with nothing asserting they
+  // have a translation.
+  test('the shell asks for four tab words and gets them', () {
+    expect(
+      courierShellStringKeys.where(
+        (key) => !CourierCatalogue.answered.contains(key),
+      ),
+      isEmpty,
+    );
+  });
+
   // The other direction, and the one nobody writes. A sentence nobody asks for
   // is a translation somebody is paying to maintain in every language the
   // product ships — and the way it happens is a screen being rewritten while
   // its .arb entry stays behind.
   test('every sentence this app carries is asked for', () {
-    final asked = courierStringKeys.values.expand((keys) => keys).toSet();
+    final asked = {
+      ...courierStringKeys.values.expand((keys) => keys),
+      ...courierShellStringKeys,
+    };
     final unused = CourierCatalogue.answered.difference(asked);
 
     expect(
@@ -45,6 +61,9 @@ void main() {
     );
   });
 
+  // Feature manifests only: the shell's keys are the app's own and are checked
+  // above. A count over the union would have made this assertion mean two
+  // things and catch neither.
   test('the manifests cover every feature this app mounts', () {
     expect(courierStringKeys, hasLength(courierModules.length));
   });

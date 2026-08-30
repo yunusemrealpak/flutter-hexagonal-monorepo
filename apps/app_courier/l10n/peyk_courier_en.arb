@@ -842,5 +842,21 @@
   "documentsFailureMalformed": "That document could not be read.",
   "@documentsFailureMalformed": {
     "description": "The sentence behind \"documents.failure.malformed\"."
+  },
+  "courierTabStops": "Stops",
+  "@courierTabStops": {
+    "description": "The sentence behind \"courier.tab.stops\"."
+  },
+  "courierTabRoute": "Route",
+  "@courierTabRoute": {
+    "description": "The sentence behind \"courier.tab.route\"."
+  },
+  "courierTabInbox": "Inbox",
+  "@courierTabInbox": {
+    "description": "The sentence behind \"courier.tab.inbox\"."
+  },
+  "courierTabMore": "More",
+  "@courierTabMore": {
+    "description": "The sentence behind \"courier.tab.more\"."
   }
 }

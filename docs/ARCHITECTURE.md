@@ -248,6 +248,22 @@ Three properties are worth stating, because each is a rule rather than a coincid
 
 And one asymmetry that is a UX decision rather than an architectural one: proof announces itself **on the transition** into `Settled`, behind a latch, because continuing is what the courier already asked for; collection offers a **button**, because `NothingOwed` arrives the instant the screen loads and auto-advancing would take a prepaid parcel off the screen before anybody read the word. Mid-task continues, end-of-task asks.
 
+#### The same idea one level down, and one level up: a bottom bar
+
+`app_courier` mounts twelve features behind four tabs; `app_dispatcher` mounts nine and has no bar at all. The three pieces divide exactly as the flow does:
+
+| | Knows | Does not know |
+|---|---|---|
+| `PeykNavigationBar` (`design_system`) | how a bar looks, which index was tapped | that routes exist |
+| `courierTabs` (`app_courier`) | which routes sit behind which word and picture | how anything is drawn |
+| `CourierShell` (`app_courier`) | that index *n* means branch *n* | anything a feature owns |
+
+**One level down** because a component is shared by three apps, so a destination named inside it would be a destination all three must agree on — §2.4's argument, strengthened. **One level up** because §2.3 says a driving surface belongs to the audience, and *which destinations are one tap away* is that question asked about a whole app rather than about one port.
+
+**`core_navigation` did not change for it**, which is the part worth remembering. The handoff expected `RouteDefinition` to grow a branch concept. The only fact about a tab that belongs to a feature is that its root opens with no argument, and `path` already says so — `/stops` can be a tab, `/stops/:shipmentId/proof` cannot. Before adding a field to a contract package, check whether the fact is already derivable from one that is there: a contract with two ways to say the same thing has two ways to disagree.
+
+The full argument, including what the sign-out test found, is in [`docs/research/tabbed-shell.md`](research/tabbed-shell.md).
+
 ---
 
 ## 4. Following one request through the packages

@@ -15,6 +15,15 @@ import 'session_refresh.dart';
 typedef ScreenBuilder =
     Widget Function(BuildContext context, Map<String, String> parameters);
 
+/// What draws the frame a set of tabs live inside.
+///
+/// Takes go_router's branch container and returns the widget that shows it
+/// with a bar around it. A `typedef` rather than a widget so that this file
+/// stays about routing: which routes are in which branch is a routing
+/// question, and what the frame looks like is `CourierShell`'s.
+typedef ShellBuilder =
+    Widget Function(BuildContext context, StatefulNavigationShell shell);
+
 /// Turns the route modules a set of features published into one router.
 ///
 /// This is the assembly §5's scenario 5 describes at the route level: each
@@ -41,6 +50,11 @@ final class PeykRouter {
   /// definitions on purpose: a `RouteDefinition` is pure Dart and cannot carry
   /// a widget, which is exactly what lets a presentation package declare where
   /// it can be reached without depending on a router library.
+  ///
+  /// [branches] groups route names into tabs, the root of each first, and
+  /// [shell] draws the frame they live in. Both default to nothing, and an
+  /// app that passes neither gets the flat router this class started as —
+  /// which is exactly what `app_dispatcher` and `app_harness` still want.
   PeykRouter({
     required List<RouteModule> modules,
     required Map<String, ScreenBuilder> screens,
@@ -48,6 +62,8 @@ final class PeykRouter {
     required PermissionChecker permissions,
     required String signInRoute,
     required String homeRoute,
+    List<List<String>> branches = const [],
+    ShellBuilder? shell,
   }) : this._(
          definitions: _collect(modules),
          screens: screens,
@@ -55,6 +71,8 @@ final class PeykRouter {
          permissions: permissions,
          signInRoute: signInRoute,
          homeRoute: homeRoute,
+         branches: branches,
+         shell: shell,
        );
 
   /// The real constructor.
@@ -69,12 +87,16 @@ final class PeykRouter {
     required PermissionChecker permissions,
     required String signInRoute,
     required String homeRoute,
+    required List<List<String>> branches,
+    required ShellBuilder? shell,
   }) : _definitions = definitions,
        _screens = screens,
        _sessions = sessions,
        _permissions = permissions,
        _signInRoute = signInRoute,
-       _homeRoute = homeRoute;
+       _homeRoute = homeRoute,
+       _branches = branches,
+       _shell = shell;
   // The private constructor's parameters are named without the leading
   // underscore so that the redirecting constructor above can pass them by
   // name; `prefer_initializing_formals` wants `this._sessions` instead, which
@@ -88,6 +110,8 @@ final class PeykRouter {
   final PermissionChecker _permissions;
   final String _signInRoute;
   final String _homeRoute;
+  final List<List<String>> _branches;
+  final ShellBuilder? _shell;
 
   /// Every destination this app assembled, by name.
   Map<String, RouteDefinition> get definitions =>
@@ -181,31 +205,127 @@ final class PeykRouter {
     return target;
   }
 
+  /// Every route this app put inside a tab.
+  Set<String> get branched => {
+    for (final branch in _branches) ...branch,
+  };
+
+  /// What is wrong with the branch wiring, said in full sentences.
+  ///
+  /// Empty when nothing is. A getter rather than three assertions, for the
+  /// reason [unmounted] is one: a wiring mistake that a test can read is a
+  /// wiring mistake somebody fixes before it ships, and each of these three
+  /// fails in a way that looks like something else at runtime. An unknown name
+  /// is a tab that draws a blank; a name in two branches is a screen that
+  /// appears under whichever tab go_router reached first; a root with a path
+  /// parameter is a tab nobody can open, because there is no argument to open
+  /// it with.
+  List<String> get branchFaults {
+    final faults = <String>[];
+    final seen = <String>{};
+
+    for (final branch in _branches) {
+      if (branch.isEmpty) {
+        faults.add('A tab with no routes has no root to land on.');
+        continue;
+      }
+      for (final name in branch) {
+        if (!_definitions.containsKey(name)) {
+          faults.add('No module this app mounts declares "$name".');
+        }
+        if (!seen.add(name)) {
+          faults.add('"$name" is in more than one tab.');
+        }
+      }
+      final root = _definitions[branch.first];
+      if (root != null && root.path.contains(':')) {
+        faults.add(
+          'Tab root "${branch.first}" needs an argument (${root.path}), '
+          'so nothing can open the tab.',
+        );
+      }
+    }
+    return faults;
+  }
+
   /// The router itself.
-  GoRouter build() => GoRouter(
-    initialLocation: _definitions[_homeRoute]?.path ?? '/',
-    // The guard runs on navigation; this is what makes it run on a *session*.
-    // Without it a session that ended — signed out, expired, revoked — left
-    // whoever was looking at a screen on that screen until they happened to
-    // navigate somewhere. `redirectFor` was always right; it was simply not
-    // being asked. The subscription lives as long as the router, which lives
-    // as long as the app.
-    refreshListenable: SessionRefresh(_sessions.changes()),
-    routes: [
-      for (final definition in _definitions.values)
-        GoRoute(
-          name: definition.name,
-          path: definition.path,
-          builder: (context, state) =>
-              _screens[definition.name]?.call(
-                context,
-                state.pathParameters,
-              ) ??
-              const SizedBox.shrink(),
-          redirect: (context, state) =>
-              redirectFor(definition.name, at: state.uri),
-        ),
-    ],
+  ///
+  /// Two shapes out of one class. With no branches it is the flat list of
+  /// routes this started as; with them, every branched route moves inside a
+  /// `StatefulShellRoute` and whatever is left stays top-level. Sign-in is
+  /// what is left, and it has to be: a screen reached because there is no
+  /// session must not be drawn inside a frame offering four destinations the
+  /// guard would refuse.
+  GoRouter build() {
+    assert(
+      branchFaults.isEmpty,
+      "This app's tabs do not match its routes:\n${branchFaults.join('\n')}",
+    );
+    final shell = _shell;
+    final inTabs = branched;
+    final signIn = _definitions[_signInRoute]?.path;
+    // Assigned below and read only from a callback that cannot run before the
+    // constructor returns: the subscription it belongs to fires on a session
+    // change, and the first of those is at the earliest a frame away.
+    late final GoRouter router;
+
+    // The callback above closes over `router`, so the variable has to exist
+    // before the expression that fills it — which is why this is not written
+    // as one `return GoRouter(...)`.
+    // ignore: join_return_with_assignment
+    router = GoRouter(
+      initialLocation: _definitions[_homeRoute]?.path ?? '/',
+      // The guard runs on navigation; this is what makes it run on a
+      // *session*. Without it a session that ended — signed out, expired,
+      // revoked — left whoever was looking at a screen on that screen until
+      // they happened to navigate somewhere. `redirectFor` was always right;
+      // it was simply not being asked. The subscription lives as long as the
+      // router, which lives as long as the app.
+      refreshListenable: SessionRefresh(
+        _sessions.changes(),
+        // An ended session is refused wherever its owner happened to be, and
+        // the guard would carry that location into `?from=` — which is how the
+        // next person to sign in on a shared handset would land on the
+        // previous courier's parcel. Clearing the location first is what makes
+        // "signed out" mean the app forgot where you were.
+        onSessionEnded: signIn == null ? null : () => router.go(signIn),
+      ),
+      routes: [
+        if (shell != null && _branches.isNotEmpty)
+          StatefulShellRoute.indexedStack(
+            builder: (context, state, navigationShell) =>
+                shell(context, navigationShell),
+            branches: [
+              for (final branch in _branches)
+                StatefulShellBranch(
+                  routes: [
+                    for (final name in branch)
+                      if (_definitions[name] case final definition?)
+                        _route(definition),
+                  ],
+                ),
+            ],
+          ),
+        for (final definition in _definitions.values)
+          if (!inTabs.contains(definition.name)) _route(definition),
+      ],
+    );
+    return router;
+  }
+
+  /// One destination, as go_router wants it.
+  ///
+  /// Extracted when the shell arrived, because a branched route and a
+  /// top-level one differ in where they are mounted and in nothing else — the
+  /// guard, the builder and the name are the same, and a second copy of them
+  /// would be a second place for the guard to be forgotten.
+  GoRoute _route(RouteDefinition definition) => GoRoute(
+    name: definition.name,
+    path: definition.path,
+    builder: (context, state) =>
+        _screens[definition.name]?.call(context, state.pathParameters) ??
+        const SizedBox.shrink(),
+    redirect: (context, state) => redirectFor(definition.name, at: state.uri),
   );
 
   /// Collects every module's definitions, refusing a collision.

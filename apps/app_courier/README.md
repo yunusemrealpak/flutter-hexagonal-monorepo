@@ -46,11 +46,27 @@ The harness answers every key by definition — `KeyEchoCatalogue` returns the k
 - `payments.refund` and `incidents.report` need a form this workspace has not written.
 - `shipments.courier.scan` is **not** in the set: it is the manifest reached from a scanner deep-link and is mounted to the same builder. A mode is not a second screen.
 
+## The four tabs are this app's answer, not a feature's
+
+`courierTabs` names four tabs, each a word, a picture and the routes behind it. Twelve presentation packages declare where they can be reached; none of them knows it ended up behind a bar, and `routing_presentation` is mounted by `app_dispatcher` too, where there is no bar at all. That is §2.3's rule — a driving surface belongs to the audience — one level above where it was written: not *which* operations an audience performs, but which of them are one tap away.
+
+**`core_navigation` did not have to change for it.** The one thing a feature must be able to say about a tab root is that it opens with no argument, and `RouteDefinition.path` already says it: `/stops` can be a tab and `/stops/:shipmentId/proof` cannot. `courier_shell_test.dart` reads `path` and asserts exactly that, so a branch concept in a core contract package would have been a field three apps carry to express what one of them can derive.
+
+The split is the same one §2.4 draws for flows, one level down: `PeykNavigationBar` reports an index and knows no route, `courierTabs` names routes and draws nothing, and `CourierShell` — in this app — is the only place where an index becomes a destination.
+
+Everything mounted is behind exactly one tab except `identity.signIn`, and the shell test asserts that partition exactly. A route added to a feature has to be given a home rather than quietly becoming unreachable.
+
+## An ended session forgets where it was
+
+The guard sends anybody without a session to `/sign-in?from=<where they were going>`, so that a parcel somebody followed a link to survives signing in. An *ended* session is refused at whatever screen its owner was on — so without a second decision, the next person to sign in on a shared handset would land on the previous courier's parcel.
+
+Interception and ejection look identical to `redirectFor`: both are a session-requiring route with no session. They are told apart in `SessionRefresh`, the only place that sees the transition, and the app answers by clearing the location before the guard reads it. The shell test is what found this; it predates the shell.
+
 ## `PeykRouter` is duplicated in `app_harness`, deliberately
 
 An app may depend on anything, so a shared router package would compile — and it would be the first `common` package in the workspace, which is the mistake §2.1 names. Two apps assembling route modules are two apps making the same decision, not one decision they share: the day `app_dispatcher` wants a shell route with a persistent sidebar, that file changes there and not here.
 
-Ninety lines is what that costs. The alternative is a package three apps negotiate over.
+Ninety lines is what that costs. The alternative is a package three apps negotiate over — and this app is now the proof: it grew a `StatefulShellRoute` and the other two did not. A shared router would have had to grow a branch parameter that two of its three callers pass nothing to.
 
 ## `courier_runtime.dart` is where ambient state is allowed in
 

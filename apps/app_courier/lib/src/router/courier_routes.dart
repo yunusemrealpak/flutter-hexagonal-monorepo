@@ -31,6 +31,8 @@ import 'package:vehicle_inventory_api/vehicle_inventory_api.dart';
 import 'package:vehicle_inventory_presentation/vehicle_inventory_presentation.dart';
 
 import '../courier_app.dart';
+import '../shell/courier_shell.dart';
+import '../shell/courier_tabs.dart';
 import 'courier_flow.dart';
 import 'peyk_router.dart';
 
@@ -71,6 +73,12 @@ PeykRouter buildCourierRouter(GetIt container) {
     permissions: permissions,
     signInRoute: 'identity.signIn',
     homeRoute: 'shipments.courier.manifest',
+    // The tabs, and the frame they live in. Both are this app's answer: the
+    // twelve presentation packages below declare where they can be reached and
+    // none of them knows it ended up behind a bar.
+    branches: [for (final tab in courierTabs) tab.routes],
+    shell: (context, navigationShell) =>
+        CourierShell(tabs: courierTabs, shell: navigationShell),
     screens: {
       'identity.signIn': (context, _) => SignInScreen(
         controller: SignInController(identity: container<IdentityFacade>()),

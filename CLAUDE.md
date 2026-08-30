@@ -292,7 +292,7 @@ At the **end** of a phase: verify the acceptance criteria in the spec, push, ope
 
 This section is the handoff between sessions. It is rewritten at every phase boundary and it is the only part of this file that is expected to go stale — everything above is the constitution. Read it after section 9, then check it against `git log` before trusting it.
 
-**Branch:** `main`. **Last tag:** `phase-08`. The eight phases the specification defines are complete, merged and tagged; `main` is protected. What follows the spec is ordinary product work under the same constitution, and this is the first of it. **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,881 cases in 164 test files); `melos run gen:check` and `graph:check` clean.
+**Branch:** `refactor/drop-navigation-port`. **Last tag:** `phase-08`. The eight phases the specification defines are complete, merged and tagged; `main` is protected. What follows the spec is ordinary product work under the same constitution, and this is the first of it. **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,895 cases in 172 test files); `melos run gen:check` and `graph:check` clean.
 
 ### Phase 8 is complete, merged and tagged
 
@@ -368,42 +368,31 @@ Also closed, because both were gaps the code had already documented: `IdentityFa
 
 ### Start here in the next session
 
-Everything below is merged: PR #16 (`ccee0a6`) closed the navigation work, `main` is protected and green, and nothing from the specification is outstanding — its acceptance criteria all hold and every phase is tagged `phase-00` … `phase-08`.
+`main` is protected and green, and nothing from the specification is outstanding — its acceptance criteria all hold and every phase is tagged `phase-00` … `phase-08`. PR #16 (`ccee0a6`) closed the navigation work; the shell work below sits on `refactor/drop-navigation-port`.
 
-Three items, in the order they should be taken.
+Three items, in the order they should be taken. The first two are closed.
 
-#### 0. `core_navigation`'s `Navigation` port contradicts §2.4, and nothing uses it
+#### 0. `core_navigation`'s `Navigation` port — deleted, done
 
-Found while writing the handoff, not yet resolved. `packages/core/core_navigation/lib/src/navigation.dart` declares:
+`Navigation` (`goTo`, `replaceWith`, `back`) was candidate (b) of the navigation note written in phase 1 and never used: no package outside `core_navigation` and `core_testing` mentioned it, while its own doc comment taught the design §2.4 rejects. It is gone, with `RecordingNavigation`, `NavigationRecord` and their tests, and `core_testing` lost the `core_navigation` dependency it held only for them — the constitution permits that edge, but an unused dependency is still removed.
 
-```dart
-abstract interface class Navigation {
-  void goTo(RouteLocation location);
-  void replaceWith(RouteLocation location);
-  bool back();
-}
-```
+`RouteLocation` stays. Describing a destination and deciding to go there are different jobs, and the shell work below wants the first.
 
-Its own doc comment says *"Presentation packages depend on this rather than on a router library… The app supplies the adapter."* That is **candidate (b)** of the navigation note — the design §2.4 examined and rejected — sitting in the repository as a port. `core_testing` carries `RecordingNavigation` and `NavigationRecord` for it.
+The rejected alternative and its reason are recorded in `docs/research/navigation-and-flows.md` §8: an app-side abstraction over the router is a layer with one implementation and no second candidate. It comes back the day a third app routes with something other than `go_router`.
 
-**Product usage: zero.** No package outside `core_navigation` and `core_testing` mentions the type.
+#### 1. The bottom navigation bar — built, and one prediction it falsified
 
-So a reference repository currently ships an unused port whose documentation teaches the opposite of its own constitution. Two honest resolutions, and the choice is a decision to make rather than a fix to apply:
+`app_courier` has four tabs. The note is [`docs/research/tabbed-shell.md`](docs/research/tabbed-shell.md); the narrative is in `docs/ARCHITECTURE.md` under scenario 7; nothing in `DEPENDENCY_RULES.md` changed, because this is §2.4 applied one level down and §2.3 applied one level up rather than a new rule.
 
-- **Delete it** — along with `RecordingNavigation`, `NavigationRecord` and their test. Dead code that teaches the wrong lesson is worse than no code, and §7's "a package with no generated files has neither" is the same instinct. This is the recommendation.
-- **Keep it and rewrite the doc** — as an app-side abstraction over whichever router an app chose, never something a presentation package holds. Defensible only if something is actually going to hold it; today nothing is.
+`PeykNavigationBar` and `PeykIcon` are in `design_system`; `courierTabs`, `CourierShell` and `PeykRouter`'s `branches`/`shell` parameters are in `app_courier`. The other two apps still build a flat router, which is what those parameters defaulting to nothing is for.
 
-Whichever is chosen, `RouteLocation` stays: it is a value object with real tests and the shell work below may want it.
+Three things worth not rediscovering.
 
-#### 1. The bottom navigation bar, and what it forces
+- **`RouteDefinition` did not need a branch concept, and the handoff was wrong to expect one.** The only fact about a tab that belongs to a feature is that its root opens with no argument, and `path` already says it: `/stops` can be a tab, `/stops/:shipmentId/proof` cannot. The test reads `path`. Before adding a field to a contract package, check whether the fact is derivable from a field already there — a contract with two ways to say the same thing has two ways to disagree.
+- **The sign-out test found a defect that had nothing to do with tabs.** The branch stacks were fine; the *guard's memory* was not. `redirectFor` attaches `?from=` to every refusal so a followed link survives signing in, and an ended session is refused wherever its owner was — so signing back in returned there. On a shared handset that is the next courier landing on the previous one's parcel. Interception and ejection are indistinguishable to a pure `redirectFor`; `SessionRefresh` is the only place that sees the transition, and it now clears the location before the guard reads it. Fixed in all three apps.
+- **A test that passes without the fix is not a test.** The first draft of the second session-end test asserted the app landed at home after re-signing in — and the harness's home was the screen the test happened to be on, so it passed either way. Going somewhere else first is what gave it teeth. Both session-end tests were re-run with the fix removed.
 
-The thing that started this line of work. `app_courier` has thirteen flat routes and no shell; a courier reaches every screen by URL only. What a tabbed shell needs, in order:
-
-1. **`RouteDefinition` has no branch concept.** It carries `name`, `path`, `requiresSession`, `requiredPermission` — nothing that says "I am the root of a tab" or "I am nested under X". Expressing a `StatefulShellRoute` means adding one, and that is a change to a *core contract package* every presentation package depends on. Design it before writing a widget.
-2. **Tabs are per-audience.** A courier's tabs are not a dispatcher's, so the *set* of branches belongs to the app, exactly as `CourierFlow` does. What a feature can declare is that one of its routes is fit to be a tab root; which tabs exist is the app's answer. §2.3's rule, one more level up.
-3. **The label and icon cannot cross in `core_navigation`.** It is pure Dart and may not see Flutter, so no `IconData`. Either a semantic enum the app maps, or the app names the icon beside the branch. The label is a string key like every other, answered by the app's catalogue.
-4. **`design_system` owns the bar itself.** There is no navigation component in it today — twenty widgets, none of them a bar. It is `PeykNavigationBar`'s natural home, and it must take its destinations as data, not know a route.
-5. **Logout has to clear every branch's stack.** `SessionRefresh` already makes the guard run on a session change; a `StatefulShellRoute` keeps one `Navigator` per branch, and what happens to the other branches' stacks is a question this repo has not answered yet. Write the test first.
+Open, and deliberately not in this change: `app_dispatcher` has no shell (a desk wants a sidebar, a different component with the same split), and the inbox tab has no unread badge (`PeykBadge` exists; where the subscription lives is its own decision).
 
 #### 2. Deep-link entry from a push payload
 

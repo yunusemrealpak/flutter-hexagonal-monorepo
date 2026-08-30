@@ -1090,6 +1090,30 @@ abstract class PeykCourierLocalizations {
   /// In en, this message translates to:
   /// **'That document could not be read.'**
   String get documentsFailureMalformed;
+
+  /// The sentence behind "courier.tab.stops".
+  ///
+  /// In en, this message translates to:
+  /// **'Stops'**
+  String get courierTabStops;
+
+  /// The sentence behind "courier.tab.route".
+  ///
+  /// In en, this message translates to:
+  /// **'Route'**
+  String get courierTabRoute;
+
+  /// The sentence behind "courier.tab.inbox".
+  ///
+  /// In en, this message translates to:
+  /// **'Inbox'**
+  String get courierTabInbox;
+
+  /// The sentence behind "courier.tab.more".
+  ///
+  /// In en, this message translates to:
+  /// **'More'**
+  String get courierTabMore;
 }
 
 class _PeykCourierLocalizationsDelegate
