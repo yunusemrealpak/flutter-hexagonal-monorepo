@@ -292,7 +292,7 @@ At the **end** of a phase: verify the acceptance criteria in the spec, push, ope
 
 This section is the handoff between sessions. It is rewritten at every phase boundary and it is the only part of this file that is expected to go stale — everything above is the constitution. Read it after section 9, then check it against `git log` before trusting it.
 
-**Branch:** `feat/navigation-and-flows`, off `main`. **Last tag:** `phase-08`. The eight phases the specification defines are complete, merged and tagged; `main` is protected. What follows the spec is ordinary product work under the same constitution, and this is the first of it. **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,881 cases in 164 test files); `melos run gen:check` and `graph:check` clean.
+**Branch:** `main`. **Last tag:** `phase-08`. The eight phases the specification defines are complete, merged and tagged; `main` is protected. What follows the spec is ordinary product work under the same constitution, and this is the first of it. **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,881 cases in 164 test files); `melos run gen:check` and `graph:check` clean.
 
 ### Phase 8 is complete, merged and tagged
 
@@ -366,14 +366,48 @@ Also closed, because both were gaps the code had already documented: `IdentityFa
 
 **The merge queue's ten buckets are not required checks**, and that is a correction to what §8 used to claim. `verify` runs on `pull_request` and the buckets run on `merge_group`; GitHub evaluates one required-checks list against the merge group, so a required `verify` would never arrive there and the queue would hold every pull request forever. The queue is off, `main.yml` runs through its `push: main` fallback, and the buckets report after a merge rather than gating it. Turn the queue on — and give `pr.yml` a `merge_group` trigger in the same commit — the day two branches are in flight at once.
 
-### Left to do
+### Start here in the next session
 
-Nothing outstanding from the specification: its acceptance criteria all hold on `main`, and every phase is tagged `phase-00` … `phase-08`.
+Everything below is merged: PR #16 (`ccee0a6`) closed the navigation work, `main` is protected and green, and nothing from the specification is outstanding — its acceptance criteria all hold and every phase is tagged `phase-00` … `phase-08`.
 
-Two follow-ups this work names rather than does, both recorded in §7 of the navigation note:
+Three items, in the order they should be taken.
 
-1. **A `StatefulShellRoute` with a bottom navigation bar.** Wanted, and a separate decision: tabs are per-audience surfaces, and expressing one needs `RouteDefinition` to grow a branch concept — a change to a core contract package. Doing it in the same change as the flows would have hidden which of the two forced the contract to move.
-2. **Deep-link entry from a push payload.** The URL contract and the `?from=` guard are both in place; what is missing is the platform side that turns a notification into a location.
+#### 0. `core_navigation`'s `Navigation` port contradicts §2.4, and nothing uses it
+
+Found while writing the handoff, not yet resolved. `packages/core/core_navigation/lib/src/navigation.dart` declares:
+
+```dart
+abstract interface class Navigation {
+  void goTo(RouteLocation location);
+  void replaceWith(RouteLocation location);
+  bool back();
+}
+```
+
+Its own doc comment says *"Presentation packages depend on this rather than on a router library… The app supplies the adapter."* That is **candidate (b)** of the navigation note — the design §2.4 examined and rejected — sitting in the repository as a port. `core_testing` carries `RecordingNavigation` and `NavigationRecord` for it.
+
+**Product usage: zero.** No package outside `core_navigation` and `core_testing` mentions the type.
+
+So a reference repository currently ships an unused port whose documentation teaches the opposite of its own constitution. Two honest resolutions, and the choice is a decision to make rather than a fix to apply:
+
+- **Delete it** — along with `RecordingNavigation`, `NavigationRecord` and their test. Dead code that teaches the wrong lesson is worse than no code, and §7's "a package with no generated files has neither" is the same instinct. This is the recommendation.
+- **Keep it and rewrite the doc** — as an app-side abstraction over whichever router an app chose, never something a presentation package holds. Defensible only if something is actually going to hold it; today nothing is.
+
+Whichever is chosen, `RouteLocation` stays: it is a value object with real tests and the shell work below may want it.
+
+#### 1. The bottom navigation bar, and what it forces
+
+The thing that started this line of work. `app_courier` has thirteen flat routes and no shell; a courier reaches every screen by URL only. What a tabbed shell needs, in order:
+
+1. **`RouteDefinition` has no branch concept.** It carries `name`, `path`, `requiresSession`, `requiredPermission` — nothing that says "I am the root of a tab" or "I am nested under X". Expressing a `StatefulShellRoute` means adding one, and that is a change to a *core contract package* every presentation package depends on. Design it before writing a widget.
+2. **Tabs are per-audience.** A courier's tabs are not a dispatcher's, so the *set* of branches belongs to the app, exactly as `CourierFlow` does. What a feature can declare is that one of its routes is fit to be a tab root; which tabs exist is the app's answer. §2.3's rule, one more level up.
+3. **The label and icon cannot cross in `core_navigation`.** It is pure Dart and may not see Flutter, so no `IconData`. Either a semantic enum the app maps, or the app names the icon beside the branch. The label is a string key like every other, answered by the app's catalogue.
+4. **`design_system` owns the bar itself.** There is no navigation component in it today — twenty widgets, none of them a bar. It is `PeykNavigationBar`'s natural home, and it must take its destinations as data, not know a route.
+5. **Logout has to clear every branch's stack.** `SessionRefresh` already makes the guard run on a session change; a `StatefulShellRoute` keeps one `Navigator` per branch, and what happens to the other branches' stacks is a question this repo has not answered yet. Write the test first.
+
+#### 2. Deep-link entry from a push payload
+
+The URL contract (`RouteDefinition.path`), the guard (`redirectFor`) and the return-to-intended (`?from=`) are all in place and tested. What is missing is the platform side: `push_messaging` delivers a payload, and nothing turns one into a location. That is an app-level adapter — the same shape as `SyncOrchestrator` — and it is the case §4.1 of the navigation note reserved for a URL rather than a callback.
 
 The two gaps the repository states rather than fixes are unchanged and deliberate: `codemagic.yaml` and `fastlane/Fastfile` cannot run without `apps/*/android/`, `apps/*/ios/` and `apps/*/config/<flavour>.json` (the specification excludes native builds), and no test carries the `golden` or `integration` tag yet — the tags, presets, exclusions and CI steps are the mechanism, and the images arrive with the screens that need them.
 
