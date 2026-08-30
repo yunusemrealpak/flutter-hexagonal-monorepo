@@ -196,18 +196,46 @@ is not sync's — sync knows what is due, not what else the device is doing. Thi
 is the composition root owning a policy that belongs to no feature, which is
 the same reason the container lives there.
 
-## 6. Acceptance criteria
+## 6. Acceptance criteria, checked
 
-1. `arch_check` carries `I8` and `A6`, and both pass across 75 packages.
-2. No `_presentation` package gains a dependency; §1.1's table is unchanged.
+1. `arch_check` carries `I8` and `A6`, and both pass across 75 packages — **done**,
+   with fixtures in `broken_imports` and `broken_apis` proving each one fires
+   and that a doc comment naming the call is not a violation.
+2. No `_presentation` package gains a dependency; §1.1's table is unchanged —
+   **done**. Every callback carries a type from the screen's own `_api`.
 3. `IdentityFacade.signOut` has a call site, and ending a session moves the
-   person to sign-in without a navigation happening first.
-4. A guarded URL reached without a session returns to that URL after sign-in.
+   person to sign-in without a navigation happening first — **done**, through
+   `SettingsScreen.onSignOut` and the router's `SessionRefresh`.
+4. A guarded URL reached without a session returns to that URL after sign-in —
+   **done**, with the two refusals tested: a `from` pointing at sign-in, and a
+   `from` carrying a scheme.
 5. The three courier screens carry outcome callbacks, each tested for firing
-   once on the transition and not on a rebuild.
+   once on the transition and not on a rebuild — **done**, and each is also
+   tested with no callback supplied, which is `app_dispatcher`.
 6. A connectivity change from offline to online drains the outbox, asserted
-   against a fake `NetworkStatus` rather than a device.
-7. `dart analyze`, `arch_check`, `graph:check` and the full suite stay clean.
+   against a fake `NetworkStatus` rather than a device — **done**, along with
+   the repeat-condition, concurrent-drain and refused-drain cases.
+7. `dart analyze`, `arch_check`, `graph:check` and the full suite stay clean —
+   **done**.
+
+### What building it changed about the design
+
+**The flow forks on the outcome, and the first version did not.** `onSettled`
+fires for a visit that ended *without* a hand-over too, and the first
+`afterProof` sent every settled attempt to collection — a courier who took the
+parcel away again would have been asked to collect for it. `AttemptOutcome` is
+sealed, so the fix is a switch the compiler checks.
+
+**Two terminal states, two different mechanisms.** Proof announces on the
+transition; collection offers a button. `NothingOwed` arrives the instant the
+collection screen loads, and announcing it automatically would take a prepaid
+parcel off the screen before anybody read the word. Mid-task continues,
+end-of-task asks.
+
+**`GoRouterRefreshStream` no longer exists.** go_router dropped it after
+version 17, so `SessionRefresh` is fifteen lines in each app. It throws the
+session value away deliberately: the guard reads `SessionReader.current` when
+it runs, and a second copy of that fact would eventually disagree.
 
 ## 7. What was ruled out and why
 
