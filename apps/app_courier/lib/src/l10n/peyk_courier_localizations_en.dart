@@ -609,4 +609,16 @@ class PeykCourierLocalizationsEn extends PeykCourierLocalizations {
 
   @override
   String get documentsFailureMalformed => 'That document could not be read.';
+
+  @override
+  String get courierTabStops => 'Stops';
+
+  @override
+  String get courierTabRoute => 'Route';
+
+  @override
+  String get courierTabInbox => 'Inbox';
+
+  @override
+  String get courierTabMore => 'More';
 }

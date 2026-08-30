@@ -164,5 +164,9 @@
   "documentsFailureRefused": "Operasyon üretmiyor: {reason}",
   "documentsFailureArchive": "Saklanan kopya okunamadı.",
   "documentsFailureMissing": "Bu belge artık saklanmıyor.",
-  "documentsFailureMalformed": "Bu belge okunamadı."
+  "documentsFailureMalformed": "Bu belge okunamadı.",
+  "courierTabStops": "Duraklar",
+  "courierTabRoute": "Rota",
+  "courierTabInbox": "Gelen kutusu",
+  "courierTabMore": "Diğer"
 }

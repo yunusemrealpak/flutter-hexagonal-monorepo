@@ -35,6 +35,8 @@ export 'src/router/courier_flow.dart';
 export 'src/router/courier_routes.dart';
 export 'src/router/peyk_router.dart';
 export 'src/router/session_refresh.dart';
+export 'src/shell/courier_shell.dart';
+export 'src/shell/courier_tabs.dart';
 export 'src/sync/sync_orchestrator.dart';
 
 /// The courier app, in production.

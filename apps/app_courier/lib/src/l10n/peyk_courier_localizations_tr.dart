@@ -586,4 +586,16 @@ class PeykCourierLocalizationsTr extends PeykCourierLocalizations {
 
   @override
   String get documentsFailureMalformed => 'Bu belge okunamadı.';
+
+  @override
+  String get courierTabStops => 'Duraklar';
+
+  @override
+  String get courierTabRoute => 'Rota';
+
+  @override
+  String get courierTabInbox => 'Gelen kutusu';
+
+  @override
+  String get courierTabMore => 'Diğer';
 }

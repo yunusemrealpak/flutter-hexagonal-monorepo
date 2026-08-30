@@ -352,5 +352,11 @@ final class CourierCatalogue implements StringCatalogue {
     'documents.failure.missing': (l, arguments) => l.documentsFailureMissing,
     'documents.failure.malformed': (l, arguments) =>
         l.documentsFailureMalformed,
+    // The shell's own four. Not a feature's words: which tabs exist is this
+    // app's decision, so what they are called is too.
+    'courier.tab.stops': (l, arguments) => l.courierTabStops,
+    'courier.tab.route': (l, arguments) => l.courierTabRoute,
+    'courier.tab.inbox': (l, arguments) => l.courierTabInbox,
+    'courier.tab.more': (l, arguments) => l.courierTabMore,
   };
 }
