@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:core_kernel/core_kernel.dart';
 import 'package:delivery_api/delivery_api.dart';
 import 'package:delivery_presentation/delivery_presentation.dart';
@@ -6,6 +8,7 @@ import 'package:documents_api/documents_api.dart';
 import 'package:documents_presentation/documents_presentation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:get_it/get_it.dart';
+import 'package:go_router/go_router.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:identity_presentation/identity_presentation.dart';
 import 'package:incidents_api/incidents_api.dart';
@@ -28,6 +31,7 @@ import 'package:vehicle_inventory_api/vehicle_inventory_api.dart';
 import 'package:vehicle_inventory_presentation/vehicle_inventory_presentation.dart';
 
 import '../courier_app.dart';
+import 'courier_flow.dart';
 import 'peyk_router.dart';
 
 /// Builds this app's router from [container].
@@ -51,6 +55,7 @@ import 'peyk_router.dart';
 PeykRouter buildCourierRouter(GetIt container) {
   final sessions = container<SessionReader>();
   final permissions = container<PermissionChecker>();
+  const flow = CourierFlow();
 
   /// Whoever is signed in.
   ///
@@ -75,6 +80,10 @@ PeykRouter buildCourierRouter(GetIt container) {
           shipments: container<ShipmentsFacade>(),
           session: sessions,
         ),
+        // The first step of the courier's day. `shipments` reported which stop
+        // was chosen; this file is the only place in the workspace that knows
+        // a stop leads to a door.
+        onStopSelected: (stop) => _follow(context, flow.fromStop(stop)),
       ),
       // The same screen, reached at the URL a barcode scanner deep-links to.
       // `/stops/scan` is a mode of the manifest rather than a second screen,
@@ -103,6 +112,7 @@ PeykRouter buildCourierRouter(GetIt container) {
             permissions: permissions,
             session: sessions,
           ),
+          onSettled: (attempt) => _follow(context, flow.afterProof(attempt)),
         ),
       ),
       'payments.collect': (context, parameters) => _parsed(
@@ -114,6 +124,7 @@ PeykRouter buildCourierRouter(GetIt container) {
             permissions: permissions,
             session: sessions,
           ),
+          onFinished: () => _follow(context, flow.afterDoor()),
         ),
       ),
       'sync.review': (context, _) => ReviewQueueScreen(
@@ -124,6 +135,11 @@ PeykRouter buildCourierRouter(GetIt container) {
           settings: container<SettingsFacade>(),
           actor: actor(),
         ),
+        // The one call site `IdentityFacade.signOut` had been waiting for.
+        // Nothing here says where to go afterwards, and nothing has to: the
+        // session ends, the router's SessionRefresh fires, and the guard that
+        // was always right about a sessionless actor finally gets asked.
+        onSignOut: () => unawaited(container<IdentityFacade>().signOut()),
       ),
       'notifications.inbox': (context, _) => InboxScreen(
         controller: InboxController(
@@ -170,6 +186,17 @@ PeykRouter buildCourierRouter(GetIt container) {
     },
   );
 }
+
+/// Takes [step], which is the only navigation this app performs.
+///
+/// One function, and every flow transition goes through it. That is what makes
+/// the answer to "where can this app send somebody, and from where" a matter
+/// of reading `CourierFlow` rather than grepping fourteen packages — which is
+/// the state §2.4 exists to keep the workspace in.
+void _follow(BuildContext context, FlowStep step) => context.goNamed(
+  step.route,
+  pathParameters: step.parameters,
+);
 
 /// Draws [onValue] when a path segment parsed, and says so when it did not.
 ///

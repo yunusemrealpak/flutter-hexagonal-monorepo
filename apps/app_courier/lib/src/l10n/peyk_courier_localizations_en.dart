@@ -269,6 +269,9 @@ class PeykCourierLocalizationsEn extends PeykCourierLocalizations {
   String get paymentsCollect => 'Take payment';
 
   @override
+  String get paymentsDone => 'Done';
+
+  @override
   String paymentsFailureRefused(String reason) {
     return 'Refused: $reason';
   }
@@ -376,6 +379,9 @@ class PeykCourierLocalizationsEn extends PeykCourierLocalizations {
 
   @override
   String get settingsSyncSection => 'When to send';
+
+  @override
+  String get settingsSignOut => 'Sign out';
 
   @override
   String get settingsLanguageTr => 'Türkçe';

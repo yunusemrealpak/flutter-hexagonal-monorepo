@@ -292,7 +292,7 @@ At the **end** of a phase: verify the acceptance criteria in the spec, push, ope
 
 This section is the handoff between sessions. It is rewritten at every phase boundary and it is the only part of this file that is expected to go stale — everything above is the constitution. Read it after section 9, then check it against `git log` before trusting it.
 
-**Branch:** `fix/pr-golden-selection`, off `main`. **Last tag:** `phase-08` — phase 8 is merged (PR #13, a merge commit rather than a squash). **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,530 cases in 161 files); `melos run gen:check` and `graph:check` clean.
+**Branch:** `feat/navigation-and-flows`, off `main`. **Last tag:** `phase-08`. The eight phases the specification defines are complete, merged and tagged; `main` is protected. What follows the spec is ordinary product work under the same constitution, and this is the first of it. **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,881 cases in 164 test files); `melos run gen:check` and `graph:check` clean.
 
 ### Phase 8 is complete, merged and tagged
 
@@ -342,6 +342,24 @@ The golden step ran `flutter test --tags golden` in every package with a `test/`
 
 The general rule, now in `docs/CI_CD.md` §3 and `docs/TESTING.md`: **a gate written before the thing it gates has to have a defined answer for the empty case**, and "red" is not it.
 
+### After the spec: navigation and the first three flows
+
+The workspace had seventy-five packages, twenty-three routes and **zero navigation calls** — every screen an island reachable only by URL. The note is [`docs/research/navigation-and-flows.md`](docs/research/navigation-and-flows.md); the rule it produced is [`DEPENDENCY_RULES.md` §2.4](docs/DEPENDENCY_RULES.md), checked by `arch_check`'s new `I8` and `A6`; the narrative is in `docs/ARCHITECTURE.md` under scenario 7.
+
+**The decision: a screen reports an outcome, the app decides the destination.** The two alternatives were researched and rejected for reasons specific to this workspace, not taste. `context.goNamed` inside a screen cannot work here — route names live in presentation packages and a feature may not import another feature's presentation package, so a cross-feature destination could only be an unchecked string. A navigation interface in `core_navigation` would have to name every destination, which is §2.1's forbidden `shared` package wearing a router's clothes. Google's Compose-era multi-module guidance and Now in Android reach the same answer for the same reason.
+
+`ProofCaptureScreen.onCaptureSignature` was already this shape — the app supplies a capability the package may not depend on. A flow step is the same shape applied to a destination.
+
+Three things worth not rediscovering:
+
+- **Entry and continuation are different problems.** A notification tap cannot invoke a callback, so arrival stays a URL (`RouteDefinition.path` + `redirectFor`) and only continuation became a callback. Confusing the two is what makes people reach for a router in a package.
+- **The flow forks where the domain forks, and the first version got it wrong.** `onSettled` fires for a visit that ended *without* a hand-over too; the first `CourierFlow.afterProof` sent every settled attempt to collection, which would have asked a courier to collect for a parcel they took away. `AttemptOutcome` is sealed, so the fix is a switch the compiler checks.
+- **`CourierFlow` is a pure function to a `(route, parameters)` record, and that is the point.** Its test asserts every route name it can produce is one the app actually mounted. Scattered `context.goNamed` calls could never be checked that way, because no presentation package knows what an app mounted.
+
+Also closed, because both were gaps the code had already documented: `IdentityFacade.signOut` had no call site in the workspace and `sessionChanges` had no subscriber (so the guard only ran on navigation, and an ended session left somebody on the screen); and `SyncFacade.drain` named its caller in its own doc comment — "a connectivity change, a foreground transition, a timer in the composition root" — while nothing was that caller. `SessionRefresh` and `SyncOrchestrator` are those two, one copy per app.
+
+`GoRouterRefreshStream` was removed from go_router after version 17. `SessionRefresh` replaces it in fifteen lines and deliberately throws the session value away: the guard reads `SessionReader.current` when it runs.
+
 ### `main` is protected as of 2026-08-28
 
 `verify` is a required status check, branches must be up to date before merging, administrators are included, and force pushes and deletions are blocked. §8 of `docs/CI_CD.md` carries the table and the reasoning.
@@ -350,7 +368,12 @@ The general rule, now in `docs/CI_CD.md` §3 and `docs/TESTING.md`: **a gate wri
 
 ### Left to do
 
-Nothing outstanding. The specification's acceptance criteria all hold on `main`, and every phase is tagged `phase-00` … `phase-08`.
+Nothing outstanding from the specification: its acceptance criteria all hold on `main`, and every phase is tagged `phase-00` … `phase-08`.
+
+Two follow-ups this work names rather than does, both recorded in §7 of the navigation note:
+
+1. **A `StatefulShellRoute` with a bottom navigation bar.** Wanted, and a separate decision: tabs are per-audience surfaces, and expressing one needs `RouteDefinition` to grow a branch concept — a change to a core contract package. Doing it in the same change as the flows would have hidden which of the two forced the contract to move.
+2. **Deep-link entry from a push payload.** The URL contract and the `?from=` guard are both in place; what is missing is the platform side that turns a notification into a location.
 
 The two gaps the repository states rather than fixes are unchanged and deliberate: `codemagic.yaml` and `fastlane/Fastfile` cannot run without `apps/*/android/`, `apps/*/ios/` and `apps/*/config/<flavour>.json` (the specification excludes native builds), and no test carries the `golden` or `integration` tag yet — the tags, presets, exclusions and CI steps are the mechanism, and the images arrive with the screens that need them.
 

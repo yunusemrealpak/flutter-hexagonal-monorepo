@@ -31,6 +31,7 @@ final class ProofCaptureScreen extends StatefulWidget {
     this.grade = DeliveryGrade.standard,
     this.onCaptureSignature,
     this.onCapturePhoto,
+    this.onSettled,
     super.key,
   });
 
@@ -52,6 +53,18 @@ final class ProofCaptureScreen extends StatefulWidget {
 
   /// Opens whatever this app takes photographs with.
   final Future<PhotoEvidence?> Function()? onCapturePhoto;
+
+  /// Reports the visit that was recorded, once it is recorded.
+  ///
+  /// A `DeliveryAttempt` — delivery's own word — and not a destination. What
+  /// follows a doorstep is the app's decision: a courier goes on to whatever
+  /// is owed on the parcel, and a dispatcher opening the same screen goes
+  /// nowhere. §2.4.
+  ///
+  /// It fires on the transition into [Settled] and once only. A screen that
+  /// called this from `build` would call it again on every notification, and
+  /// the courier would be sent onward each time the widget rebuilt.
+  final void Function(DeliveryAttempt)? onSettled;
 
   @override
   State<ProofCaptureScreen> createState() => _ProofCaptureScreenState();
@@ -99,9 +112,17 @@ final class ProofCaptureScreen extends StatefulWidget {
 }
 
 class _ProofCaptureScreenState extends State<ProofCaptureScreen> {
+  /// Whether the outcome has already been reported.
+  ///
+  /// Rebuilding is not an event. The controller notifies on every change and
+  /// [Settled] stays on screen until somebody leaves it, so without this the
+  /// app would be told the visit finished once per notification.
+  bool _reported = false;
+
   @override
   void initState() {
     super.initState();
+    widget.controller.addListener(_announce);
     // initState cannot be async, and the arrival is genuinely
     // fire-and-forget: its result reaches the screen through the controller's
     // notification rather than through this call.
@@ -111,6 +132,19 @@ class _ProofCaptureScreenState extends State<ProofCaptureScreen> {
         grade: widget.grade,
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_announce);
+    super.dispose();
+  }
+
+  void _announce() {
+    final state = widget.controller.state;
+    if (_reported || state is! Settled) return;
+    _reported = true;
+    widget.onSettled?.call(state.attempt);
   }
 
   @override

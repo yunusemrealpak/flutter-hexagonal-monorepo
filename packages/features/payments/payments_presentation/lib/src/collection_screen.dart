@@ -23,6 +23,7 @@ final class CollectionScreen extends StatefulWidget {
   const CollectionScreen({
     required this.controller,
     required this.shipment,
+    this.onFinished,
     super.key,
   });
 
@@ -31,6 +32,19 @@ final class CollectionScreen extends StatefulWidget {
 
   /// Which parcel the money is owed against.
   final ShipmentId shipment;
+
+  /// Reports that the courier is done at this door.
+  ///
+  /// **Offered as a button rather than fired on a transition**, and the
+  /// difference from `ProofCaptureScreen.onSettled` is deliberate. Proof is
+  /// the middle of a visit, so continuing is what the courier already asked
+  /// for. Money is the end of it, and `NothingOwed` arrives the instant the
+  /// screen loads — reporting that automatically would take a prepaid parcel
+  /// off the screen before anybody read the word "prepaid".
+  ///
+  /// The app decides what "done" leads to. This package does not know that a
+  /// manifest exists.
+  final VoidCallback? onFinished;
 
   @override
   State<CollectionScreen> createState() => _CollectionScreenState();
@@ -131,8 +145,9 @@ class _CollectionScreenState extends State<CollectionScreen> {
           CollectionIdle() || CollectionLoading() => const PeykLoadingView(),
           // Where this screen spends most of its life. Most parcels are
           // prepaid, and that is not a failure.
-          NothingOwed() => PeykEmptyView(
+          NothingOwed() => _Finished(
             message: strings.resolve(PaymentsStrings.nothingOwed),
+            onFinished: widget.onFinished,
           ),
           final Owed state => _Door(
             state: state,
@@ -141,11 +156,12 @@ class _CollectionScreenState extends State<CollectionScreen> {
             onCollect: () =>
                 unawaited(widget.controller.collect(widget.shipment)),
           ),
-          Collected(:final attempt) => PeykEmptyView(
+          Collected(:final attempt) => _Finished(
             message: strings.resolve(
               PaymentsStrings.taken,
               arguments: CollectionScreen.amountArguments(attempt.amount),
             ),
+            onFinished: widget.onFinished,
           ),
           CollectionFailed(:final failure) => PeykFailureView(
             message: strings.resolve(
@@ -158,6 +174,40 @@ class _CollectionScreenState extends State<CollectionScreen> {
           ),
         },
       ),
+    );
+  }
+}
+
+/// A door the courier is finished with, and the way off it.
+///
+/// The button is drawn only when the app supplied somewhere to go. An app
+/// that mounts this screen as a leaf — a dispatcher looking at what a courier
+/// collected — gets the sentence and no button, which is the correct screen
+/// for somebody who is not standing at the door.
+final class _Finished extends StatelessWidget {
+  const _Finished({required this.message, this.onFinished});
+
+  final String message;
+  final VoidCallback? onFinished;
+
+  @override
+  Widget build(BuildContext context) {
+    final done = onFinished;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        PeykEmptyView(message: message),
+        if (done != null) ...[
+          const PeykGap.vertical(PeykGapSize.betweenGroups),
+          PeykButton(
+            label: PeykStrings.of(context).resolve(PaymentsStrings.done),
+            onPressed: done,
+            tone: PeykButtonTone.primary,
+          ),
+        ],
+      ],
     );
   }
 }

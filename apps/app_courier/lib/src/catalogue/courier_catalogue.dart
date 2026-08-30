@@ -201,6 +201,7 @@ final class CourierCatalogue implements StringCatalogue {
     'payments.method.cash': (l, arguments) => l.paymentsMethodCash,
     'payments.method.card': (l, arguments) => l.paymentsMethodCard,
     'payments.collect': (l, arguments) => l.paymentsCollect,
+    'payments.done': (l, arguments) => l.paymentsDone,
     'payments.failure.refused': (l, arguments) =>
         l.paymentsFailureRefused(_text(arguments['reason'])),
     'payments.failure.cashDrawerUnavailable': (l, arguments) =>
@@ -246,6 +247,7 @@ final class CourierCatalogue implements StringCatalogue {
     'settings.language.section': (l, arguments) => l.settingsLanguageSection,
     'settings.theme.section': (l, arguments) => l.settingsThemeSection,
     'settings.sync.section': (l, arguments) => l.settingsSyncSection,
+    'settings.signOut': (l, arguments) => l.settingsSignOut,
     'settings.language.tr': (l, arguments) => l.settingsLanguageTr,
     'settings.theme.system': (l, arguments) => l.settingsThemeSystem,
     'settings.theme.light': (l, arguments) => l.settingsThemeLight,

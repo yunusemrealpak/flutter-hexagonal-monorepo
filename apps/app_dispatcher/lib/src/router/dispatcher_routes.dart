@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:core_kernel/core_kernel.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
@@ -113,6 +115,11 @@ PeykRouter buildDispatcherRouter(GetIt container) {
           settings: container<SettingsFacade>(),
           actor: actor(),
         ),
+        // The one call site `IdentityFacade.signOut` had been waiting for.
+        // Nothing here says where to go afterwards, and nothing has to: the
+        // session ends, the router's SessionRefresh fires, and the guard that
+        // was always right about a sessionless actor finally gets asked.
+        onSignOut: () => unawaited(container<IdentityFacade>().signOut()),
       ),
       'notifications.inbox': (context, _) => InboxScreen(
         controller: InboxController(

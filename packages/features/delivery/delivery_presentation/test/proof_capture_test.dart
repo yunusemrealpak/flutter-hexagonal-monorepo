@@ -253,6 +253,7 @@ void main() {
       Set<Permission> granted = const {Permission.completeDelivery},
       DeliveryGrade grade = DeliveryGrade.standard,
       Future<PhotoEvidence?> Function()? onCapturePhoto,
+      void Function(DeliveryAttempt)? onSettled,
     }) {
       final built = _controller(facade, granted: granted);
       addTearDown(built.dispose);
@@ -262,6 +263,7 @@ void main() {
           shipment: DeliveryFixtures.shipment(),
           grade: grade,
           onCapturePhoto: onCapturePhoto,
+          onSettled: onSettled,
         ),
       );
     }
@@ -307,6 +309,52 @@ void main() {
         find.textContaining(DeliveryStrings.captured),
         findsOneWidget,
       );
+    });
+
+    testWidgets('reports the settled visit once, and not on a rebuild', (
+      tester,
+    ) async {
+      final settled = <DeliveryAttempt>[];
+
+      await tester.pumpWidget(screen(onSettled: settled.add));
+      await tester.pump();
+      // The visit ends without a hand-over, which is the ending that needs no
+      // evidence and no permission — and the one an app must not send to
+      // collection. What is under test here is that it is announced once.
+      await tester.tap(find.text(DeliveryStrings.couldNotDeliver));
+      await tester.pumpAndSettle();
+
+      expect(settled, hasLength(1));
+
+      // Rebuilding is not an event. Settled stays on screen until somebody
+      // leaves it, so a screen that announced from `build` would send the
+      // courier onward once per notification.
+      await tester.pump();
+      await tester.pump();
+
+      expect(settled, hasLength(1));
+    });
+
+    testWidgets('announces nothing while the visit is open', (tester) async {
+      final settled = <DeliveryAttempt>[];
+
+      await tester.pumpWidget(screen(onSettled: settled.add));
+      await tester.pumpAndSettle();
+
+      expect(settled, isEmpty);
+    });
+
+    testWidgets('a screen the app gave no outcome to still records', (
+      tester,
+    ) async {
+      // app_dispatcher mounts this package and composes no flow. The visit is
+      // still recorded; nothing follows it.
+      await tester.pumpWidget(screen());
+      await tester.pump();
+      await tester.tap(find.text(DeliveryStrings.couldNotDeliver));
+      await tester.pumpAndSettle();
+
+      expect(find.text(DeliveryStrings.recorded), findsOneWidget);
     });
 
     test('asks for a different key for every failure', () {

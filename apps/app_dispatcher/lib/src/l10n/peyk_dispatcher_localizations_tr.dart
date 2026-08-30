@@ -164,6 +164,9 @@ class PeykDispatcherLocalizationsTr extends PeykDispatcherLocalizations {
   String get paymentsCollect => 'Ödemeyi kaydet';
 
   @override
+  String get paymentsDone => 'Bitir';
+
+  @override
   String paymentsFailureRefused(String reason) {
     return 'Reddedildi: $reason';
   }
@@ -260,6 +263,9 @@ class PeykDispatcherLocalizationsTr extends PeykDispatcherLocalizations {
 
   @override
   String get settingsSyncSection => 'Kuryeler ne zaman göndersin';
+
+  @override
+  String get settingsSignOut => 'Oturumu kapat';
 
   @override
   String get settingsLanguageTr => 'Türkçe';

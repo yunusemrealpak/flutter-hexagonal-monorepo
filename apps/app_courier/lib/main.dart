@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:connectivity_plus_platform_interface/connectivity_plus_platform_interface.dart';
+import 'package:core_ports/core_ports.dart';
 import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
 import 'package:firebase_messaging_platform_interface/firebase_messaging_platform_interface.dart';
@@ -10,11 +11,13 @@ import 'package:geolocator_platform_interface/geolocator_platform_interface.dart
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:opentelemetry/api.dart' as otel;
 import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
+import 'package:sync_api/sync_api.dart';
 
 import 'src/courier_app.dart';
 import 'src/di/courier_platform.dart';
 import 'src/di/injection.dart';
 import 'src/router/courier_routes.dart';
+import 'src/sync/sync_orchestrator.dart';
 
 /// What this app's own tests build it from.
 ///
@@ -28,8 +31,11 @@ export 'src/catalogue/courier_catalogue.dart';
 export 'src/courier_app.dart';
 export 'src/di/courier_platform.dart';
 export 'src/di/injection.dart' show configureCourier, courierContainer;
+export 'src/router/courier_flow.dart';
 export 'src/router/courier_routes.dart';
 export 'src/router/peyk_router.dart';
+export 'src/router/session_refresh.dart';
+export 'src/sync/sync_orchestrator.dart';
 
 /// The courier app, in production.
 ///
@@ -57,6 +63,16 @@ Future<void> main() async {
       tracer: otel.globalTracerProvider.getTracer('peyk.courier'),
     ),
   );
+
+  // Nothing enqueues through this and nothing waits for it: it decides when
+  // a queue that already holds the work is worth attempting. Started before
+  // the first frame so that an app reopened on the street sends what was
+  // written in a basement.
+  SyncOrchestrator(
+    sync: container<SyncFacade>(),
+    network: container<NetworkStatus>(),
+    logger: container<Logger>(),
+  ).start();
 
   runApp(CourierApp(router: buildCourierRouter(container).build()));
 }

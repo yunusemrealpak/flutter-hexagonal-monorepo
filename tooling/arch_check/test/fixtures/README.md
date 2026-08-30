@@ -10,8 +10,8 @@ They are workspaces rather than string constants in a test because that is what 
 | `broken_dependencies` | §2 — a kernel with a third-party dependency, a feature reaching past another feature's contract, the Flutter SDK in a pure Dart package, a tool importing the product, and a dev dependency that reached `lib/`. |
 | `broken_structure` | §3 — a missing barrel, a stray file under `lib/`, a barrel that declares and re-exports, a name that does not match its directory, a package outside the workspace resolution, a deep import, and an implementation inside a contract package. |
 | `broken_cycle` | S7 — two contract packages that depend on each other. |
-| `broken_imports` | §4 — one forbidden import of each kind, each in a package type that forbids it. |
-| `broken_apis` | §5 — the four ambient calls and a throw out of a `Result`. Its class is documented with the very calls it makes, so it also proves that comments are not scanned. |
+| `broken_imports` | §4 — one forbidden import of each kind, each in a package type that forbids it, including the router in a presentation package. |
+| `broken_apis` | §5 — the four ambient calls, a throw out of a `Result`, and a screen that decides its own destination. Two of its classes are documented with the very calls they make, so it also proves that comments are not scanned. |
 | `broken_codegen` | §6 — generation in the innermost ring, serialization wired into a contract package, and generated output with no `build.yaml`. |
 | `unknown_type` | §1 — a package whose path and name resolve to no type at all. |
 | `broken_feature` | **The one to read first.** A plausible `billing` feature written by someone who has not read the constitution, with the clean packages around it that make its mistakes measurable. 28 violations across 18 codes, most of them consequences of two or three decisions. See below. |

@@ -218,6 +218,7 @@ void main() {
   group('CollectionScreen', () {
     Widget screen({
       Set<Permission> granted = const {Permission.collectPayment},
+      VoidCallback? onFinished,
     }) {
       final built = _controller(facade, granted: granted);
       addTearDown(built.dispose);
@@ -225,6 +226,7 @@ void main() {
         child: CollectionScreen(
           controller: built,
           shipment: PaymentsFixtures.shipment(),
+          onFinished: onFinished,
         ),
       );
     }
@@ -278,6 +280,51 @@ void main() {
       await tester.pump();
 
       expect(find.text(PaymentsStrings.nothingOwed), findsOneWidget);
+    });
+
+    group('being done at the door', () {
+      // Offered as a button rather than fired on a transition, and the
+      // difference from ProofCaptureScreen.onSettled is the point:
+      // NothingOwed arrives the instant the screen loads, so announcing it
+      // automatically would take a prepaid parcel off the screen before
+      // anybody read the word.
+      testWidgets('a prepaid parcel offers the way onward', (tester) async {
+        var finished = 0;
+
+        await tester.pumpWidget(screen(onFinished: () => finished++));
+        await tester.pumpAndSettle();
+
+        expect(finished, isZero);
+
+        await tester.tap(find.text(PaymentsStrings.done));
+        await tester.pump();
+
+        expect(finished, 1);
+      });
+
+      testWidgets('so does a parcel that was just paid for', (tester) async {
+        owes(4500);
+        var finished = 0;
+
+        await tester.pumpWidget(screen(onFinished: () => finished++));
+        await tester.pump();
+        await tester.tap(find.text(PaymentsStrings.collect));
+        await tester.pump();
+        await tester.tap(find.text(PaymentsStrings.done));
+        await tester.pump();
+
+        expect(finished, 1);
+      });
+
+      // app_dispatcher mounts this package to show what was collected. There
+      // is no door to leave and no flow to continue, so there is no button.
+      testWidgets('an app with nowhere to go draws no button', (tester) async {
+        await tester.pumpWidget(screen());
+        await tester.pumpAndSettle();
+
+        expect(find.text(PaymentsStrings.nothingOwed), findsOneWidget);
+        expect(find.text(PaymentsStrings.done), findsNothing);
+      });
     });
 
     test('an amount crosses as minor units, a code and a scale', () {

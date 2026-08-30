@@ -60,8 +60,15 @@ void main() {
     ),
   ];
 
-  Widget screen(CourierManifestController controller) =>
-      PeykTheme.wrap(child: CourierManifestScreen(controller: controller));
+  Widget screen(
+    CourierManifestController controller, {
+    void Function(ShipmentSummary)? onStopSelected,
+  }) => PeykTheme.wrap(
+    child: CourierManifestScreen(
+      controller: controller,
+      onStopSelected: onStopSelected,
+    ),
+  );
 
   testWidgets('renders the stops the facade returned', (tester) async {
     final controller = CourierManifestController(
@@ -99,6 +106,40 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(ShipmentsCourierStrings.empty), findsOneWidget);
+  });
+
+  group('choosing a stop', () {
+    testWidgets('reports the row, not a destination', (tester) async {
+      final chosen = <ShipmentSummary>[];
+      final controller = CourierManifestController(
+        shipments: _Facade(Success(rows())),
+        session: _Session(courier),
+      );
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(screen(controller, onStopSelected: chosen.add));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Ayse Yilmaz'));
+
+      // A ShipmentSummary — this feature's own word. Where a stop leads is
+      // the app's decision, and this package could not name it: it may not
+      // import delivery_presentation. §2.4.
+      expect(chosen.single.consigneeName, 'Ayse Yilmaz');
+    });
+
+    testWidgets('a list with nowhere to go does not respond', (tester) async {
+      final controller = CourierManifestController(
+        shipments: _Facade(Success(rows())),
+        session: _Session(courier),
+      );
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(screen(controller));
+      await tester.pumpAndSettle();
+
+      final row = tester.widget<PeykListRow>(find.byType(PeykListRow).first);
+      expect(row.onTap, isNull);
+    });
   });
 
   testWidgets('a failure renders something a courier can act on', (

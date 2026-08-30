@@ -1,17 +1,20 @@
 import 'dart:io';
 
 import 'package:connectivity_plus_platform_interface/connectivity_plus_platform_interface.dart';
+import 'package:core_ports/core_ports.dart';
 import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
 import 'package:opentelemetry/api.dart' as otel;
 import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
+import 'package:sync_api/sync_api.dart';
 
 import 'src/di/dispatcher_platform.dart';
 import 'src/di/injection.dart';
 import 'src/dispatcher_app.dart';
 import 'src/router/dispatcher_routes.dart';
+import 'src/sync/sync_orchestrator.dart';
 
 /// What this app's own tests build it from.
 ///
@@ -28,6 +31,8 @@ export 'src/di/injection.dart' show configureDispatcher, dispatcherContainer;
 export 'src/dispatcher_app.dart';
 export 'src/router/dispatcher_routes.dart';
 export 'src/router/peyk_router.dart';
+export 'src/router/session_refresh.dart';
+export 'src/sync/sync_orchestrator.dart';
 
 /// The operations desk, in production.
 ///
@@ -58,6 +63,16 @@ Future<void> main() async {
       tracer: otel.globalTracerProvider.getTracer('peyk.dispatcher'),
     ),
   );
+
+  // Nothing enqueues through this and nothing waits for it: it decides when
+  // a queue that already holds the work is worth attempting. Started before
+  // the first frame so that an app reopened on the street sends what was
+  // written in a basement.
+  SyncOrchestrator(
+    sync: container<SyncFacade>(),
+    network: container<NetworkStatus>(),
+    logger: container<Logger>(),
+  ).start();
 
   runApp(DispatcherApp(router: buildDispatcherRouter(container).build()));
 }

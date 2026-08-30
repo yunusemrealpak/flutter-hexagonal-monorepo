@@ -88,6 +88,10 @@ dependencies:
 dev_dependencies:
   build_runner: ^2.9.0
   core_testing: ^0.1.0
+  # Consumed by the flow test, which needs a settled attempt to ask the flow
+  # where a hand-over leads. This is what a _testing package is for: fakes and
+  # fixtures another package's tests use.
+  delivery_testing: ^0.1.0
   flutter_test:
     sdk: flutter
   injectable_generator: ^3.1.3

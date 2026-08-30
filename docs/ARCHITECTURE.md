@@ -224,6 +224,30 @@ They disagree about the *same* state, which is the interesting part. `undelivera
 
 Routing shows the other half of the same idea: **one** presentation package, two destinations. `routing.myRoute` is mounted in the courier app and `routing.courierRoute` in the dispatcher's, over the same `RouteScreen` — with different controllers, per §2.3.
 
+#### The same screens, arranged into a day
+
+The sharpest version of this scenario is not two UIs over one feature; it is **one set of screens arranged into different flows by different apps**.
+
+A courier's day is manifest → door → money:
+
+```text
+shipments.courier.manifest ──onStopSelected(ShipmentSummary)──▶ delivery.proof
+delivery.proof ──onSettled(DeliveryAttempt)──▶ payments.collect
+payments.collect ──onFinished()──▶ shipments.courier.manifest
+```
+
+`app_dispatcher` mounts `delivery_presentation` and `payments_presentation` too, passes none of those callbacks, and gets three screens that show what happened and lead nowhere. Neither app changed a line in any of the three packages.
+
+Three properties are worth stating, because each is a rule rather than a coincidence:
+
+**A screen reports an outcome, never a destination.** `onSettled` carries a `DeliveryAttempt` — delivery's own word — and `CourierFlow` in `app_courier` is what turns it into `payments.collect`. §2.4 of the dependency rules is the rule, and `arch_check`'s `I8` and `A6` are the check: no package outside `apps/` may import a router or call one.
+
+**The mapping is a value, so it is testable.** `CourierFlow` has no `BuildContext` and no `GoRouter`; it answers an outcome with a `(route, parameters)` record. The test that pays for the whole design asserts that **every route name the flow can produce is a route the app actually mounted** — a check no scattered `context.goNamed` could pass, because no presentation package knows what an app mounted.
+
+**The flow forks where the domain forks.** A hand-over goes to collection; a failed visit goes back to the manifest, because nobody collects for a parcel the courier took away again. `AttemptOutcome` is sealed, so that fork is the compiler's to check.
+
+And one asymmetry that is a UX decision rather than an architectural one: proof announces itself **on the transition** into `Settled`, behind a latch, because continuing is what the courier already asked for; collection offers a **button**, because `NothingOwed` arrives the instant the screen loads and auto-advancing would take a prepaid parcel off the screen before anybody read the word. Mid-task continues, end-of-task asks.
+
 ---
 
 ## 4. Following one request through the packages
@@ -306,6 +330,8 @@ A rule nobody checks is a comment.
 | §2 allowed dependencies | `arch_check` | pre-commit, pre-push, CI |
 | §3 structure: barrels, naming, registration, deep imports | `arch_check` | same |
 | §4 forbidden imports, §5 forbidden APIs (AST, not text) | `arch_check` | same |
+| §2.4 only an app navigates (`I8`, `A6`) | `arch_check` | same |
+| Every destination a flow names is mounted | each app's `flow_test.dart` | pre-push, CI |
 | No cycles | `arch_check`, and independently `dep_graph` | same |
 | Generated files current | `melos run gen:check` | pre-push, CI |
 | Dependency graph current | `melos run graph:check` | pre-push, CI |

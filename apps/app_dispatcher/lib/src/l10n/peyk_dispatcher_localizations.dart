@@ -353,6 +353,12 @@ abstract class PeykDispatcherLocalizations {
   /// **'Record payment'**
   String get paymentsCollect;
 
+  /// The sentence behind "payments.done".
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get paymentsDone;
+
   /// The sentence behind "payments.failure.refused".
   ///
   /// In en, this message translates to:
@@ -508,6 +514,12 @@ abstract class PeykDispatcherLocalizations {
   /// In en, this message translates to:
   /// **'When couriers send'**
   String get settingsSyncSection;
+
+  /// The sentence behind "settings.signOut".
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get settingsSignOut;
 
   /// The sentence behind "settings.language.tr".
   ///

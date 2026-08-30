@@ -521,6 +521,12 @@ abstract class PeykCourierLocalizations {
   /// **'Take payment'**
   String get paymentsCollect;
 
+  /// The sentence behind "payments.done".
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get paymentsDone;
+
   /// The sentence behind "payments.failure.refused".
   ///
   /// In en, this message translates to:
@@ -676,6 +682,12 @@ abstract class PeykCourierLocalizations {
   /// In en, this message translates to:
   /// **'When to send'**
   String get settingsSyncSection;
+
+  /// The sentence behind "settings.signOut".
+  ///
+  /// In en, this message translates to:
+  /// **'Sign out'**
+  String get settingsSignOut;
 
   /// The sentence behind "settings.language.tr".
   ///

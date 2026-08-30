@@ -169,6 +169,7 @@ void main() {
         'forbidden_dependency': 2,
         'kernel_dependency': 1,
         'locator_outside_app': 1,
+        'router_outside_app': 1,
         'serialization_in_api': 1,
         'technology_in_domain': 1,
       });
@@ -176,14 +177,29 @@ void main() {
   });
 
   group('section 5, forbidden APIs', () {
-    test('catches the four ambient calls and the throw', () {
+    test('catches the four ambient calls, the throw and the navigation', () {
       expect(codesIn('broken_apis'), {
         'ambient_clock': 1,
         'ambient_id': 1,
         'ambient_print': 2,
         'ambient_random': 1,
         'exception_at_port_boundary': 1,
+        'navigation_outside_app': 2,
       });
+    });
+
+    test('a screen that only writes about navigating is not reported', () {
+      // The fixture's doc comment names `context.goNamed` and `Navigator.of`
+      // in prose, above a class that then calls both. Two hits, not four:
+      // the rule that catches a screen deciding its own destination must not
+      // catch the screen documenting why it does not.
+      final run = checker.run(fixture('broken_apis'));
+      final hits = run.violations.where(
+        (violation) => violation.code == 'navigation_outside_app',
+      );
+
+      expect(hits, hasLength(2));
+      expect(hits.map((hit) => hit.location.line), [9, 10]);
     });
 
     test('ignores the same calls when they appear in a doc comment', () {

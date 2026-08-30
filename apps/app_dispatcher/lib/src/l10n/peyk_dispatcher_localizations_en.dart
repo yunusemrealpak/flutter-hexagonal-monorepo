@@ -170,6 +170,9 @@ class PeykDispatcherLocalizationsEn extends PeykDispatcherLocalizations {
   String get paymentsCollect => 'Record payment';
 
   @override
+  String get paymentsDone => 'Done';
+
+  @override
   String paymentsFailureRefused(String reason) {
     return 'Refused: $reason';
   }
@@ -277,6 +280,9 @@ class PeykDispatcherLocalizationsEn extends PeykDispatcherLocalizations {
 
   @override
   String get settingsSyncSection => 'When couriers send';
+
+  @override
+  String get settingsSignOut => 'Sign out';
 
   @override
   String get settingsLanguageTr => 'Türkçe';

@@ -367,6 +367,10 @@
   "@paymentsCollect": {
     "description": "The sentence behind \"payments.collect\"."
   },
+  "paymentsDone": "Done",
+  "@paymentsDone": {
+    "description": "The sentence behind \"payments.done\"."
+  },
   "paymentsFailureRefused": "Refused: {reason}",
   "@paymentsFailureRefused": {
     "description": "The sentence behind \"payments.failure.refused\".",
@@ -518,6 +522,10 @@
   "settingsSyncSection": "When to send",
   "@settingsSyncSection": {
     "description": "The sentence behind \"settings.sync.section\"."
+  },
+  "settingsSignOut": "Sign out",
+  "@settingsSignOut": {
+    "description": "The sentence behind \"settings.signOut\"."
   },
   "settingsLanguageTr": "Türkçe",
   "@settingsLanguageTr": {

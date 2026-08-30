@@ -20,10 +20,23 @@ import 'shipments_courier_strings.dart';
 /// `shipments_api` and on nothing else of shipments'.
 final class CourierManifestScreen extends StatefulWidget {
   /// Creates the screen over [controller].
-  const CourierManifestScreen({required this.controller, super.key});
+  const CourierManifestScreen({
+    required this.controller,
+    this.onStopSelected,
+    super.key,
+  });
 
   /// What drives it.
   final CourierManifestController controller;
+
+  /// Reports the stop somebody chose, when this app has somewhere to take it.
+  ///
+  /// A `ShipmentSummary` — this feature's own word — and not a route. Where a
+  /// courier goes from a stop is the app's decision, and §2.4 keeps it there:
+  /// `shipments` may not import `delivery_presentation`, so it could not name
+  /// that destination even if it wanted to. An app that only lists stops
+  /// passes nothing and the rows do not respond.
+  final void Function(ShipmentSummary)? onStopSelected;
 
   @override
   State<CourierManifestScreen> createState() => _CourierManifestScreenState();
@@ -90,7 +103,10 @@ class _CourierManifestScreenState extends State<CourierManifestScreen> {
           ),
           ManifestReady(:final rows) => ListView.builder(
             itemCount: rows.length,
-            itemBuilder: (context, index) => _StopTile(row: rows[index]),
+            itemBuilder: (context, index) => _StopTile(
+              row: rows[index],
+              onSelected: widget.onStopSelected,
+            ),
           ),
           ManifestFailed(:final failure) => PeykFailureView(
             message: strings.resolve(
@@ -105,14 +121,16 @@ class _CourierManifestScreenState extends State<CourierManifestScreen> {
 }
 
 final class _StopTile extends StatelessWidget {
-  const _StopTile({required this.row});
+  const _StopTile({required this.row, this.onSelected});
 
   final ShipmentSummary row;
+  final void Function(ShipmentSummary)? onSelected;
 
   @override
   Widget build(BuildContext context) => PeykListRow(
     title: row.consigneeName,
     subtitle: row.address,
+    onTap: onSelected == null ? null : () => onSelected!(row),
     trailing: PeykChip(
       label: PeykStrings.of(
         context,

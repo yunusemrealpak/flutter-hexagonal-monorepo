@@ -135,6 +135,31 @@ Two consequences are easy to get wrong:
 
 The cost of the rule is more interfaces. The benefit is the one this repository exists to make visible: `app_dispatcher`'s `pubspec.yaml` no longer lists `location_service`, and its container test asserts that `RouteFollowing` and `DeliveryExecution` are *not registered* — the Common Reuse Principle turned into a check.
 
+### 2.4 Who is allowed to navigate
+
+Sections 2.2 and 2.3 draw a feature's ports. This draws the one edge a *screen* is tempted to add, and the answer is that it may not: **navigation is an app's decision, and a presentation package reports outcomes rather than destinations.**
+
+The reason is the dependency table above, read carefully. Route names are declared in presentation packages, and a presentation package may not import another feature's presentation package. So a screen that wanted to send somebody to another feature could not name that destination — it could only spell it as a string. That is a dependency the compiler cannot see, `arch_check` cannot see, and a rename breaks at runtime.
+
+The alternative people reach for next is a navigation interface in `core_navigation` with an app-supplied adapter. It has to declare a method per destination, so the package every presentation package depends on would name every feature — §2.1's forbidden `shared` package, wearing a router's clothes.
+
+What is left is what this repository already does for a capability a screen may not have. `ProofCaptureScreen` takes `onCaptureSignature` because §1.1 forbids a presentation package from seeing `platform/*`; the app supplies the capture, and the button is drawn only when it is supplied. A flow step is the same shape:
+
+| | The screen offers | The app decides |
+|---|---|---|
+| A capability it may not depend on | `onCapturePhoto` | which camera |
+| A destination it may not name | `onSettled(DeliveryAttempt)` | which screen is next |
+
+Three consequences worth stating, because each has been got wrong somewhere:
+
+**The callback carries what happened, never where to go.** `onSettled(DeliveryAttempt)` is an outcome; `onGoToPayments()` is a destination with a callback's syntax, and it puts the flow back inside the screen. The value it carries comes from the screen's own `_api`, so no dependency is added.
+
+**Entry stays a URL.** A notification tap, a scanned barcode and a pasted link cannot invoke a callback. `RouteDefinition.path` is the contract for arriving; the callback is the contract for continuing. Guards — session and permission — belong with arrival, in the app's redirect.
+
+**The flow belongs to the audience, not to the feature.** A courier goes manifest → route → door → money; a dispatcher opening the same delivery screen goes nowhere near a door. That is §2.3 one level up, and the only place that knows which audience is running is the app that mounted the features.
+
+Rules `I8` and `A6` in §4 and §5 make this mechanical. Both were written while the workspace had zero violations of either, which is the point: the first one to appear is a mistake rather than a migration.
+
 ---
 
 ## 3. Structural rules
@@ -177,6 +202,7 @@ grep -rn "package:[a-z_]*/src/" packages/ apps/   # any output is a violation
 | I5 | every package outside `apps/` | `package:get_it/...` and any global service-locator library | dependencies arrive through constructors; the locator exists only at the composition root | `locator_outside_app` |
 | I6 | every package outside `apps/` | `package:injectable/...` | annotation-based DI is app-layer only | `annotation_di_outside_app` |
 | I7 | `tooling/*` | any package under `packages/` or `apps/` | tools must be able to analyze a broken workspace without being part of it | `tooling_depends_on_product` |
+| I8 | every package outside `apps/` | `package:go_router/...` and any other router library | a router is an app's choice; in a presentation package it becomes every app's choice, and changing it becomes a change to fourteen packages instead of three. See §2.4 | `router_outside_app` |
 
 ---
 
@@ -189,15 +215,16 @@ grep -rn "package:[a-z_]*/src/" packages/ apps/   # any output is a violation
 | A3 | `Uuid()` and equivalents | `IdGenerator` from `core_ports` | `ambient_id` |
 | A4 | `print()`, `debugPrint()` | `Logger` from `core_ports` | `ambient_print` (`print` is also covered by the `avoid_print` lint; `debugPrint` is not, and is the spelling a presentation package reaches for) |
 | A5 | `throw` or `rethrow` inside a member whose declared return type is a `Result` — directly, or wrapped in `Future`, `FutureOr` or `Stream` | return a `Result<S, F>` with a `sealed` failure | `exception_at_port_boundary` |
+| A6 | `context.go`, `context.goNamed`, `context.push`, `context.pop` and their named variants, `Navigator.of`, `Navigator.push`, `Navigator.pop`, `GoRouter.of` | an outcome callback the app supplies — see §2.4 | `navigation_outside_app` |
 
-**Matching.** A1–A4 are checked against parsed source, not against a text search. Two failure modes make the naive grep useless, and both were observed while writing the core packages in phase 1:
+**Matching.** A1–A4 and A6 are checked against parsed source, not against a text search. Two failure modes make the naive grep useless, and both were observed while writing the core packages in phase 1:
 
 - **Comments quoting the rule.** `core_ports/clock.dart` documents itself with "this port exists so that no line of product code calls `DateTime.now()`". Every doc comment that explains why a rule exists trips a checker that scans raw text, and the packages most careful about the rule trip it most often.
 - **Regex metacharacters.** A pattern of `DateTime.now()` with an unescaped `.` matches the declaration `DateTime now()` — the port itself — because the dot matches the space.
 
 `arch_check` therefore walks the analyzed AST and reports method invocations and instance creations, ignoring comments and string literals entirely.
 
-**Scope.** A1–A4 are checked in every package except `apps/*` (where the composition root supplies the real implementations) and `tooling/*` (which is not part of the product). Generated files (`*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `*.config.dart`) are exempt from A1–A4, because a `DateTime` in generated output is not the developer's choice. Generated files are **not** exempt from §2 or §4: a generated file importing a package the constitution forbids is a real architectural violation regardless of who typed it. §3 applies to them too, with the single carve-out recorded under rule S8 — the half of that rule which reads a class *name* rather than a declaration, for the same reason as here.
+**Scope.** A1–A4 and A6 are checked in every package except `apps/*` (where the composition root supplies the real implementations) and `tooling/*` (which is not part of the product). Generated files (`*.g.dart`, `*.freezed.dart`, `*.gr.dart`, `*.config.dart`) are exempt from A1–A4, because a `DateTime` in generated output is not the developer's choice. Generated files are **not** exempt from §2 or §4: a generated file importing a package the constitution forbids is a real architectural violation regardless of who typed it. §3 applies to them too, with the single carve-out recorded under rule S8 — the half of that rule which reads a class *name* rather than a declaration, for the same reason as here.
 
 ---
 

@@ -106,6 +106,69 @@ void main() {
     test('sends them off the sign-in screen', () {
       expect(guarded.redirectFor('identity.signIn'), isNot(isNull));
     });
+
+    test('returns them to what they were reaching for', () {
+      expect(
+        guarded.redirectFor(
+          'identity.signIn',
+          at: Uri.parse('/sign-in?from=%2Fstops'),
+        ),
+        '/stops',
+      );
+    });
+
+    // The loop somebody who opened /sign-in directly would be put in: sign in,
+    // get sent to sign-in, get sent off sign-in, arrive at sign-in.
+    test('refuses a from that points back at sign-in', () {
+      expect(
+        guarded.redirectFor(
+          'identity.signIn',
+          at: Uri.parse('/sign-in?from=%2Fsign-in'),
+        ),
+        isNot('/sign-in'),
+      );
+    });
+
+    // A from carrying a scheme is not this app's location at all. Following
+    // one would make the sign-in URL a way to send a signed-in courier
+    // anywhere.
+    test('refuses a from that is not a location in this app', () {
+      expect(
+        guarded.redirectFor(
+          'identity.signIn',
+          at: Uri.parse('/sign-in?from=https%3A%2F%2Felsewhere.example%2Fx'),
+        ),
+        isNot(contains('elsewhere.example')),
+      );
+    });
+  });
+
+  group('the guard, remembering where somebody was going', () {
+    test('carries the attempted location into the sign-in redirect', () {
+      expect(
+        router.redirectFor(
+          'shipments.courier.manifest',
+          at: Uri.parse('/stops'),
+        ),
+        '/sign-in?from=%2Fstops',
+      );
+    });
+
+    // The parameters are part of what was being reached for. A courier who
+    // followed a link to one parcel and had to sign in wants that parcel, not
+    // the list it was on.
+    test('keeps the path parameters of the location it remembers', () {
+      final redirect = router.redirectFor(
+        'delivery.proof',
+        at: Uri.parse('/stops/SHP-1/proof'),
+      );
+
+      expect(redirect, contains(Uri.encodeComponent('/stops/SHP-1/proof')));
+    });
+
+    test('redirects without a from when there is no location to remember', () {
+      expect(router.redirectFor('shipments.courier.manifest'), '/sign-in');
+    });
   });
 }
 

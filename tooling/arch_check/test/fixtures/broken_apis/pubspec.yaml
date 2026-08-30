@@ -6,6 +6,7 @@ version: 0.0.0
 workspace:
   - packages/core/core_kernel
   - packages/features/shipments/shipments_infrastructure
+  - packages/features/shipments/shipments_presentation
 
 environment:
   sdk: ^3.12.0

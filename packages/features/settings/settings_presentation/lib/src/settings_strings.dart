@@ -20,6 +20,14 @@ abstract final class SettingsStrings {
   /// The heading over the sync-policy choices.
   static const String syncSection = 'settings.sync.section';
 
+  /// The label on the button that ends the session.
+  ///
+  /// Declared here rather than in `identity_presentation` because the button
+  /// is on this screen, and a key belongs to the screen that asks for it. The
+  /// operation behind it is identity's and reaches this package as a callback
+  /// — §2.4.
+  static const String signOut = 'settings.signOut';
+
   /// Settings could not be reached.
   static const String failureUnavailable = 'settings.failure.unavailable';
 
@@ -47,6 +55,7 @@ abstract final class SettingsStrings {
     languageSection,
     themeSection,
     syncSection,
+    signOut,
     failureUnavailable,
     failureCorrupted,
     failureMalformed,
