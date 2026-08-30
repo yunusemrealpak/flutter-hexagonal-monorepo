@@ -27,12 +27,15 @@ final class FirebasePushMessagingClient implements PushMessagingClient {
     this._permissions,
     this._clock, {
     Stream<RemoteMessage>? incoming,
-  }) : _incoming = incoming ?? FirebaseMessagingPlatform.onMessage.stream;
+    Stream<RemoteMessage>? opened,
+  }) : _incoming = incoming ?? FirebaseMessagingPlatform.onMessage.stream,
+       _opened = opened ?? FirebaseMessagingPlatform.onMessageOpenedApp.stream;
 
   final FirebaseMessagingPlatform _platform;
   final PermissionRequester _permissions;
   final Clock _clock;
   final Stream<RemoteMessage> _incoming;
+  final Stream<RemoteMessage> _opened;
 
   @override
   Future<Result<String, PushFailure>> currentToken() async {
@@ -63,6 +66,24 @@ final class FirebasePushMessagingClient implements PushMessagingClient {
   @override
   Stream<PushMessage> messages() =>
       _incoming.map((message) => toPushMessage(message, clock: _clock));
+
+  @override
+  Stream<PushMessage> openings() =>
+      _opened.map((message) => toPushMessage(message, clock: _clock));
+
+  @override
+  Future<PushMessage?> launchMessage() async {
+    try {
+      final message = await _platform.getInitialMessage();
+      return message == null ? null : toPushMessage(message, clock: _clock);
+    } on Object {
+      // Web and desktop do not implement it, and a provider that fails to
+      // answer is indistinguishable from a launch nobody caused. Both mean
+      // "start where the app normally starts", so neither is a failure a
+      // caller could act on differently. See the port's own doc comment.
+      return null;
+    }
+  }
 
   @override
   Future<Result<void, PushFailure>> subscribeTo(String topic) =>

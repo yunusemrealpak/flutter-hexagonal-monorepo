@@ -36,6 +36,32 @@ void main() {
       expect(push.data, {'kind': 'dispatch_message', 'thread_id': 'TH-9'});
     });
 
+    // The wire spelling stays in this package. A caller that read
+    // `data['thread_id']` would be a second place a server rename breaks.
+    test('decodes the identifiers a caller would otherwise fish out', () {
+      const message = RemoteMessage(
+        data: {
+          'kind': 'dispatch_message',
+          'thread_id': 'TH-9',
+          'shipment_id': 'SHP-1',
+        },
+      );
+
+      final push = toPushMessage(message, clock: clock);
+
+      expect(push.threadId, 'TH-9');
+      expect(push.shipmentId, 'SHP-1');
+    });
+
+    test('leaves the identifiers null when the payload names none', () {
+      const message = RemoteMessage(data: {'kind': 'route_updated'});
+
+      final push = toPushMessage(message, clock: clock);
+
+      expect(push.threadId, isNull);
+      expect(push.shipmentId, isNull);
+    });
+
     test('turns an unrecognised kind into unknown rather than throwing', () {
       const message = RemoteMessage(data: {'kind': 'invoice_issued'});
 

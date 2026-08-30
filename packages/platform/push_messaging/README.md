@@ -6,7 +6,7 @@ The push contract, its Firebase-backed adapter, and the DTO that turns a provide
 
 | Type | Role |
 |---|---|
-| `PushMessagingClient` | the contract: register, receive, subscribe |
+| `PushMessagingClient` | the contract: register, receive, **be opened**, subscribe |
 | `FirebasePushMessagingClient` | the only file in the workspace that imports firebase_messaging |
 | `FakePushMessagingClient` | delivers a push on demand, so the flows that react to one are testable |
 | `PushMessageDto` | the wire payload — **generated** by `json_serializable` |
@@ -39,8 +39,18 @@ Permission arrives through `core_ports.PermissionRequester`, and `Clock` the sam
 
 A fleet updates over weeks, so a server sending a shape the app has not seen is normal traffic, not a fault. An adapter that threw there would take down a stream handler for a message it could simply have ignored — and the raw data is kept whole so a later app version would have had everything it needed.
 
+## Receipt and intent are different events
+
+`messages()` is a push *arriving* while the app is running. `openings()` is somebody *pressing* the notification, and `launchMessage()` is the same press when it started the app from nothing. Three methods, because the caller does three different things with them.
+
+Acting on receipt would take a courier off a screen they chose to be on — a signature half-drawn, a photo half-framed — for a message they have not read. Acting on a press is doing what they just asked for. An app that conflated the two would either yank people around or ignore the taps; this is the seam that lets it do neither.
+
+`launchMessage()` cannot be a stream, and reading it consumes it. The provider hands the launch message over once, before anything has had a chance to subscribe, and an app that read it twice would navigate to the same push again on its next resume. `FakePushMessagingClient` consumes it too, so a test cannot pass against behaviour the device will not repeat.
+
+It answers `null` rather than a `Result` when the provider cannot answer at all — web and desktop do not implement it. A launch this app cannot read about and a launch nobody caused mean the same thing to a caller: start where the app normally starts.
+
 ## Two smaller decisions
 
 **`PushRegistrationFailed` is its own case.** A provider that answers without a token is the one failure worth retrying with backoff: a courier without a token silently stops receiving assignments, and nothing about the device looks wrong while it happens.
 
-**The incoming stream is a constructor argument.** `FirebaseMessagingPlatform.onMessage` is a static `StreamController` — the plugin's design, not something this package can change — but injecting it means the adapter's tests never touch process-wide state, and a composition root can replay recorded pushes without patching a global.
+**The incoming streams are constructor arguments.** `FirebaseMessagingPlatform.onMessage` and `onMessageOpenedApp` are static `StreamController`s — the plugin's design, not something this package can change — but injecting them means the adapter's tests never touch process-wide state, and a composition root can replay recorded pushes without patching a global.
