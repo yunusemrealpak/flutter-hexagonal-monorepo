@@ -334,6 +334,17 @@ forbidden_imports:
     forbid_workspace_products: true
     scan: [lib, bin, test]
 
+  # A router is an app's choice. `core_navigation` describes destinations and
+  # names no router library; the day one enters a presentation package, that
+  # choice has been made for every app that mounts the feature, and changing
+  # it becomes a change to fourteen packages instead of three.
+  - id: I8
+    code: router_outside_app
+    in_types: ['*']
+    except_types: [app]
+    forbid: ['package:go_router/']
+    scan: [lib, test]
+
 # ---------------------------------------------------------------------------
 # Section 5 — forbidden APIs.
 #
@@ -382,6 +393,31 @@ forbidden_apis:
       code: exception_at_port_boundary
       kind: throw_in_result_returning_member
       result_type: Result
+
+    # A screen reports what happened; the app decides where that leads. The
+    # callees below are every way this workspace's dependencies offer to
+    # decide it from inside a widget. `Navigator.of` rather than `push` is
+    # what is listed for the imperative API: the callee matcher reads a simple
+    # target, and `Navigator.of(context).push(...)` has an expression for a
+    # target — catching the entry point catches the chain.
+    - id: A6
+      code: navigation_outside_app
+      kind: callee
+      callees:
+        - 'context.go'
+        - 'context.goNamed'
+        - 'context.push'
+        - 'context.pushNamed'
+        - 'context.pushReplacement'
+        - 'context.pushReplacementNamed'
+        - 'context.replace'
+        - 'context.replaceNamed'
+        - 'context.pop'
+        - 'Navigator.of'
+        - 'Navigator.push'
+        - 'Navigator.pushNamed'
+        - 'Navigator.pop'
+        - 'GoRouter.of'
 
 # ---------------------------------------------------------------------------
 # Section 6 — code generation rules that are machine-checked.
@@ -554,6 +590,18 @@ messages:
   annotation_di_outside_app: >-
     Annotation-based DI is app-layer only. Inside a package, take collaborators
     as constructor parameters.
+
+  router_outside_app: >-
+    A router is an app's choice, and importing one here makes that choice for
+    every app that mounts this package. Declare destinations as
+    RouteDefinitions in a RouteModule and let the app assemble them.
+
+  navigation_outside_app: >-
+    A screen reports what happened; the app decides where that leads. Take the
+    outcome as a callback parameter — onSettled, onStopSelected — carrying a
+    value from this package's own _api, and let the composition root map it to
+    a destination. A route name here would be a dependency on a feature this
+    package may not import, spelled as a string the compiler cannot check.
 
   ambient_clock: >-
     Take a Clock from core_ports through the constructor and call clock.now().
