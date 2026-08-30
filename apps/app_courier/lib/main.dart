@@ -28,6 +28,7 @@ export 'src/catalogue/courier_catalogue.dart';
 export 'src/courier_app.dart';
 export 'src/di/courier_platform.dart';
 export 'src/di/injection.dart' show configureCourier, courierContainer;
+export 'src/router/courier_flow.dart';
 export 'src/router/courier_routes.dart';
 export 'src/router/peyk_router.dart';
 export 'src/router/session_refresh.dart';

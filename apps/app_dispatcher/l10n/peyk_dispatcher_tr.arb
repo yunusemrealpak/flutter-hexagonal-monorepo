@@ -42,6 +42,7 @@
   "paymentsMethodCash": "Nakit",
   "paymentsMethodCard": "Kart",
   "paymentsCollect": "Ödemeyi kaydet",
+  "paymentsDone": "Bitir",
   "paymentsFailureRefused": "Reddedildi: {reason}",
   "paymentsFailureCashDrawer": "Nakit kaydı güncellenemedi.",
   "paymentsFailureUnavailable": "Ödeme servisi yanıt vermedi.",

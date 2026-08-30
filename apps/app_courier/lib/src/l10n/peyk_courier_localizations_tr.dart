@@ -262,6 +262,9 @@ class PeykCourierLocalizationsTr extends PeykCourierLocalizations {
   String get paymentsCollect => 'Ödemeyi al';
 
   @override
+  String get paymentsDone => 'Bitir';
+
+  @override
   String paymentsFailureRefused(String reason) {
     return 'Reddedildi: $reason';
   }

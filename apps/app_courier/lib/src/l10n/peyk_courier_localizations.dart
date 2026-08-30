@@ -521,6 +521,12 @@ abstract class PeykCourierLocalizations {
   /// **'Take payment'**
   String get paymentsCollect;
 
+  /// The sentence behind "payments.done".
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get paymentsDone;
+
   /// The sentence behind "payments.failure.refused".
   ///
   /// In en, this message translates to:

@@ -32,6 +32,9 @@ abstract final class PaymentsStrings {
   /// The action that records the payment.
   static const String collect = 'payments.collect';
 
+  /// The label on the button that leaves a door the courier is finished with.
+  static const String done = 'payments.done';
+
   /// The operation refused the collection. Takes a `reason` argument.
   static const String failureRefused = 'payments.failure.refused';
 
@@ -80,6 +83,7 @@ abstract final class PaymentsStrings {
     methodCash,
     methodCard,
     collect,
+    done,
     failureRefused,
     failureCashDrawerUnavailable,
     failureUnavailable,

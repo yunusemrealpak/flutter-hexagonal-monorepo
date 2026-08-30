@@ -70,6 +70,7 @@
   "paymentsMethodCash": "Nakit",
   "paymentsMethodCard": "Kart",
   "paymentsCollect": "Ödemeyi al",
+  "paymentsDone": "Bitir",
   "paymentsFailureRefused": "Reddedildi: {reason}",
   "paymentsFailureCashDrawer": "Nakit kaydı güncellenemedi.",
   "paymentsFailureUnavailable": "Kaydedilemedi. Tekrar dene.",

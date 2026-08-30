@@ -170,6 +170,9 @@ class PeykDispatcherLocalizationsEn extends PeykDispatcherLocalizations {
   String get paymentsCollect => 'Record payment';
 
   @override
+  String get paymentsDone => 'Done';
+
+  @override
   String paymentsFailureRefused(String reason) {
     return 'Refused: $reason';
   }

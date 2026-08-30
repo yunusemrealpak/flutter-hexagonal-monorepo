@@ -169,6 +169,7 @@ final class DispatcherCatalogue implements StringCatalogue {
     'payments.method.cash': (l, arguments) => l.paymentsMethodCash,
     'payments.method.card': (l, arguments) => l.paymentsMethodCard,
     'payments.collect': (l, arguments) => l.paymentsCollect,
+    'payments.done': (l, arguments) => l.paymentsDone,
     'payments.failure.refused': (l, arguments) =>
         l.paymentsFailureRefused(_text(arguments['reason'])),
     'payments.failure.cashDrawerUnavailable': (l, arguments) =>
