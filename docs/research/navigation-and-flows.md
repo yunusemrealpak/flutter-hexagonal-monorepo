@@ -251,3 +251,17 @@ it runs, and a second copy of that fact would eventually disagree.
 - **Navigating from a controller instead of a screen.** The controller is the
   half of presentation that is pure and unit-tested; giving it a destination
   would put a route name in the one place that is currently free of them.
+
+## 8. One thing this note did not notice until afterwards
+
+`core_navigation` already contains a `Navigation` port — `goTo`, `replaceWith`,
+`back` — whose doc comment says *"Presentation packages depend on this rather
+than on a router library… The app supplies the adapter."* That is candidate
+(b), written in phase 1 and never used: no package outside `core_navigation`
+and `core_testing` mentions the type.
+
+So the repository currently ships an unused port whose documentation teaches
+the design §4 rejects. It is recorded in `CLAUDE.md` §10 as the first thing to
+settle, and the recommendation there is to delete it: dead code that teaches
+the wrong lesson is worse than no code. `RouteLocation` stays either way — it
+is a tested value object, and a shell route may want it.
