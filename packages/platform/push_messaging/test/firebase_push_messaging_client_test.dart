@@ -21,6 +21,23 @@ final class FakeMessagingPlatform extends FirebaseMessagingPlatform
   final List<String> unsubscribed = [];
   final StreamController<String> tokens = StreamController<String>.broadcast();
 
+  RemoteMessage? launch;
+  Object? throwOnGetInitialMessage;
+  int initialMessageCalls = 0;
+
+  @override
+  Future<RemoteMessage?> getInitialMessage() async {
+    initialMessageCalls++;
+    final error = throwOnGetInitialMessage;
+    if (error != null) {
+      // Typed as Object so the fake can reproduce anything a platform channel
+      // is capable of throwing — web and desktop throw UnimplementedError.
+      // ignore: only_throw_errors
+      throw error;
+    }
+    return launch;
+  }
+
   @override
   Future<String?> getToken({
     String? vapidKey,
@@ -52,6 +69,7 @@ void main() {
   late FakePermissionRequester permissions;
   late FakeClock clock;
   late StreamController<RemoteMessage> incoming;
+  late StreamController<RemoteMessage> opened;
   late FirebasePushMessagingClient client;
 
   setUp(() {
@@ -61,16 +79,19 @@ void main() {
     });
     clock = FakeClock();
     incoming = StreamController<RemoteMessage>.broadcast();
+    opened = StreamController<RemoteMessage>.broadcast();
     client = FirebasePushMessagingClient(
       platform,
       permissions,
       clock,
       incoming: incoming.stream,
+      opened: opened.stream,
     );
   });
 
   tearDown(() async {
     await incoming.close();
+    await opened.close();
     await platform.tokens.close();
   });
 
@@ -185,6 +206,63 @@ void main() {
         PushMessageKind.routeUpdated,
       ]);
     });
+  });
+
+  group('openings', () {
+    // Receipt and intent are different events, and the adapter keeps them on
+    // different streams because acting on the first would take a courier off
+    // a screen they chose to be on.
+    test('carries a pressed notification, and not a received one', () async {
+      final received = <PushMessage>[];
+      final pressed = <PushMessage>[];
+      final subscriptions = [
+        client.messages().listen(received.add),
+        client.openings().listen(pressed.add),
+      ];
+      addTearDown(() => Future.wait(subscriptions.map((it) => it.cancel())));
+
+      incoming.add(const RemoteMessage(data: {'kind': 'route_updated'}));
+      opened.add(
+        const RemoteMessage(
+          messageId: 'msg-2',
+          data: {'kind': 'dispatch_message', 'thread_id': 'TH-9'},
+        ),
+      );
+      await pumpEventQueue();
+
+      expect(received.single.kind, PushMessageKind.routeUpdated);
+      expect(pressed.single.threadId, 'TH-9');
+    });
+  });
+
+  group('launchMessage', () {
+    test('reports the message the app was launched from', () async {
+      platform.launch = const RemoteMessage(
+        messageId: 'msg-3',
+        data: {'kind': 'shipment_assigned', 'shipment_id': 'SHP-7'},
+      );
+
+      final message = await client.launchMessage();
+
+      expect(message?.shipmentId, 'SHP-7');
+    });
+
+    test('answers null for a launch nobody caused', () async {
+      expect(await client.launchMessage(), isNull);
+    });
+
+    // Web and desktop do not implement it. A launch this app cannot read about
+    // and a launch that did not happen mean the same thing to a caller, so
+    // neither is a failure they could act on differently.
+    test(
+      'answers null rather than throwing when the provider cannot',
+      () async {
+        platform.throwOnGetInitialMessage = UnimplementedError();
+
+        expect(await client.launchMessage(), isNull);
+        expect(platform.initialMessageCalls, 1);
+      },
+    );
   });
 
   group('topics', () {

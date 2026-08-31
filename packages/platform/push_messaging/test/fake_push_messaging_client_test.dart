@@ -53,6 +53,37 @@ void main() {
       expect(seen.single.kind, PushMessageKind.shipmentAssigned);
     });
 
+    test('separates a pressed notification from a received one', () async {
+      final received = <PushMessage>[];
+      final pressed = <PushMessage>[];
+      final subscriptions = [
+        client.messages().listen(received.add),
+        client.openings().listen(pressed.add),
+      ];
+      addTearDown(() => Future.wait(subscriptions.map((it) => it.cancel())));
+
+      client
+        ..deliver(_push(PushMessageKind.routeUpdated))
+        ..open(_push(PushMessageKind.dispatchMessage));
+      await pumpEventQueue();
+
+      expect(received.single.kind, PushMessageKind.routeUpdated);
+      expect(pressed.single.kind, PushMessageKind.dispatchMessage);
+    });
+
+    // The provider hands the launch message over once. A fake that kept
+    // answering would hide the bug where an app navigates to the same push
+    // again on its next resume.
+    test('hands the launch message over exactly once', () async {
+      client.launchedWith = _push(PushMessageKind.shipmentAssigned);
+
+      expect(
+        (await client.launchMessage())?.kind,
+        PushMessageKind.shipmentAssigned,
+      );
+      expect(await client.launchMessage(), isNull);
+    });
+
     test('tracks topic membership', () async {
       await client.subscribeTo('region-34');
       await client.subscribeTo('region-35');
@@ -74,3 +105,10 @@ void main() {
     });
   });
 }
+
+PushMessage _push(PushMessageKind kind) => PushMessage(
+  id: 'msg-1',
+  kind: kind,
+  data: const {},
+  sentAt: DateTime.utc(2026, 3),
+);

@@ -40,6 +40,11 @@ PushMessage toPushMessage(RemoteMessage message, {required Clock clock}) {
       for (final entry in message.data.entries) entry.key: '${entry.value}',
     }),
     sentAt: message.sentTime?.toUtc() ?? clock.now(),
+    // Decoded rather than left for a caller to fish out of `data`: the wire
+    // spelling belongs to the DTO, and a caller reading `data['thread_id']`
+    // would be a second place a server rename breaks.
+    shipmentId: dto?.shipmentId,
+    threadId: dto?.threadId,
     title: dto?.title ?? message.notification?.title,
     body: dto?.body ?? message.notification?.body,
   );

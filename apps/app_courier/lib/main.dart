@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:connectivity_plus_platform_interface/connectivity_plus_platform_interface.dart';
@@ -11,11 +12,13 @@ import 'package:geolocator_platform_interface/geolocator_platform_interface.dart
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:opentelemetry/api.dart' as otel;
 import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
+import 'package:push_messaging/push_messaging.dart';
 import 'package:sync_api/sync_api.dart';
 
 import 'src/courier_app.dart';
 import 'src/di/courier_platform.dart';
 import 'src/di/injection.dart';
+import 'src/push/push_entry.dart';
 import 'src/router/courier_routes.dart';
 import 'src/sync/sync_orchestrator.dart';
 
@@ -31,6 +34,8 @@ export 'src/catalogue/courier_catalogue.dart';
 export 'src/courier_app.dart';
 export 'src/di/courier_platform.dart';
 export 'src/di/injection.dart' show configureCourier, courierContainer;
+export 'src/push/courier_entry_points.dart';
+export 'src/push/push_entry.dart';
 export 'src/router/courier_flow.dart';
 export 'src/router/courier_routes.dart';
 export 'src/router/peyk_router.dart';
@@ -76,7 +81,23 @@ Future<void> main() async {
     logger: container<Logger>(),
   ).start();
 
-  runApp(CourierApp(router: buildCourierRouter(container).build()));
+  final router = buildCourierRouter(container).build();
+
+  // Arrival from a pressed notification, which is the one entry a callback
+  // cannot serve — see §2.4 of docs/DEPENDENCY_RULES.md. Started before the
+  // first frame and deliberately not awaited: a launch message that resolves
+  // first sets the location before anything is drawn, so a cold start from a
+  // notification does not flash the manifest on the way to the thread. It
+  // goes through the router, so it goes through the guard.
+  unawaited(
+    PushEntry(
+      push: container<PushMessagingClient>(),
+      logger: container<Logger>(),
+      go: (step) => router.goNamed(step.route, pathParameters: step.parameters),
+    ).start(),
+  );
+
+  runApp(CourierApp(router: router));
 }
 
 /// Where the operation's API lives.

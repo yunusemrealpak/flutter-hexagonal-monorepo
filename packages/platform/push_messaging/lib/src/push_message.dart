@@ -12,6 +12,8 @@ final class PushMessage {
     required this.kind,
     required this.data,
     required this.sentAt,
+    this.shipmentId,
+    this.threadId,
     this.title,
     this.body,
   });
@@ -38,6 +40,17 @@ final class PushMessage {
   /// can be delivered long after it was sent — a phone that was off, a network
   /// that was down — so the difference is worth keeping.
   final DateTime sentAt;
+
+  /// The shipment this push is about, when it names one.
+  ///
+  /// Decoded here rather than left in [data] so that the wire spelling —
+  /// `shipment_id`, which `PushMessageDto` owns — stays inside this package.
+  /// A caller that read `data['shipment_id']` would be a second place a server
+  /// rename breaks, and the whole point of the mapper is that there is one.
+  final String? shipmentId;
+
+  /// The message thread this push is about, when it names one.
+  final String? threadId;
 
   /// The notification title, when the push carried one.
   final String? title;

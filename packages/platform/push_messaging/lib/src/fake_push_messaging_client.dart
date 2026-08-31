@@ -21,7 +21,17 @@ final class FakePushMessagingClient implements PushMessagingClient {
 
   final StreamController<PushMessage> _messages =
       StreamController<PushMessage>.broadcast();
+  final StreamController<PushMessage> _openings =
+      StreamController<PushMessage>.broadcast();
   final StreamController<String> _tokens = StreamController<String>.broadcast();
+
+  /// The message a test says this launch came from, consumed on first read.
+  ///
+  /// Consumed rather than merely returned, because that is the provider's
+  /// behaviour and it is the half a caller gets wrong: an app that reads the
+  /// launch message twice would navigate to the same push again on its next
+  /// resume. A fake that kept answering would hide it.
+  PushMessage? launchedWith;
 
   /// Every topic currently subscribed to.
   final Set<String> topics = {};
@@ -32,8 +42,11 @@ final class FakePushMessagingClient implements PushMessagingClient {
   /// and assigning to it reads as well as calling it.
   PushFailure? failNextWith;
 
-  /// Delivers [message] to everyone listening.
+  /// Delivers [message] to everyone listening, as a push that merely arrived.
   void deliver(PushMessage message) => _messages.add(message);
+
+  /// Reports that somebody pressed [message]'s notification.
+  void open(PushMessage message) => _openings.add(message);
 
   /// Rotates the token, as the provider does on reinstall or restore.
   void rotateToken(String rotated) {
@@ -41,9 +54,10 @@ final class FakePushMessagingClient implements PushMessagingClient {
     _tokens.add(rotated);
   }
 
-  /// Closes both streams.
+  /// Closes every stream.
   Future<void> dispose() async {
     await _messages.close();
+    await _openings.close();
     await _tokens.close();
   }
 
@@ -67,6 +81,16 @@ final class FakePushMessagingClient implements PushMessagingClient {
 
   @override
   Stream<PushMessage> messages() => _messages.stream;
+
+  @override
+  Stream<PushMessage> openings() => _openings.stream;
+
+  @override
+  Future<PushMessage?> launchMessage() async {
+    final message = launchedWith;
+    launchedWith = null;
+    return message;
+  }
 
   @override
   Future<Result<void, PushFailure>> subscribeTo(String topic) async {

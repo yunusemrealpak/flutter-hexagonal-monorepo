@@ -33,6 +33,33 @@ abstract interface class PushMessagingClient {
   /// than a fault.
   Stream<PushMessage> messages();
 
+  /// Messages whose notification somebody pressed while the app was in the
+  /// background.
+  ///
+  /// Distinct from [messages], and the distinction is the whole point.
+  /// [messages] is *receipt*: a push arrived while the courier was looking at
+  /// something else, and acting on it would take them off a screen they chose.
+  /// This is *intent*: somebody pressed the notification, so opening what it
+  /// refers to is what they asked for.
+  ///
+  /// Nothing here is a `Result`, for the same reason [messages] is not: an
+  /// unreadable payload arrives as an unrecognised kind with its data intact.
+  Stream<PushMessage> openings();
+
+  /// The message whose notification launched the app from a terminated state,
+  /// or null when it was launched some other way.
+  ///
+  /// The cold-start half of [openings], and it cannot be a stream: the
+  /// provider hands it over once, before anything has had a chance to
+  /// subscribe. Reading it consumes it, so a second call answers null even
+  /// after the same launch.
+  ///
+  /// Null rather than a `Result` when the provider cannot answer. A launch
+  /// this app cannot read about is indistinguishable from a launch that was
+  /// nobody pressing anything, and both mean the same thing to a caller:
+  /// carry on to wherever the app normally starts.
+  Future<PushMessage?> launchMessage();
+
   /// Subscribes the device to [topic], so it receives that topic's broadcasts.
   Future<Result<void, PushFailure>> subscribeTo(String topic);
 
