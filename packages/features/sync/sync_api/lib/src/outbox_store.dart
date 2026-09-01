@@ -63,4 +63,49 @@ abstract interface class OutboxStore {
 
   /// Records the position the server last reported.
   Future<Result<void, SyncFailure>> saveCursor(SyncCursor cursor);
+
+  /// Counts one failed delivery of [id] and schedules the next try.
+  ///
+  /// Separate from [put], and the separation is the point. [put] writes a
+  /// whole entry from a value the caller is holding — one read at the top of a
+  /// drain, several requests ago. This changes the three fields a failed
+  /// attempt changes and leaves the payload, the policy and the blocked reason
+  /// as the store has them.
+  ///
+  /// **The count is the store's, not the caller's.** An implementation must
+  /// increment what it holds rather than write a number worked out from a copy
+  /// somebody else read, because that number is what the retry schedule is
+  /// spent against and two drains that both wrote "attempt 4" would give a
+  /// device twice the budget it is allowed.
+  ///
+  /// Recording against an identifier that is not there succeeds, for the
+  /// reason [drop] gives: a drain racing a person who resolved the entry must
+  /// not stop on work that is no longer queued.
+  Future<Result<void, SyncFailure>> recordAttempt(
+    OutboxEntryId id, {
+    required DateTime at,
+    required DateTime nextAttemptAt,
+  });
+
+  /// Records that the server took [id]'s work and is now at [cursor].
+  ///
+  /// **One method because it is one fact.** A caller that dropped the row and
+  /// then saved the cursor would, if it died in between, come back having
+  /// forgotten work the server has and believing the server is somewhere it is
+  /// not — so its next envelope goes out from a position it has already been
+  /// told is stale.
+  ///
+  /// Expressing that as an intent rather than as a transaction is what keeps
+  /// storage out of this contract. `OutboxStore.transaction(...)` would make
+  /// every implementation offer a notion only one of them has, and would let a
+  /// caller in `sync_application` — which may not name a database — write one
+  /// anyway.
+  ///
+  /// Accepting an identifier that is not there succeeds and still moves the
+  /// cursor. A drain that crashed after this call and retried it finds no row
+  /// and has still been told where the server is.
+  Future<Result<void, SyncFailure>> accepted(
+    OutboxEntryId id,
+    SyncCursor cursor,
+  );
 }

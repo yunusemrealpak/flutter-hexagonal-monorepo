@@ -114,6 +114,38 @@ final class DriftOutboxStore implements OutboxStore {
     ),
   );
 
+  @override
+  Future<Result<void, SyncFailure>> recordAttempt(
+    OutboxEntryId id, {
+    required DateTime at,
+    required DateTime nextAttemptAt,
+  }) => _guard(() => entries.recordAttempt(id.value, at, nextAttemptAt));
+
+  @override
+  Future<Result<void, SyncFailure>> accepted(
+    OutboxEntryId id,
+    SyncCursor cursor,
+  ) => _guard(
+    // The transaction is what makes the port's "one fact" true here. Both
+    // DAOs hang off the same `PeykDatabase`, so drift's zone-scoped
+    // transaction covers the delete and the key-value write together: either
+    // the queue forgot the work and the device knows where the server is, or
+    // neither happened and the next drain sends it again.
+    //
+    // `entries.transaction` rather than a database handle, because this class
+    // deliberately holds two DAOs and not a `PeykDatabase` — what it can reach
+    // stays visible in its constructor.
+    () => entries.transaction(() async {
+      await entries.drop(id.value);
+      await values.put(
+        namespace: namespace,
+        key: cursorKey,
+        value: cursor.value,
+        updatedAt: clock.now(),
+      );
+    }),
+  );
+
   Result<List<OutboxEntry>, SyncFailure> _toDomainList(
     List<db.OutboxEntry> rows,
   ) {
