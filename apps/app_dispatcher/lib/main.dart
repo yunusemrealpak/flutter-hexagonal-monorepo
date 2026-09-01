@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage_platform_interface.dart';
+import 'package:http_dio/http_dio.dart';
 import 'package:opentelemetry/api.dart' as otel;
 import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
 import 'package:sync_api/sync_api.dart';
@@ -53,15 +54,29 @@ export 'src/sync/sync_orchestrator.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  final container = await configureDispatcher(
-    DispatcherPlatform(
-      database: NativeDatabase.createInBackground(await _databaseFile()),
-      http: Dio(BaseOptions(baseUrl: _apiBaseUrl)),
-      secureStorage: FlutterSecureStoragePlatform.instance,
-      connectivity: ConnectivityPlatform.instance,
-      permissions: PermissionHandlerPlatform.instance,
-      tracer: otel.globalTracerProvider.getTracer('peyk.dispatcher'),
-    ),
+  final platform = DispatcherPlatform(
+    database: NativeDatabase.createInBackground(await _databaseFile()),
+    http: Dio(PeykTransport.optionsFor(_apiBaseUrl)),
+    secureStorage: FlutterSecureStoragePlatform.instance,
+    connectivity: ConnectivityPlatform.instance,
+    permissions: PermissionHandlerPlatform.instance,
+    tracer: otel.globalTracerProvider.getTracer('peyk.dispatcher'),
+  );
+
+  final container = await configureDispatcher(platform);
+
+  // The interceptor chain, installed once the container can answer what it
+  // needs and the client exists for the authorising one to replay through.
+  // Two steps rather than one because of that order, and it is the composition
+  // root's job for the same reason the base URL is: a cross-cutting policy
+  // that a gateway could opt out of is a policy in name only.
+  PeykTransport.installOn(
+    platform.http,
+    authorization: container<AuthorizationProvider>(),
+    logger: container<Logger>(),
+    ids: container<IdGenerator>(),
+    clock: container<Clock>(),
+    random: container<RandomSource>(),
   );
 
   // Nothing enqueues through this and nothing waits for it: it decides when

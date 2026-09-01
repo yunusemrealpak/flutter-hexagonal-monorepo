@@ -91,6 +91,26 @@ abstract class DispatcherFeatures {
   @lazySingleton
   PermissionChecker permissionChecker(IdentityCoordinator it) => it;
 
+  /// What the outbound transport presents.
+  ///
+  /// The fourth view of the same coordinator, and the one that closes the
+  /// oldest hole in this workspace: before it existed every gateway but
+  /// identity's own sent its requests with no credential at all.
+  @lazySingleton
+  SessionTokens sessionTokens(IdentityCoordinator it) => it;
+
+  /// The credential the interceptor attaches, out of the session identity
+  /// holds.
+  ///
+  /// Registered here rather than in the ports module because it is identity's
+  /// adapter — the ports module binds what `core_ports` declares, and this
+  /// answers a contract `platform/http_dio` declares. The interceptor that
+  /// consumes it is installed on the `Dio` instance in `main.dart`, after the
+  /// container exists, because it needs both this and the client itself.
+  @lazySingleton
+  AuthorizationProvider authorization(SessionTokens tokens, Logger logger) =>
+      BearerAuthorization(tokens: tokens, logger: logger);
+
   // -- shipments -----------------------------------------------------------
 
   /// The operation's shipments, over REST.
