@@ -43,6 +43,7 @@ export 'src/peyk_option_row.dart';
 export 'src/peyk_screen.dart';
 export 'src/peyk_section.dart';
 export 'src/peyk_strings.dart';
+export 'src/peyk_switch_row.dart';
 export 'src/peyk_text.dart';
 export 'src/peyk_text_field.dart';
 export 'src/peyk_text_tone.dart';
