@@ -15,6 +15,21 @@ final class FakeMediaCapture implements MediaCapture {
   /// Every `(maxWidthPixels, quality)` pair a call asked for, oldest first.
   final List<(int, int)> requestedSettings = [];
 
+  /// The capture a test says the operating system interrupted.
+  ///
+  /// Consumed on the first read, because that is what the platform does. A
+  /// fake that kept answering would let a test pass against behaviour a device
+  /// will not repeat — an application that read it twice would attach the same
+  /// recovered photograph to two deliveries.
+  CapturedMedia? lostCapture;
+
+  /// The bytes [bytesOf] answers with, keyed by path.
+  ///
+  /// A map rather than a queue: reading a file is not an event, and a test that
+  /// had to queue one read per call would be describing an order that does not
+  /// exist.
+  final Map<String, List<int>> bytes = {};
+
   /// Makes the next [capturePhoto] answer with [result].
   void queue(Result<CapturedMedia, CaptureFailure> result) =>
       _queued.add(result);
@@ -33,5 +48,25 @@ final class FakeMediaCapture implements MediaCapture {
       );
     }
     return _queued.removeAt(0);
+  }
+
+  @override
+  Future<CapturedMedia?> recoverLostCapture() async {
+    final lost = lostCapture;
+    lostCapture = null;
+    return lost;
+  }
+
+  @override
+  Future<Result<List<int>, CaptureFailure>> bytesOf(CapturedMedia media) async {
+    final stored = bytes[media.path];
+    if (stored == null) {
+      // The file is gone, which is the case `CapturedMedia.path` warns about
+      // and the one a caller most often forgets to handle.
+      return Failed(
+        CaptureUnavailable(detail: 'FakeMediaCapture has no ${media.path}'),
+      );
+    }
+    return Success(stored);
   }
 }
