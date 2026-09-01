@@ -12,6 +12,7 @@
 import 'package:core_ports/core_ports.dart' as _i398;
 import 'package:delivery_api/delivery_api.dart' as _i1041;
 import 'package:delivery_application/delivery_application.dart' as _i718;
+import 'package:delivery_infrastructure/delivery_infrastructure.dart' as _i217;
 import 'package:documents_api/documents_api.dart' as _i475;
 import 'package:documents_core/documents_core.dart' as _i1046;
 import 'package:get_it/get_it.dart' as _i174;
@@ -22,6 +23,7 @@ import 'package:incidents_api/incidents_api.dart' as _i499;
 import 'package:incidents_core/incidents_core.dart' as _i719;
 import 'package:injectable/injectable.dart' as _i526;
 import 'package:location_service/location_service.dart' as _i281;
+import 'package:media_capture/media_capture.dart' as _i231;
 import 'package:messaging_api/messaging_api.dart' as _i280;
 import 'package:messaging_core/messaging_core.dart' as _i111;
 import 'package:notifications_api/notifications_api.dart' as _i60;
@@ -322,6 +324,13 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i398.IdGenerator>(),
       ),
     );
+    gh.lazySingleton<_i231.MediaCapture>(
+      () => courierFeatures.cameraCapture(
+        gh<_i617.CourierPlatform>(),
+        gh<_i398.PermissionRequester>(),
+        gh<_i398.Clock>(),
+      ),
+    );
     gh.lazySingleton<_i247.PushMessagingClient>(
       () => courierLightFeatures.push(
         gh<_i617.CourierPlatform>(),
@@ -450,6 +459,14 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i257.RecordScan>(),
         gh<_i257.CloseCount>(),
         gh<_i257.FindOpenCount>(),
+      ),
+    );
+    gh.lazySingleton<_i217.CameraProofSource>(
+      () => courierFeatures.cameraProof(
+        gh<_i231.MediaCapture>(),
+        gh<_i1041.MediaCompressorPort>(),
+        gh<_i398.KeyValueStore>(),
+        gh<_i398.Logger>(),
       ),
     );
     gh.lazySingleton<_i719.ListOpenIncidents>(
