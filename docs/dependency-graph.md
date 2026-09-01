@@ -18,7 +18,7 @@ without shipping in anybody's product build.
 | | |
 |---|---|
 | Packages | 75 |
-| Runtime edges | 415 |
+| Runtime edges | 416 |
 | Dev-dependency edges | 60 |
 | Cycles | none |
 
@@ -393,7 +393,7 @@ graph LR
 | `routing_testing` | feature_testing | `core_kernel`, `core_ports`, `core_testing`, `identity_api`, `routing_api` |
 | `settings_api` | feature_api | `core_kernel`, `identity_api` |
 | `settings_core` | feature_core | `core_kernel`, `core_ports`, `identity_api`, `settings_api` |
-| `settings_presentation` | feature_presentation | `core_kernel`, `core_navigation`, `design_system`, `identity_api`, `settings_api` |
+| `settings_presentation` | feature_presentation | `core_kernel`, `core_navigation`, `design_system`, `identity_api`, `notifications_api`, `settings_api` |
 | `shipments_api` | feature_api | `core_kernel`, `core_ports`, `identity_api` |
 | `shipments_application` | feature_application | `core_kernel`, `core_ports`, `identity_api`, `payments_api`, `shipments_api` |
 | `shipments_infrastructure` | feature_infrastructure | `core_kernel`, `core_ports`, `http_dio`, `shipments_api` |
@@ -971,6 +971,7 @@ digraph peyk {
   "settings_presentation" -> "core_navigation";
   "settings_presentation" -> "design_system";
   "settings_presentation" -> "identity_api";
+  "settings_presentation" -> "notifications_api";
   "settings_presentation" -> "settings_api";
   "shipments_api" -> "core_kernel";
   "shipments_api" -> "core_ports";

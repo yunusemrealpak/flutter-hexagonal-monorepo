@@ -2,8 +2,11 @@ import 'dart:async';
 
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:notifications_api/notifications_api.dart';
 import 'package:settings_api/settings_api.dart';
 
+import 'alerts_controller.dart';
+import 'alerts_state.dart';
 import 'settings_controller.dart';
 import 'settings_state.dart';
 import 'settings_strings.dart';
@@ -17,16 +20,27 @@ import 'settings_strings.dart';
 /// supplies the action, this screen offers the button, and an app that signs
 /// out somewhere else passes nothing and no button is drawn. `settings` still
 /// does not depend on `identity_api`.
+///
+/// **The alerts section arrives the same way**, as an optional controller. An
+/// app that composes no alert channel capable of opening — `app_dispatcher`
+/// answers every open with `AlertsRefused`, because a desk is not a device
+/// that gets alerted — passes nothing and no switch is drawn. A control that
+/// cannot work is worse than an absent one: somebody taps it, nothing happens,
+/// and they conclude the product is broken.
 final class SettingsScreen extends StatefulWidget {
   /// Creates the screen over [controller].
   const SettingsScreen({
     required this.controller,
+    this.alerts,
     this.onSignOut,
     super.key,
   });
 
   /// What drives it.
   final SettingsController controller;
+
+  /// What drives the alerts section, when this app has one to draw.
+  final AlertsController? alerts;
 
   /// Ends the session, when this app offers that here.
   final VoidCallback? onSignOut;
@@ -57,6 +71,29 @@ final class SettingsScreen extends StatefulWidget {
       switch (failure) {
         MalformedPreference(:final field) => {'field': field},
         PreferencesUnavailable() || PreferencesCorrupted() => const {},
+      };
+
+  /// Which string a notifications failure should be shown as.
+  ///
+  /// Exhaustive over `NotificationsFailure` even though four of its cases
+  /// cannot reach this screen — it holds no inbox. That is the cost of the
+  /// union being one hierarchy, and it is the right cost: the day a case *can*
+  /// arrive here, this stops compiling instead of falling through to a
+  /// sentence about something else.
+  @visibleForTesting
+  static String describeAlerts(NotificationsFailure failure) =>
+      switch (failure) {
+        AlertsRefused() => SettingsStrings.alertsFailureRefused,
+        AlertsUnreachable() => SettingsStrings.alertsFailureUnreachable,
+        // AlertsBlocked is not given a sentence of its own here. Reading the
+        // state back after a blocked open answers AlertsUnavailable, and that
+        // draws the section that sends somebody to the system settings — a
+        // whole treatment rather than a line of text.
+        AlertsBlocked() => SettingsStrings.alertsBlocked,
+        AlertStateUnavailable() ||
+        InboxUnavailable() ||
+        NotificationMissing() ||
+        MalformedNotification() => SettingsStrings.alertsFailureUnavailable,
       };
 }
 
@@ -108,6 +145,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ),
             },
           ),
+          if (widget.alerts case final alerts?) ...[
+            const PeykGap.vertical(PeykGapSize.betweenGroups),
+            _AlertsSection(controller: alerts),
+          ],
           if (signOut != null) ...[
             const PeykGap.vertical(PeykGapSize.betweenGroups),
             PeykButton(
@@ -180,6 +221,104 @@ class _Choices extends StatelessWidget {
                 onTap: busy ? null : () => controller.chooseSyncPolicy(policy),
               ),
           ],
+        ),
+      ],
+    );
+  }
+}
+
+/// The alerts switch, and the two states that are not a switch.
+///
+/// A `StatefulWidget` because it starts its own read and, unlike the choices
+/// beside it, has a reason to read again while it is on screen: coming back
+/// from the operating system's settings page changes the answer without the
+/// application doing anything. `AppLifecycleListener` is what notices, and
+/// without it the button that sends somebody there would appear to do nothing
+/// when they came back.
+class _AlertsSection extends StatefulWidget {
+  const _AlertsSection({required this.controller});
+
+  final AlertsController controller;
+
+  @override
+  State<_AlertsSection> createState() => _AlertsSectionState();
+}
+
+class _AlertsSectionState extends State<_AlertsSection> {
+  late final AppLifecycleListener _lifecycle;
+
+  @override
+  void initState() {
+    super.initState();
+    _lifecycle = AppLifecycleListener(
+      onResume: () => unawaited(widget.controller.load()),
+    );
+    unawaited(widget.controller.load());
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = PeykStrings.of(context);
+
+    return PeykSection(
+      title: strings.resolve(SettingsStrings.alertsSection),
+      children: [
+        ListenableBuilder(
+          listenable: widget.controller,
+          builder: (context, _) => switch (widget.controller.state) {
+            AlertsLoading() => const PeykLoadingView(),
+            AlertsUnreadable(:final failure) => PeykFailureView(
+              message: strings.resolve(
+                SettingsScreen.describeAlerts(failure),
+              ),
+              onRetry: () => unawaited(widget.controller.load()),
+            ),
+            // The one state that is not a control. A switch here would be the
+            // button that does nothing which `AlertsBlocked` exists as a
+            // separate case to prevent.
+            AlertsSettled(alerts: AlertsUnavailable()) => Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                PeykText.body(strings.resolve(SettingsStrings.alertsBlocked)),
+                const PeykGap.vertical(PeykGapSize.betweenLines),
+                PeykButton(
+                  label: strings.resolve(SettingsStrings.alertsOpenSettings),
+                  onPressed: () =>
+                      unawaited(widget.controller.openSystemSettings()),
+                ),
+              ],
+            ),
+            AlertsSettled(:final alerts, :final changing, :final failure) =>
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  PeykSwitchRow(
+                    label: strings.resolve(SettingsStrings.alertsToggle),
+                    description: strings.resolve(
+                      SettingsStrings.alertsExplanation,
+                    ),
+                    value: alerts is AlertsOpen,
+                    onChanged: changing
+                        ? null
+                        : (on) => unawaited(widget.controller.choose(on: on)),
+                  ),
+                  if (failure != null) ...[
+                    const PeykGap.vertical(PeykGapSize.betweenLines),
+                    PeykText.caption(
+                      strings.resolve(SettingsScreen.describeAlerts(failure)),
+                    ),
+                  ],
+                ],
+              ),
+          },
         ),
       ],
     );
