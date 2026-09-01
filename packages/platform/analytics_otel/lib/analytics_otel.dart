@@ -12,7 +12,14 @@
 /// correct trade. The alternative is a courier who cannot complete a delivery
 /// because a telemetry endpoint moved.
 ///
-/// `ClockTimeProvider` is the third thing here and the least obvious. Rule A1
+/// `PeykTelemetry` is what makes the other three do anything at all, and its
+/// absence was the largest hole this package ever had. `globalTracerProvider`
+/// answers a no-op provider until `registerGlobalTracerProvider` is called;
+/// both applications read the getter and neither called the registrar, so
+/// every span this package produced was discarded inside the library — with
+/// nothing failing and nothing logging to say so.
+///
+/// `ClockTimeProvider` is the fourth thing here and the least obvious. Rule A1
 /// forbids product code from reading the system clock; a third-party library
 /// that reads it internally is out of the rule's reach. OpenTelemetry offers a
 /// seam for it, so taking that seam is how the rule keeps meaning something
@@ -24,3 +31,4 @@ export 'src/clock_time_provider.dart';
 export 'src/otel_analytics_sink.dart';
 export 'src/otel_attributes.dart';
 export 'src/otel_logger.dart';
+export 'src/peyk_telemetry.dart';
