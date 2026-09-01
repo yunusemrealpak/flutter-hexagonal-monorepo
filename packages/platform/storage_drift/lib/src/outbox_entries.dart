@@ -13,6 +13,28 @@ import 'package:drift/drift.dart';
 /// [operation] are opaque strings, and [payload] is whatever the feature's own
 /// adapter serialised. That is what lets `sync` carry every feature's writes
 /// while depending on none of them — scenario 3 of the architecture.
+///
+/// ## `outbox_drain`
+///
+/// `pending()` asks for `blocked_reason IS NULL ORDER BY created_at, id` on
+/// every drain, and `blocked()` asks the same question inverted. Without an
+/// index sqlite scans the whole table and sorts the result into a temporary
+/// B-tree — every time, for a table whose whole purpose is to grow long on a
+/// device that has been offline.
+///
+/// The column order is what makes one index serve both callers.
+/// `blocked_reason` first turns either filter into a range rather than a
+/// predicate applied per row; `created_at` and `id` after it are the ordering,
+/// so sqlite reads the rows out already sorted and the `LIMIT` stops it early
+/// instead of after it has sorted everything.
+///
+/// Not a partial index (`WHERE blocked_reason IS NULL`). That would be smaller
+/// and would serve `pending()` only, leaving `blocked()` — the screen a person
+/// opens when work is stuck — on a scan.
+@TableIndex(
+  name: 'outbox_drain',
+  columns: {#blockedReason, #createdAt, #id},
+)
 @DataClassName('OutboxEntry')
 class OutboxEntries extends Table {
   /// The identifier the feature generated for this piece of work.

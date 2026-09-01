@@ -31,6 +31,8 @@ part 'peyk_database.g.dart';
 /// | 3 | `namespace` added to `key_value_entries`, and joined to
 ///     its primary key | full table rebuild |
 /// | 4 | three columns appended to `outbox_entries` | in place, no rebuild |
+/// | 5 | `outbox_drain` index on `outbox_entries` | one pass over the
+///     rows already there |
 ///
 /// Version 3 is the one that can lose data. A column with a default can be
 /// appended in place; a *primary key* cannot change without recreating the
@@ -61,7 +63,7 @@ class PeykDatabase extends _$PeykDatabase {
   PeykDatabase(super.e);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -104,6 +106,13 @@ class PeykDatabase extends _$PeykDatabase {
         await migrator.addColumn(outboxEntries, outboxEntries.conflictPolicy);
         await migrator.addColumn(outboxEntries, outboxEntries.nextAttemptAt);
         await migrator.addColumn(outboxEntries, outboxEntries.blockedReason);
+      }
+      if (from < 5) {
+        // Created rather than rebuilt: an index is derived data, so sqlite
+        // builds it from the rows already there in one pass and nothing is
+        // copied. The name is stated on the table class so that this step and
+        // `createAll` cannot disagree about it.
+        await migrator.create(outboxDrain);
       }
     },
     beforeOpen: (details) async {

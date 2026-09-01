@@ -123,6 +123,37 @@ this document is about: a wire whose counterpart does not exist.
 The decision needed is a product one: a notifications toggle in
 `settings_presentation`, or a priming step in the sign-in flow.
 
+### The outbox's three rows, closed together
+
+They were one code path, and reading them together changed what the fix
+was. Taken separately, two of them look like "call the method that exists":
+`recordAttempt` was written and unused, and a transaction was missing. Taken
+together they are the same defect — **the drain wrote whole rows from a
+snapshot it read a network round trip ago** — and the method that existed
+could not have been called, because it did not write `next_attempt_at` and a
+drain needed two statements to express one decision.
+
+The resolution put two *intents* on `OutboxStore` rather than a transaction:
+`recordAttempt` and `accepted`. A `transaction(...)` method on the port would
+have made every implementation offer a notion only one of them has, and would
+have let a caller in `sync_application` — which may not name a database — open
+one anyway.
+
+The line that decides which pair of writes gets collapsed: **one fact or two.**
+The server took the work and moved, so dropping the row and saving the cursor
+is one method. On the conflict path the server's new position is worth keeping
+whether or not the resolution that follows succeeds, so those stay two.
+
+The race that this makes safe is not hypothetical and is not about isolates:
+somebody resolving an entry on the review screen while the drain waits on the
+request for it. The old write put the queued copy back with no reason on it,
+and the next pass sent work a person had deliberately stopped.
+
+Still open in this area, deliberately: whether to give up is decided from the
+count the drain read rather than the one the store now holds. Correct while one
+drain runs at a time; the thing to revisit when a background scheduler adds a
+second.
+
 ### What the fix turned out to need
 
 The toggle won, and building it found the thing this audit could not see from
@@ -169,9 +200,9 @@ Unfixed, with the evidence, ordered by what they cost.
 
 | Finding | Evidence | Cost |
 |---|---|---|
-| `OutboxDao.recordAttempt` has no caller | `outbox_dao.dart:75`; `drain_outbox.dart:197` does `_store.put(entry.attempted(…))` | the read-modify-write race the DAO was written to prevent |
-| No `transaction()` anywhere | `drain_outbox.dart:121,125` — `drop` then `saveCursor` | a kill between two writes loses the pairing |
-| No index on `outbox_entries` | queried by `blocked_reason IS NULL`, ordered by `(created_at, id)` | full scan and sort on every drain of a day's offline work |
+| ~~`OutboxDao.recordAttempt` has no caller~~ — **closed 2026-09-01** | `outbox_dao.dart`; `drain_outbox.dart` did `_store.put(entry.attempted(…))` | the read-modify-write race the DAO was written to prevent |
+| ~~No `transaction()` anywhere~~ — **closed 2026-09-01** on the drain's accept path | `drain_outbox.dart` — `drop` then `saveCursor` | a kill between two writes loses the pairing |
+| ~~No index on `outbox_entries`~~ — **closed 2026-09-01**, schema v5 | queried by `blocked_reason IS NULL`, ordered by `(created_at, id)` | full scan and sort on every drain of a day's offline work |
 | `image_picker.getLostData()` unused | `image_picker_media_capture.dart` | Android can kill the app during capture; the photo is then recoverable only through it, and photos are this product's payload |
 | Android background location has no foreground service | `geolocator_location_source.dart:77` passes a plain `LocationSettings` | `track(inBackground: true)` is in the contract; Android kills the stream within minutes |
 | `Position.isMocked` is dropped | `GeoFix` does not carry it | mock location is the fraud vector for a delivery proof |

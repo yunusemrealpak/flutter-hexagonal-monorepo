@@ -99,6 +99,44 @@ final class InMemoryOutboxStore implements OutboxStore {
     return const Success(null);
   }
 
+  @override
+  Future<Result<void, SyncFailure>> recordAttempt(
+    OutboxEntryId id, {
+    required DateTime at,
+    required DateTime nextAttemptAt,
+  }) async {
+    final failure = _takeFailure();
+    if (failure != null) return Failed(failure);
+
+    // Read from the map rather than from anything a caller handed over: the
+    // count this increments is the store's, which is what the drift adapter's
+    // `attempt_count = attempt_count + 1` says in SQL.
+    final stored = _entries[id.value];
+    if (stored == null) return const Success(null);
+
+    _entries[id.value] = stored.attempted(
+      at: at,
+      backoff: nextAttemptAt.difference(at),
+    );
+    return const Success(null);
+  }
+
+  @override
+  Future<Result<void, SyncFailure>> accepted(
+    OutboxEntryId id,
+    SyncCursor cursor,
+  ) async {
+    final failure = _takeFailure();
+    if (failure != null) return Failed(failure);
+
+    // Atomic by construction: there is no await between the two mutations, so
+    // nothing can observe one without the other. The drift adapter needs a
+    // transaction to make the same promise, and its own test proves it.
+    _entries.remove(id.value);
+    _cursor = cursor;
+    return const Success(null);
+  }
+
   /// Oldest first, and stable when two entries were queued in the same
   /// millisecond.
   ///

@@ -226,6 +226,147 @@ void runOutboxStoreContract(OutboxStore Function() createStore) {
       });
     });
 
+    group('recordAttempt', () {
+      test('counts the attempt and schedules the next one', () async {
+        final entry = await put(OutboxEntryBuilder().withId('e-1').build());
+
+        final recorded = await store.recordAttempt(
+          entry.id,
+          at: noon,
+          nextAttemptAt: later,
+        );
+
+        expect(recorded.isSuccess, isTrue);
+        final stored = (await store.byId(entry.id)).fold(
+          (value) => value,
+          (failure) => throw StateError('$failure'),
+        );
+        expect(stored.attempts, entry.attempts + 1);
+        expect(stored.lastAttemptAt, noon);
+        expect(stored.isDueAt(later), isTrue);
+        expect(stored.isDueAt(noon), isFalse);
+      });
+
+      test(
+        'counts from what is stored, not from what a caller holds',
+        () async {
+          final entry = await put(OutboxEntryBuilder().withId('e-1').build());
+
+          // Two records against the same in-hand entry. An implementation that
+          // read, added one and wrote back would answer 1 twice; the count is
+          // the store's, and it is what the retry schedule is spent against.
+          await store.recordAttempt(entry.id, at: noon, nextAttemptAt: later);
+          await store.recordAttempt(entry.id, at: noon, nextAttemptAt: later);
+
+          final stored = (await store.byId(entry.id)).fold(
+            (value) => value,
+            (failure) => throw StateError('$failure'),
+          );
+          expect(stored.attempts, entry.attempts + 2);
+        },
+      );
+
+      test('changes nothing else about the entry', () async {
+        final entry = await put(
+          OutboxEntryBuilder()
+              .withId('e-1')
+              .ofType('delivery.completeAttempt')
+              .under(const ConflictPolicy.manualReview())
+              .build(),
+        );
+
+        await store.recordAttempt(entry.id, at: noon, nextAttemptAt: later);
+
+        final stored = (await store.byId(entry.id)).fold(
+          (value) => value,
+          (failure) => throw StateError('$failure'),
+        );
+        // The three things sync is not allowed to interpret survive a failed
+        // attempt. An implementation that rewrote the whole row from a copy
+        // the caller was holding could lose any of them.
+        expect(stored.type, entry.type);
+        expect(stored.payload, entry.payload);
+        expect(stored.policy, entry.policy);
+        expect(stored.queuedAt, entry.queuedAt);
+      });
+
+      test('recording against an entry that is not there succeeds', () async {
+        final missing = OutboxEntryId.parse(
+          'nope',
+        ).fold((id) => id, (f) => throw StateError('$f'));
+
+        // Same reasoning as drop: a drain racing a person who resolved the
+        // entry must not stop on work that is no longer queued.
+        expect(
+          (await store.recordAttempt(
+            missing,
+            at: noon,
+            nextAttemptAt: later,
+          )).isSuccess,
+          isTrue,
+        );
+      });
+    });
+
+    group('accepted', () {
+      test('removes the entry and moves the cursor', () async {
+        final entry = await put(OutboxEntryBuilder().withId('e-1').build());
+
+        final done = await store.accepted(entry.id, const SyncCursor('c-9'));
+
+        expect(done.isSuccess, isTrue);
+        final pending = await store.pending();
+        expect(
+          pending.fold((r) => r, (f) => throw StateError('$f')),
+          isEmpty,
+        );
+        expect(
+          await store.cursor(),
+          const Success<SyncCursor, SyncFailure>(SyncCursor('c-9')),
+        );
+      });
+
+      test('leaves the other entries queued', () async {
+        final first = await put(
+          OutboxEntryBuilder().withId('e-1').queuedAt(earlier).build(),
+        );
+        await put(OutboxEntryBuilder().withId('e-2').queuedAt(noon).build());
+
+        await store.accepted(first.id, const SyncCursor('c-9'));
+
+        final pending = (await store.pending()).fold(
+          (r) => r,
+          (f) => throw StateError('$f'),
+        );
+        expect(pending.map((entry) => entry.id.value), ['e-2']);
+      });
+
+      test('accepting what is not there still moves the cursor', () async {
+        final missing = OutboxEntryId.parse(
+          'nope',
+        ).fold((id) => id, (f) => throw StateError('$f'));
+
+        // A drain that crashed after this call and retried it finds no row
+        // and has still been told where the server is. Refusing here would
+        // stop the queue on work that has already landed.
+        expect(
+          (await store.accepted(missing, const SyncCursor('c-9'))).isSuccess,
+          isTrue,
+        );
+        expect(
+          await store.cursor(),
+          const Success<SyncCursor, SyncFailure>(SyncCursor('c-9')),
+        );
+      });
+
+      // **Atomicity is asserted per implementation, not here.** The kit has no
+      // way to make an arbitrary store fail *between* its two writes, and a
+      // contract test that could not produce the failure would be a paragraph
+      // pretending to be an assertion. `sync_infrastructure` proves the
+      // rollback against a real database; `InMemoryOutboxStore` is atomic by
+      // construction, because it does not await between the two mutations.
+    });
+
     group('cursor', () {
       test(
         'a device that has never synchronised is at the beginning',

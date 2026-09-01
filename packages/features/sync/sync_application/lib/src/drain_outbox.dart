@@ -32,6 +32,17 @@ import 'read_sync_status.dart';
 /// The jitter for each backoff is drawn once, here, from the `RandomSource`
 /// port, and the resulting instant is written onto the entry. Rule A2, and the
 /// reason `RetrySchedule` takes the draw as an argument instead of making it.
+///
+/// **What it writes is as deliberate as what it decides.** A drain reads a
+/// batch and then spends a network round trip per entry, so every value it
+/// holds is a snapshot. `recordAttempt` and `accepted` change the fields their
+/// outcome changes; `put` — which writes a whole entry from that snapshot — is
+/// left for `_block`, where the caller has just computed the entry it means.
+///
+/// The attempt count is the store's for the same reason. This class still
+/// decides *whether to give up* from the count it read, which is correct while
+/// one drain runs at a time and is the thing to revisit when background work
+/// adds a second.
 final class DrainOutbox
     implements UseCase<(), Result<SyncStatus, SyncFailure>> {
   /// Creates the use case.
@@ -117,13 +128,16 @@ final class DrainOutbox
       );
 
       switch (sent) {
-        case Success(value: final accepted):
-          final removed = await _store.drop(entry.id);
-          if (removed case Failed(:final failure)) return Failed(failure);
+        case Success(value: final position):
+          // One call, because it is one fact. Dropping the row and saving the
+          // cursor as two writes leaves a window in which the device has
+          // forgotten work the server has and still believes the server is
+          // where it was — so the next envelope goes out from a position it
+          // has already been told is stale.
+          final done = await _store.accepted(entry.id, position);
+          if (done case Failed(:final failure)) return Failed(failure);
 
-          cursor = accepted;
-          final saved = await _store.saveCursor(cursor);
-          if (saved case Failed(:final failure)) return Failed(failure);
+          cursor = position;
 
         case Failed(failure: SyncOffline()):
           // The connection went away mid-drain. Stop, and leave every entry
@@ -194,7 +208,16 @@ final class DrainOutbox
         'failure': '$failure',
       },
     );
-    return _store.put(entry.attempted(at: now, backoff: backoff));
+    // Not `put`. The entry in hand was read at the top of this pass and one
+    // network round trip has happened since, so writing it back whole would
+    // undo anything that changed in between — including a person blocking it
+    // from the review screen, which would put work somebody deliberately
+    // stopped back into the queue with no reason on it.
+    return _store.recordAttempt(
+      entry.id,
+      at: now,
+      nextAttemptAt: now.add(backoff),
+    );
   }
 
   /// Takes an entry out of the drain and leaves it for a person.
