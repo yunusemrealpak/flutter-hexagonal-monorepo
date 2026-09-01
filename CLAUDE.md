@@ -378,12 +378,12 @@ Read this list first; the sections after it are the log of what is already close
 
 | | Next | Why this one, and why now |
 |---|---|---|
-| **A** | **The `sync` drain's three storage defects** (backlog item 9) | One pull request, one code path. `OutboxDao.recordAttempt` has no caller while `DrainOutbox` does the read-modify-write it exists to prevent; `drop` then `saveCursor` are two writes with no transaction; `outbox_entries` has no index for the query every drain runs. |
-| **B** | **`image_picker.getLostData()`** (backlog item 9) | Android kills the app during capture and the photo is then recoverable only through it. This product's payload is proof-of-delivery photographs. |
-| **C** | **Pagination on a port** (backlog item 3) | Unchanged, and still the one decision that cannot be walked back later without touching the gateway, the use case, the controller and the screen at once. |
-| **D** | **`openSettings()` for the camera and location blocked paths** | The port now exists and one of its three call sites is wired. `media_capture` and `location_service` still produce a `…PermissionBlocked` no screen can act on. Small, and it finishes something rather than starting it. |
+| **A** | **`image_picker.getLostData()`** (backlog item 9) | Android kills the app during capture and the photo is then recoverable only through it. This product's payload is proof-of-delivery photographs. |
+| **B** | **Pagination on a port** (backlog item 3) | Unchanged, and still the one decision that cannot be walked back later without touching the gateway, the use case, the controller and the screen at once. |
+| **C** | **`openSettings()` for the camera and location blocked paths** | The port now exists and one of its three call sites is wired. `media_capture` and `location_service` still produce a `…PermissionBlocked` no screen can act on. Small, and it finishes something rather than starting it. |
+| **D** | **A background scheduler** (backlog item 4) | The last device capability the product plausibly needs, and the thing that turns the outbox's remaining race from theoretical into real — see the drain entry below. |
 
-Turning alerts on — the item that stood at **A** through the last three sessions — is done. It is the entry immediately below.
+Two items have come off the top of this list: turning alerts on, and the drain's three storage defects. Both are in the log below.
 
 After those, the list below in its own order. Two items in it are stated rather than fixed on purpose — `onBackgroundMessage` and the native build gap — and both close with the same step: `flutter create --platforms=android,ios .` inside an app.
 
@@ -392,6 +392,49 @@ After those, the list below in its own order. Two items in it are stated rather 
 #### The log — what has already been closed
 
 Chronological, newest last. Each entry records the things worth not rediscovering.
+
+#### The outbox drain's three storage defects — done, and they were one defect
+
+[`docs/research/integration-audit.md`](docs/research/integration-audit.md) listed
+them as three rows; they are one code path, and reading them together is what
+changed the fix.
+
+**The drain wrote whole rows from a snapshot it read a network round trip ago.**
+That is the defect. `OutboxDao.recordAttempt` looked like the answer and could
+not have been called: it wrote `attempt_count` and `last_attempt_at` and not
+`next_attempt_at`, so a drain using it would have needed two statements to
+express one decision — and used the upsert instead, which is the
+read-modify-write it exists to prevent.
+
+Four things worth not rediscovering.
+
+- **The intent goes on the port, not the transaction.** `OutboxStore` gained
+  `recordAttempt` and `accepted`. A `transaction(...)` method would make every
+  implementation offer a notion only one of them has, and would let a caller in
+  `sync_application` — which may not name a database — open one anyway.
+- **One fact or two is the line, not the number of writes.** The server took the
+  work and moved: one method. On the conflict path the server's new position is
+  worth keeping whether or not the resolution succeeds, so those stay two, and
+  `DrainOutbox`'s own doc comment already said why.
+- **The race is a person, not an isolate.** Somebody resolving an entry on the
+  review screen while the drain waits on the request for it. The old write put
+  the queued copy back with no reason on it and the next pass sent work that had
+  been deliberately stopped. The test produces that interleaving with a
+  transport decorator, which is the only seam where it can happen.
+- **Atomicity is asserted per implementation, not in the contract kit.** The kit
+  cannot make an arbitrary store fail *between* its two writes, and an assertion
+  that cannot produce the failure it describes is a paragraph pretending to be a
+  test. `sync_infrastructure` drops `key_value_entries` to produce it for real.
+
+Schema version 5 adds `outbox_drain` on `(blocked_reason, created_at, id)` —
+one index for both `pending()` and `blocked()`. It is a third class of migration
+after the append and the rebuild, with a hazard the other two do not have:
+`createAll` and the upgrade step have to agree, or a fresh install never gets
+the index. The test asserts the query plan rather than a timing.
+
+Open, deliberately: whether to give up is still decided from the count the drain
+read rather than the one the store holds. Correct while one drain runs at a
+time; the thing to revisit when a background scheduler adds a second.
 
 #### Alerts can be turned on — done, and it was not a wiring fix
 
@@ -551,7 +594,7 @@ Items 1 and 2 of this list are done, above. The rest stand as written; each entr
 
 **8. Push is inert end to end.** — **closed 2026-09-01**, see the log entry above. What follows is the state that prompted it. `NotificationsFacade.openAlertsFor` and `closeAlertsFor` have no callers anywhere, so nothing subscribes a courier to their alert topic and `PushAlertChannel.openFor` — the only code that requests the notification permission — never runs. The deep-link entry merged in PR #19 can only be reached by a notification the device was never registered to receive. **The missing piece is a screen, not a wire**: the port's own doc says *"called from a screen that has already explained why, never on first launch"*, and the app's pattern for every other permission is request-on-use. Alerts have no moment of use, which is exactly why they need one. A notifications toggle in `settings_presentation`, or a priming step in sign-in — a product decision, not a wiring fix.
 
-**9. The rest of the integration audit.** `OutboxDao.recordAttempt` has no caller while `DrainOutbox` does the read-modify-write it exists to prevent; no `transaction()` anywhere; no index on `outbox_entries`; `image_picker.getLostData()` unused on the platform that loses photos; Android background location with no foreground-service config; `Position.isMocked` dropped; no `dispose:` on any DI registration; no go_router `errorBuilder` or `observers`; drift `.watch()` unused; `checked: true` off in every `build.yaml`. Each is one row of the table in the audit note, with its evidence. `openAppSettings()` has come off this list halfway: the port exists and the alerts screen uses it, and `media_capture` and `location_service` still produce a `…PermissionBlocked` nothing can act on.
+**9. The rest of the integration audit.** Three rows — the unused `recordAttempt`, the missing `transaction()` and the missing index — are **closed 2026-09-01**; see the log entry above. What remains: `image_picker.getLostData()` unused on the platform that loses photos; Android background location with no foreground-service config; `Position.isMocked` dropped; no `dispose:` on any DI registration; no go_router `errorBuilder` or `observers`; drift `.watch()` unused; `checked: true` off in every `build.yaml`. Each is one row of the table in the audit note, with its evidence. `openAppSettings()` has come off this list halfway: the port exists and the alerts screen uses it, and `media_capture` and `location_service` still produce a `…PermissionBlocked` nothing can act on.
 
 **10. `onBackgroundMessage` is never set**, and it is in the same category as `codemagic.yaml`: real, and unrunnable here. It needs `apps/*/android`, Firebase initialisation and a native invoker this repository does not build, so a handler written now could not be exercised even by a test.
 
