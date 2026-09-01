@@ -65,6 +65,13 @@ analyzer:
     # that no product source can ever fall inside it. See
     # tooling/arch_check/test/fixtures/README.md.
     - "tooling/*/test/fixtures/**"
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 
 linter:
   rules:

@@ -197,6 +197,17 @@ void main() {
         expect(permissions.requested, isEmpty);
       },
     );
+
+    test('counts the times it was sent to the system settings', () async {
+      final permissions = FakePermissionRequester();
+
+      expect(await permissions.openSettings(), isTrue);
+      await permissions.openSettings();
+
+      // The assertion for "a blocked permission offers a way out, and the
+      // screen took it". Nothing else can observe that call.
+      expect(permissions.openedSettings, 2);
+    });
   });
 }
 

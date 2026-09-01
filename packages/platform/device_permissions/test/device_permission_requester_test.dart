@@ -27,6 +27,18 @@ final class FakePermissionHandlerPlatform
   /// Every permission [requestPermissions] was called with.
   final List<handler.Permission> requested = [];
 
+  /// What [openAppSettings] answers. Assign to change it mid-test.
+  bool settingsOpen = true;
+
+  /// How many times [openAppSettings] was called.
+  int openedAppSettings = 0;
+
+  @override
+  Future<bool> openAppSettings() async {
+    openedAppSettings++;
+    return settingsOpen;
+  }
+
   @override
   Future<handler.PermissionStatus> checkPermissionStatus(
     handler.Permission permission,
@@ -141,6 +153,24 @@ void main() {
         await requester.request(DevicePermission.camera),
         PermissionState.granted,
       );
+    });
+  });
+
+  group('openSettings', () {
+    test('opens the application page and reports that it did', () async {
+      platform.settingsOpen = true;
+
+      expect(await requester.openSettings(), isTrue);
+      expect(platform.openedAppSettings, 1);
+    });
+
+    test('reports a page that would not open', () async {
+      platform.settingsOpen = false;
+
+      // The only route out of `permanentlyDenied` is this page. A caller that
+      // was told it opened when it did not would leave somebody staring at
+      // the screen they were already on.
+      expect(await requester.openSettings(), isFalse);
     });
   });
 }

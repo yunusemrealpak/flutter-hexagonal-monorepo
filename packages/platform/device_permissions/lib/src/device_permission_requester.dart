@@ -72,6 +72,9 @@ final class DevicePermissionRequester implements PermissionRequester {
     return toPermissionState(status);
   }
 
+  @override
+  Future<bool> openSettings() => _platform.openAppSettings();
+
   Future<bool> _hasBeenAsked(DevicePermission permission) async {
     final result = await _askLog.read(_keyFor(permission));
     // A store that cannot be read is treated as "already asked": see the class
