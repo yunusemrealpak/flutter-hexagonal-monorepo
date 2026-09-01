@@ -123,6 +123,40 @@ this document is about: a wire whose counterpart does not exist.
 The decision needed is a product one: a notifications toggle in
 `settings_presentation`, or a priming step in the sign-in flow.
 
+### The camera row was the tail of a larger gap
+
+`getLostData()` was listed as unused, which was true and was not the
+interesting part. **Nothing in the product could take a photograph at all.**
+`ProofCaptureScreen` had taken an `onCapturePhoto` callback since phase 7 and
+no application supplied one, so the button was never drawn;
+`ImagePickerMediaCapture` was constructed only by its own tests; and
+`BudgetMediaCompressor` had no caller either. Adding a recovery method to an
+adapter nobody built would have been this document's own defect, one layer
+deeper.
+
+This is the second time reading a row against the layer *above* it changed what
+the row meant, and the rule generalises: **an audit row that names an unused
+capability should be checked against whether its caller exists before it is
+treated as small.**
+
+The fix put the translation in `delivery_infrastructure`, which section 2
+leaves as the only home for it — a presentation package may not see
+`platform/*` and neither may an application package, so nothing else can hold
+`media_capture`'s words and `delivery_api`'s at once.
+
+The half that was not obvious: **recovering an interrupted capture is not
+enough; it has to land on the right parcel.** A recovered file carries no
+record of what it was a photograph of, so `CameraProofSource` writes the
+subject down before opening the camera. Without that, a courier who lost a
+capture on one parcel and pressed the camera on the next would attach the first
+parcel's photograph to the second — a false proof of delivery nothing
+downstream could detect.
+
+Still open here: `onCapturePhoto` answers `PhotoEvidence?`, so a camera blocked
+in the system settings is indistinguishable from a courier who changed their
+mind. That signature has to widen before the blocked case can offer the
+settings page, which is the same half-open state `openSettings` is in.
+
 ### The outbox's three rows, closed together
 
 They were one code path, and reading them together changed what the fix
@@ -203,7 +237,7 @@ Unfixed, with the evidence, ordered by what they cost.
 | ~~`OutboxDao.recordAttempt` has no caller~~ — **closed 2026-09-01** | `outbox_dao.dart`; `drain_outbox.dart` did `_store.put(entry.attempted(…))` | the read-modify-write race the DAO was written to prevent |
 | ~~No `transaction()` anywhere~~ — **closed 2026-09-01** on the drain's accept path | `drain_outbox.dart` — `drop` then `saveCursor` | a kill between two writes loses the pairing |
 | ~~No index on `outbox_entries`~~ — **closed 2026-09-01**, schema v5 | queried by `blocked_reason IS NULL`, ordered by `(created_at, id)` | full scan and sort on every drain of a day's offline work |
-| `image_picker.getLostData()` unused | `image_picker_media_capture.dart` | Android can kill the app during capture; the photo is then recoverable only through it, and photos are this product's payload |
+| ~~`image_picker.getLostData()` unused~~ — **closed 2026-09-02** | `image_picker_media_capture.dart` | Android can kill the app during capture; the photo is then recoverable only through it, and photos are this product's payload |
 | Android background location has no foreground service | `geolocator_location_source.dart:77` passes a plain `LocationSettings` | `track(inBackground: true)` is in the contract; Android kills the stream within minutes |
 | `Position.isMocked` is dropped | `GeoFix` does not carry it | mock location is the fraud vector for a delivery proof |
 | ~~`openAppSettings()` unused~~ — port added 2026-09-01, wired into alerts only | `device_permissions` | `…PermissionBlocked` is produced in three packages; the alerts screen can now act on its one, camera and location still cannot |

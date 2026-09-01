@@ -378,12 +378,12 @@ Read this list first; the sections after it are the log of what is already close
 
 | | Next | Why this one, and why now |
 |---|---|---|
-| **A** | **`image_picker.getLostData()`** (backlog item 9) | Android kills the app during capture and the photo is then recoverable only through it. This product's payload is proof-of-delivery photographs. |
+| **A** | **The blocked-camera path, end to end** | Two things that only close together: `onCapturePhoto` answers `PhotoEvidence?`, so a blocked camera looks exactly like a courier who changed their mind — and `openSettings()` exists but is wired only into alerts. Widening the callback is what lets `media_capture` and `location_service`'s `…PermissionBlocked` finally do something. |
 | **B** | **Pagination on a port** (backlog item 3) | Unchanged, and still the one decision that cannot be walked back later without touching the gateway, the use case, the controller and the screen at once. |
-| **C** | **`openSettings()` for the camera and location blocked paths** | The port now exists and one of its three call sites is wired. `media_capture` and `location_service` still produce a `…PermissionBlocked` no screen can act on. Small, and it finishes something rather than starting it. |
+| **C** | **Signature capture** | The other half of proof of delivery, and the one the photograph work did not touch: `SignatureCapture` needs a drawing surface `design_system` does not have. A new component, not a wiring job. |
 | **D** | **A background scheduler** (backlog item 4) | The last device capability the product plausibly needs, and the thing that turns the outbox's remaining race from theoretical into real — see the drain entry below. |
 
-Two items have come off the top of this list: turning alerts on, and the drain's three storage defects. Both are in the log below.
+Three items have come off the top of this list: turning alerts on, the drain's three storage defects, and photo evidence. All are in the log below.
 
 After those, the list below in its own order. Two items in it are stated rather than fixed on purpose — `onBackgroundMessage` and the native build gap — and both close with the same step: `flutter create --platforms=android,ios .` inside an app.
 
@@ -392,6 +392,43 @@ After those, the list below in its own order. Two items in it are stated rather 
 #### The log — what has already been closed
 
 Chronological, newest last. Each entry records the things worth not rediscovering.
+
+#### Photo evidence — done, and the backlog item was the tail of it
+
+Backlog item 9 listed `image_picker.getLostData()` as unused. True, and not the
+interesting part: **nothing in the product could take a photograph at all.**
+`ProofCaptureScreen` had taken an `onCapturePhoto` callback since phase 7 and no
+app supplied one, so the button was never drawn; `ImagePickerMediaCapture` was
+constructed only by its own tests; `BudgetMediaCompressor` had no caller either.
+
+**The rule that generalises:** an audit row naming an unused capability has to be
+checked against whether its *caller* exists before it is treated as small. This
+is the second time reading a row against the layer above it changed what the row
+meant — the outbox's three rows were the first.
+
+Four things worth not rediscovering.
+
+- **`CameraProofSource` lives in `delivery_infrastructure` because nothing else
+  can hold both vocabularies.** A presentation package may not see `platform/*`,
+  which is why the screen takes a callback; an application package may not
+  either, which is why no use case can see a `CapturedMedia`.
+- **Recovering an interrupted capture is not enough; it has to land on the right
+  parcel.** A recovered file says nothing about what it was a photograph *of*,
+  so the subject is written down before the camera opens — and written *before*,
+  because the kill it exists for happens inside that call. Without the marker, a
+  courier who lost a capture on one parcel and pressed the camera on the next
+  would attach the first parcel's photograph to the second. The test was re-run
+  with the marker check removed and produced exactly that.
+- **`bytesOf` belongs to `media_capture`.** `CapturedMedia` carries a path on
+  purpose, so somebody must read the file, and the package that produced the
+  path is the one that knows how. Keeping `dart:io` there is what lets
+  `CameraProofSource` be tested with no filesystem at all.
+- **A courier who backs out is `Success(null)`, not a failure.** `DeliveryFailure`
+  has no case for it because nothing in the domain went wrong.
+
+Open, and it is now item **A** above: `onCapturePhoto` answers `PhotoEvidence?`,
+so a blocked camera is indistinguishable from a cancelled one. Signature capture
+is untouched — it needs a drawing surface `design_system` does not have.
 
 #### The outbox drain's three storage defects — done, and they were one defect
 
