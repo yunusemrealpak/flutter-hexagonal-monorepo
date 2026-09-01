@@ -15,10 +15,20 @@
 /// instead of inverting it. A caller sees `SecureStoreFailure` and never a
 /// `PlatformException`, which is the whole point of putting an adapter here.
 ///
+/// `KeychainOptions` is the second thing here and it is not a default. The
+/// adapter takes its plugin configuration as a required argument with no
+/// default, deliberately — accessibility class and backup behaviour are an
+/// application's security decisions. What both applications actually passed
+/// was an empty map, which states none of them and leaves every one to the
+/// native side. A named policy is the middle answer: nothing reads it unless a
+/// composition root names it, and naming it is one word instead of an option
+/// map assembled at a call site.
+///
 /// There is no in-memory implementation in this package. `core_testing`
 /// already ships `InMemorySecureStore`, and a second one here would be a
 /// second thing to keep in step with the port.
 library;
 
+export 'src/keychain_options.dart';
 export 'src/keychain_secure_store.dart';
 export 'src/secure_store_failure_mapping.dart';
