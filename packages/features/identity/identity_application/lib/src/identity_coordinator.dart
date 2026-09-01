@@ -7,19 +7,26 @@ import 'package:identity_api/identity_api.dart';
 /// The driving port's implementation, and the one thing in the feature that
 /// knows which session is currently in force.
 ///
-/// It implements three ports at once, and that is deliberate: all three are
+/// It implements four ports at once, and that is deliberate: all four are
 /// views of the same fact. `IdentityFacade` is what a screen calls to change
 /// the session; `SessionReader` and `PermissionChecker` are what *other
-/// features* ask about it. Splitting them across three objects would mean
-/// three copies of "the session right now", and the first time they disagreed
-/// a dispatcher would see a button their permissions no longer allow.
+/// features* ask about it; `SessionTokens` is what the outbound transport asks
+/// for. Splitting them across four objects would mean four copies of "the
+/// session right now", and the first time they disagreed a dispatcher would
+/// see a button their permissions no longer allow.
+///
+/// §2.3's warning about segregation applies and is satisfied here: separate
+/// interfaces limit what a caller may *ask*, not what an app must *supply*.
+/// The split would be worth making into separate objects if some application
+/// could not answer one of the four, and none is in that position — every app
+/// that composes identity at all composes all of it.
 ///
 /// The two rules the specification names are not here. They live on `Session`
 /// in `identity_api` — refresh before the token expires, refuse a session
 /// whose device tie has broken — and this class calls them. A coordinator
 /// orchestrates; an entity decides.
 final class IdentityCoordinator
-    implements IdentityFacade, SessionReader, PermissionChecker {
+    implements IdentityFacade, SessionReader, PermissionChecker, SessionTokens {
   /// Creates the coordinator over its ports.
   IdentityCoordinator({
     required this._gateway,
@@ -39,6 +46,9 @@ final class IdentityCoordinator
       StreamController<Session?>.broadcast();
 
   Session? _current;
+
+  /// The refresh in progress, or `null` when none is.
+  Future<Result<Session, IdentityFailure>>? _refreshing;
 
   @override
   Session? get current => _current;
@@ -138,7 +148,16 @@ final class IdentityCoordinator
   }
 
   @override
-  Future<Result<Session, IdentityFailure>> refreshSession() async {
+  Future<Result<Session, IdentityFailure>> refreshSession() =>
+      // Collapsed onto one attempt while it is running. Ten requests in flight
+      // when a token expires produce ten 401s, and ten refreshes would
+      // invalidate each other on any server that rotates refresh tokens — the
+      // last one wins and the other nine sessions are dead. The rule belongs
+      // here rather than in the interceptor that noticed it, because "do not
+      // refresh a session twice at once" is a statement about the session.
+      _refreshing ??= _refresh().whenComplete(() => _refreshing = null);
+
+  Future<Result<Session, IdentityFailure>> _refresh() async {
     final session = _current;
     if (session == null) return const Failed(NoSession());
 
@@ -162,15 +181,30 @@ final class IdentityCoordinator
   ///
   /// This is the specification's first rule at the place it is acted on. The
   /// decision itself is `Session.needsRefreshAt`, in `identity_api`; what
-  /// belongs here is only *when to ask*. Called before an outbound request by
-  /// whatever composes the app, so that a courier on a bad connection is never
-  /// stalled by a request that fails once and is retried.
+  /// belongs here is only *when to ask*.
+  ///
+  /// Its caller is [presentable], and through it the interceptor that
+  /// authorises every outbound request — which is what makes the rule real. It
+  /// spent a phase written, tested and never invoked, and a token therefore
+  /// expired with nothing in the workspace arranged to notice.
   Future<Result<Session, IdentityFailure>> refreshIfDue() async {
     final session = _current;
     if (session == null) return const Failed(NoSession());
     if (!session.needsRefreshAt(_clock.now())) return Success(session);
     return refreshSession();
   }
+
+  @override
+  Future<Result<AccessToken, IdentityFailure>> presentable() async =>
+      (await refreshIfDue()).map((session) => session.accessToken);
+
+  @override
+  Future<Result<AccessToken, IdentityFailure>> renewed() async =>
+      // Unconditional, because the caller has already been told by the server
+      // that the current token is not accepted. Asking `needsRefreshAt` here
+      // would answer a 401 with the token that caused it whenever the clocks
+      // on the two ends disagree — which is exactly when this path runs.
+      (await refreshSession()).map((session) => session.accessToken);
 
   /// Releases the change stream. Called when the container is torn down.
   Future<void> dispose() => _sessions.close();

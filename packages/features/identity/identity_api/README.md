@@ -14,6 +14,8 @@ Three groups of types, and nothing else:
 
 Plus the two ports identity opens to *other features*: `SessionReader` and `PermissionChecker`. They are the reason `shipments` can ask who is signed in and what they may do while depending on nothing but this package, and they are deliberately narrower than `IdentityFacade` — a feature that needs to know the actor should not thereby gain the ability to sign them out.
 
+And one more driving port with an audience of its own: `SessionTokens`, held by whatever authorises outbound requests. It presents a token and, after the server has refused one, asks for another — and it can do nothing else. That is §2.3 rather than taste: a port is one audience's conversation with the feature, and the network layer's conversation with identity is two sentences long. Widening `IdentityFacade` instead would have handed the transport the ability to end a shift.
+
 ## The two business rules
 
 Both live on `Session`, not in a use case:

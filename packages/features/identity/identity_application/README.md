@@ -4,7 +4,7 @@ The identity use cases. Pure Dart, and blind to every adapter that answers its p
 
 ## One class, and why
 
-`IdentityCoordinator` implements three ports at once — `IdentityFacade`, `SessionReader` and `PermissionChecker` — because all three are views of the same fact. The facade is what a screen calls to *change* the session; the other two are what other features ask *about* it.
+`IdentityCoordinator` implements four ports at once — `IdentityFacade`, `SessionReader`, `PermissionChecker` and `SessionTokens` — because all four are views of the same fact. The facade is what a screen calls to *change* the session; the next two are what other features ask *about* it; the last is what the outbound transport presents. Four objects would mean four answers to "which session is in force", and the first time they disagreed the request going out would be authorised as somebody the screens no longer show.
 
 Splitting them across three objects would mean three copies of "the session right now", and the first time they disagreed a dispatcher would see a button their permissions no longer allow.
 
