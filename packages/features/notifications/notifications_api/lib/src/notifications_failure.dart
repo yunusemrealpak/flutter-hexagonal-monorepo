@@ -5,7 +5,7 @@ import 'package:core_kernel/core_kernel.dart';
 /// Sealed, so a caller that handles the cases exhaustively keeps compiling
 /// only for as long as it still handles all of them.
 ///
-/// Four of the cases below describe *alerts* — whether this device can be
+/// Five of the cases below describe *alerts* — whether this device can be
 /// reached at all — and two describe the *inbox*. They are one hierarchy
 /// because a caller usually holds both ports and wants one `switch`, and they
 /// stay distinguishable because each case says which side it came from.
@@ -98,4 +98,23 @@ final class MalformedNotification extends NotificationsFailure {
 
   @override
   String toString() => 'MalformedNotification($field: $reason)';
+}
+
+/// Whether this device is open to alerts could not be read.
+///
+/// Its own case rather than [InboxUnavailable], because the two sit behind
+/// different stores and lead to different screens: an unreadable inbox draws a
+/// retry over a list, and an unreadable alert state leaves a switch with
+/// nothing honest to draw. A caller that collapsed them would offer to reload
+/// an inbox nobody asked about.
+final class AlertStateUnavailable extends NotificationsFailure {
+  /// Records that the alert registry did not answer, with an optional [detail]
+  /// for the log.
+  const AlertStateUnavailable({this.detail});
+
+  /// Adapter-supplied context. Never rendered to a user.
+  final String? detail;
+
+  @override
+  String toString() => 'AlertStateUnavailable(${detail ?? 'no detail'})';
 }

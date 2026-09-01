@@ -22,10 +22,12 @@ library;
 
 export 'src/close_alerts.dart';
 export 'src/inbox_entry_dto.dart';
+export 'src/key_value_alert_registry.dart';
 export 'src/key_value_inbox_store.dart';
 export 'src/mark_alert_read.dart';
 export 'src/notifications_coordinator.dart';
 export 'src/open_alerts.dart';
 export 'src/push_alert_channel.dart';
+export 'src/read_alert_state.dart';
 export 'src/read_inbox.dart';
 export 'src/record_arriving_alert.dart';

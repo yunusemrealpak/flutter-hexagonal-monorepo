@@ -145,12 +145,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i490.ShipmentGateway>(
       () => dispatcherFeatures.shipmentGateway(gh<_i297.RestShipmentGateway>()),
     );
-    gh.lazySingleton<_i286.OpenAlerts>(
-      () => dispatcherLightFeatures.openAlerts(gh<_i60.AlertChannel>()),
-    );
-    gh.lazySingleton<_i286.CloseAlerts>(
-      () => dispatcherLightFeatures.closeAlerts(gh<_i60.AlertChannel>()),
-    );
     gh.lazySingleton<_i398.KeyValueStore>(
       () => dispatcherPorts.keyValues(
         gh<_i143.PeykDatabase>(),
@@ -209,6 +203,9 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i60.InboxStore>(
       () => dispatcherLightFeatures.inbox(gh<_i398.KeyValueStore>()),
+    );
+    gh.lazySingleton<_i60.AlertRegistry>(
+      () => dispatcherLightFeatures.alertRegistry(gh<_i398.KeyValueStore>()),
     );
     gh.lazySingleton<_i499.IncidentLog>(
       () => dispatcherLightFeatures.incidentLog(gh<_i398.KeyValueStore>()),
@@ -365,6 +362,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i398.Logger>(),
       ),
     );
+    gh.lazySingleton<_i286.ReadAlertState>(
+      () => dispatcherLightFeatures.readAlertState(
+        gh<_i60.AlertRegistry>(),
+        gh<_i398.PermissionRequester>(),
+      ),
+    );
     gh.lazySingleton<_i719.ShipmentFailureWatcher>(
       () => dispatcherLightFeatures.incidentWatcher(
         gh<_i398.DomainEventBus>(),
@@ -390,6 +393,18 @@ extension GetItInjectableX on _i174.GetIt {
     );
     gh.lazySingleton<_i719.ListOpenIncidents>(
       () => dispatcherLightFeatures.listIncidents(gh<_i499.IncidentLog>()),
+    );
+    gh.lazySingleton<_i286.OpenAlerts>(
+      () => dispatcherLightFeatures.openAlerts(
+        gh<_i60.AlertChannel>(),
+        gh<_i60.AlertRegistry>(),
+      ),
+    );
+    gh.lazySingleton<_i286.CloseAlerts>(
+      () => dispatcherLightFeatures.closeAlerts(
+        gh<_i60.AlertChannel>(),
+        gh<_i60.AlertRegistry>(),
+      ),
     );
     gh.lazySingleton<_i111.SendMessage>(
       () => dispatcherLightFeatures.sendMessage(
@@ -450,17 +465,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i966.SessionTokens>(
       () => dispatcherFeatures.sessionTokens(gh<_i902.IdentityCoordinator>()),
     );
-    gh.lazySingleton<_i60.NotificationsFacade>(
-      () => dispatcherLightFeatures.notifications(
-        gh<_i286.ReadInbox>(),
-        gh<_i286.MarkAlertRead>(),
-        gh<_i286.RecordArrivingAlert>(),
-        gh<_i286.OpenAlerts>(),
-        gh<_i286.CloseAlerts>(),
-        gh<_i60.AlertChannel>(),
-        gh<_i398.Logger>(),
-      ),
-    );
     gh.lazySingleton<_i780.ApplyPreferenceChange>(
       () => dispatcherLightFeatures.applyPreference(
         gh<_i780.LoadPreferences>(),
@@ -471,6 +475,18 @@ extension GetItInjectableX on _i174.GetIt {
       () => dispatcherLightFeatures.drainMessages(
         gh<_i280.MessageStore>(),
         gh<_i111.DeliverMessage>(),
+      ),
+    );
+    gh.lazySingleton<_i60.NotificationsFacade>(
+      () => dispatcherLightFeatures.notifications(
+        gh<_i286.ReadInbox>(),
+        gh<_i286.MarkAlertRead>(),
+        gh<_i286.RecordArrivingAlert>(),
+        gh<_i286.OpenAlerts>(),
+        gh<_i286.CloseAlerts>(),
+        gh<_i286.ReadAlertState>(),
+        gh<_i60.AlertChannel>(),
+        gh<_i398.Logger>(),
       ),
     );
     gh.lazySingleton<_i718.CompleteWithProof>(

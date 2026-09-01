@@ -65,6 +65,11 @@ final class _Notifications implements NotificationsFacade {
   ) async => const Success(null);
 
   @override
+  Future<Result<AlertState, NotificationsFailure>> alertStateFor(
+    ActorId actor,
+  ) async => const Success(AlertsOpen());
+
+  @override
   Stream<int> unreadCount() => _counts.stream;
 
   /// Announces a count, as an arriving alert would.

@@ -37,6 +37,10 @@ final class InboxScreen extends StatefulWidget {
     AlertsRefused() => NotificationsStrings.failureRefused,
     AlertsBlocked() => NotificationsStrings.failureBlocked,
     AlertsUnreachable() => NotificationsStrings.failureUnreachable,
+    // The inbox screen never asks for the alert state, so this case cannot
+    // reach it — but the union is one hierarchy on purpose and a screen that
+    // opted out of a case would be a screen with a hole the day it does.
+    AlertStateUnavailable() => NotificationsStrings.failureUnavailable,
     MalformedNotification() => NotificationsStrings.failureMalformed,
   };
 
@@ -52,6 +56,7 @@ final class InboxScreen extends StatefulWidget {
     InboxUnavailable() ||
     NotificationMissing() ||
     AlertsUnreachable() ||
+    AlertStateUnavailable() ||
     MalformedNotification() => true,
   };
 }

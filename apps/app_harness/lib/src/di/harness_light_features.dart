@@ -124,14 +124,31 @@ abstract class HarnessLightFeatures {
     IdGenerator ids,
   ) => RecordArrivingAlert(inbox: inbox, clock: clock, ids: ids);
 
+  /// What this device remembers about having opened alerts.
+  ///
+  /// Firebase will not say which topics a device is subscribed to, so the one
+  /// fact a settings switch needs is one the product keeps itself.
+  @lazySingleton
+  AlertRegistry alertRegistry(KeyValueStore store) =>
+      KeyValueAlertRegistry(store: store);
+
   /// Turning alerts on.
   @lazySingleton
-  OpenAlerts openAlerts(AlertChannel channel) => OpenAlerts(channel: channel);
+  OpenAlerts openAlerts(AlertChannel channel, AlertRegistry registry) =>
+      OpenAlerts(channel: channel, registry: registry);
 
   /// Turning them off.
   @lazySingleton
-  CloseAlerts closeAlerts(AlertChannel channel) =>
-      CloseAlerts(channel: channel);
+  CloseAlerts closeAlerts(AlertChannel channel, AlertRegistry registry) =>
+      CloseAlerts(channel: channel, registry: registry);
+
+  /// Saying whether they are on, which is the permission and the record read
+  /// together.
+  @lazySingleton
+  ReadAlertState readAlertState(
+    AlertRegistry registry,
+    PermissionRequester permissions,
+  ) => ReadAlertState(registry: registry, permissions: permissions);
 
   /// The one implementation of `NotificationsFacade`.
   @lazySingleton
@@ -141,6 +158,7 @@ abstract class HarnessLightFeatures {
     RecordArrivingAlert record,
     OpenAlerts open,
     CloseAlerts close,
+    ReadAlertState state,
     AlertChannel channel,
     Logger logger,
   ) => NotificationsCoordinator(
@@ -149,6 +167,7 @@ abstract class HarnessLightFeatures {
     record: record,
     open: open,
     close: close,
+    state: state,
     channel: channel,
     logger: logger,
   );
