@@ -60,9 +60,10 @@ void main() {
       () async {
         await dao.enqueue(_entry('OBX-1'));
         final attemptedAt = DateTime.utc(2026, 1, 1, 11);
+        final nextAttemptAt = DateTime.utc(2026, 1, 1, 11, 5);
 
-        await dao.recordAttempt('OBX-1', attemptedAt);
-        await dao.recordAttempt('OBX-1', attemptedAt);
+        await dao.recordAttempt('OBX-1', attemptedAt, nextAttemptAt);
+        await dao.recordAttempt('OBX-1', attemptedAt, nextAttemptAt);
 
         final entry = (await dao.pending()).single;
         // Incremented in SQL rather than read-modify-written, so two drains of
@@ -71,6 +72,42 @@ void main() {
         expect(entry.lastAttemptAt, attemptedAt);
       },
     );
+
+    test('recording an attempt schedules the next one', () async {
+      await dao.enqueue(_entry('OBX-1'));
+      final nextAttemptAt = DateTime.utc(2026, 1, 1, 11, 5);
+
+      await dao.recordAttempt(
+        'OBX-1',
+        DateTime.utc(2026, 1, 1, 11),
+        nextAttemptAt,
+      );
+
+      // The backoff instant travels with the increment rather than in a
+      // second write. Without it this statement could not serve its only
+      // caller, which is why it had none: a drain that recorded an attempt
+      // and left next_attempt_at alone would retry the entry immediately.
+      expect((await dao.pending()).single.nextAttemptAt, nextAttemptAt);
+    });
+
+    test('recording an attempt leaves every other row alone', () async {
+      await dao.enqueue(_entry('OBX-1'));
+      await dao.enqueue(
+        _entry('OBX-2', createdAt: DateTime.utc(2026, 1, 1, 10)),
+      );
+
+      await dao.recordAttempt(
+        'OBX-1',
+        DateTime.utc(2026, 1, 1, 11),
+        DateTime.utc(2026, 1, 1, 11, 5),
+      );
+
+      final untouched = (await dao.pending()).firstWhere(
+        (entry) => entry.id == 'OBX-2',
+      );
+      expect(untouched.attemptCount, 0);
+      expect(untouched.lastAttemptAt, isNull);
+    });
 
     test('dropping an entry removes it from the queue', () async {
       await dao.enqueue(_entry('OBX-1'));

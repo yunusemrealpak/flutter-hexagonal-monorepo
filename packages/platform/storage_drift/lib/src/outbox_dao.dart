@@ -65,18 +65,37 @@ class OutboxDao extends DatabaseAccessor<PeykDatabase> with _$OutboxDaoMixin {
     )..where((row) => row.id.equals(id))).getSingleOrNull();
   }
 
-  /// Records that delivery of [id] was attempted at [attemptedAt], and
-  /// increments the attempt count.
+  /// Records that delivery of [id] was attempted at [attemptedAt], increments
+  /// the attempt count, and schedules the next try for [nextAttemptAt].
   ///
   /// Written as one statement rather than read-modify-write on purpose: two
   /// isolates draining the same outbox would otherwise both read the same
   /// count and both write the same increment, and the backoff schedule that
   /// depends on it would stall.
-  Future<void> recordAttempt(String id, DateTime attemptedAt) {
+  ///
+  /// **[nextAttemptAt] travels with the increment**, and leaving it out is why
+  /// this statement had no caller for three phases. A drain that recorded an
+  /// attempt here and wrote the backoff separately would need two statements
+  /// to express one decision — so it wrote the whole row instead, through the
+  /// upsert, which is exactly the read-modify-write this exists to prevent.
+  ///
+  /// The three columns it does not touch are the point of the statement. An
+  /// upsert writes every column from an in-memory copy read at the top of the
+  /// drain; this writes the three that a failed attempt changes and leaves the
+  /// payload, the policy and the blocked reason as the table has them.
+  Future<void> recordAttempt(
+    String id,
+    DateTime attemptedAt,
+    DateTime nextAttemptAt,
+  ) {
     return customUpdate(
       'UPDATE outbox_entries SET attempt_count = attempt_count + 1, '
-      'last_attempt_at = ? WHERE id = ?',
-      variables: [Variable.withDateTime(attemptedAt), Variable.withString(id)],
+      'last_attempt_at = ?, next_attempt_at = ? WHERE id = ?',
+      variables: [
+        Variable.withDateTime(attemptedAt),
+        Variable.withDateTime(nextAttemptAt),
+        Variable.withString(id),
+      ],
       updates: {outboxEntries},
     );
   }

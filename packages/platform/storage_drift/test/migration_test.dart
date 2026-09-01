@@ -32,6 +32,24 @@ CREATE TABLE outbox_entries (
 );
 ''';
 
+/// `outbox_entries` as schema version 4 left it: the three appended columns
+/// present, and no index but the implicit one on the primary key.
+const _schemaV4OutboxEntries = '''
+CREATE TABLE outbox_entries (
+  id TEXT NOT NULL,
+  feature TEXT NOT NULL,
+  operation TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  created_at TEXT NOT NULL,
+  attempt_count INTEGER NOT NULL DEFAULT 0,
+  last_attempt_at TEXT,
+  conflict_policy TEXT NOT NULL DEFAULT 'lastWriteWins',
+  next_attempt_at TEXT,
+  blocked_reason TEXT,
+  PRIMARY KEY (id)
+);
+''';
+
 /// `key_value_entries` as schema version 3 left it: namespaced, and with the
 /// namespace joined to the primary key.
 const _schemaV3KeyValueEntries = '''
@@ -127,7 +145,7 @@ INSERT INTO key_value_entries (key, value, updated_at) VALUES
     test('leaves the database at the current schema version', () async {
       await _open(database);
 
-      expect(raw.userVersion, 4);
+      expect(raw.userVersion, 5);
     });
   });
 
@@ -213,7 +231,7 @@ INSERT INTO outbox_entries
       expect(queued.map((row) => row.id), ['OBX-1', 'OBX-2']);
       expect(queued.first.payload, '{"amount":1200}');
       expect(queued.first.attemptCount, 3);
-      expect(raw.userVersion, 4);
+      expect(raw.userVersion, 5);
     });
 
     test('reads nothing as blocked until something is', () async {
@@ -235,6 +253,67 @@ INSERT INTO outbox_entries
     });
   });
 
+  group('the drain index', () {
+    /// Every index sqlite holds on `outbox_entries`, by name.
+    Future<List<String>> indexesOn(PeykDatabase database) async {
+      final rows = await database
+          .customSelect(
+            'SELECT name FROM sqlite_master '
+            "WHERE type = 'index' AND tbl_name = 'outbox_entries'",
+          )
+          .get();
+      return rows.map((row) => row.read<String>('name')).toList();
+    }
+
+    test('exists on a database that upgraded into it', () async {
+      final raw = _databaseAtVersion(
+        4,
+        ddl: [_schemaV3KeyValueEntries, _schemaV4OutboxEntries],
+      );
+      final database = PeykDatabase(NativeDatabase.opened(raw));
+      addTearDown(database.close);
+
+      await _open(database);
+
+      expect(await indexesOn(database), contains('outbox_drain'));
+    });
+
+    test('exists on a fresh database too', () async {
+      final database = PeykDatabase(NativeDatabase.memory());
+      addTearDown(database.close);
+
+      await _open(database);
+
+      // createAll and the upgrade step have to agree. An index added only in
+      // the migration is one a new install never gets, and the first machine
+      // to notice is a production device nobody can attach a profiler to.
+      expect(await indexesOn(database), contains('outbox_drain'));
+    });
+
+    test('is the one the drain query can use', () async {
+      final database = PeykDatabase(NativeDatabase.memory());
+      addTearDown(database.close);
+      await _open(database);
+
+      final plan = await database
+          .customSelect(
+            'EXPLAIN QUERY PLAN SELECT * FROM outbox_entries '
+            'WHERE blocked_reason IS NULL '
+            'ORDER BY created_at ASC, id ASC LIMIT 50',
+          )
+          .get();
+      final detail = plan.map((row) => row.read<String>('detail')).join(' ');
+
+      // The assertion is on the plan rather than on a timing, because a
+      // timing on five rows proves nothing and a timing on a hundred thousand
+      // is a test nobody will wait for. What matters is that sqlite stopped
+      // choosing a scan and a sort.
+      expect(detail, contains('outbox_drain'));
+      expect(detail, isNot(contains('SCAN outbox_entries')));
+      expect(detail, isNot(contains('USE TEMP B-TREE FOR ORDER BY')));
+    });
+  });
+
   group('creating a fresh database', () {
     test('starts at the current schema version with both tables', () async {
       final database = PeykDatabase(NativeDatabase.memory());
@@ -242,7 +321,7 @@ INSERT INTO outbox_entries
 
       await _open(database);
 
-      expect(database.schemaVersion, 4);
+      expect(database.schemaVersion, 5);
       expect(await KeyValueDao(database).keysIn('default'), isEmpty);
       expect(await OutboxDao(database).pending(), isEmpty);
     });

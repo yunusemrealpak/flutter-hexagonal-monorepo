@@ -848,6 +848,10 @@ abstract class _$PeykDatabase extends GeneratedDatabase {
     this,
   );
   late final $OutboxEntriesTable outboxEntries = $OutboxEntriesTable(this);
+  late final Index outboxDrain = Index(
+    'outbox_drain',
+    'CREATE INDEX outbox_drain ON outbox_entries (blocked_reason, created_at, id)',
+  );
   late final KeyValueDao keyValueDao = KeyValueDao(this as PeykDatabase);
   late final OutboxDao outboxDao = OutboxDao(this as PeykDatabase);
   @override
@@ -857,6 +861,7 @@ abstract class _$PeykDatabase extends GeneratedDatabase {
   List<DatabaseSchemaEntity> get allSchemaEntities => [
     keyValueEntries,
     outboxEntries,
+    outboxDrain,
   ];
   @override
   DriftDatabaseOptions get options =>
