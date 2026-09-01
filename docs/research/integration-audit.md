@@ -90,7 +90,12 @@ workspace is on 11, where AES-GCM under a KeyStore-wrapped key is the default
 and the legacy mode is gone. The Android gap is `resetOnError`, and it is
 smaller than the claim was.
 
-## 3. Not fixed, and why — push is inert end to end
+## 3. Deferred, then closed — push was inert end to end
+
+**Resolved on 2026-09-01.** The design is
+[`docs/superpowers/specs/2026-09-01-alerts-opt-in-design.md`](../superpowers/specs/2026-09-01-alerts-opt-in-design.md);
+what follows is the state that prompted it, kept because the reasoning for
+*not* fixing it in this pass is the more useful half.
 
 The audit's fourth headline was "token rotation has no subscriber". That is
 true and it is not the problem. `PushAlertChannel` routes by **topic**, not by
@@ -117,6 +122,29 @@ this document is about: a wire whose counterpart does not exist.
 
 The decision needed is a product one: a notifications toggle in
 `settings_presentation`, or a priming step in the sign-in flow.
+
+### What the fix turned out to need
+
+The toggle won, and building it found the thing this audit could not see from
+the adapter side: **a switch needs a current value, and nothing in the workspace
+could produce one.** `AlertChannel` could open alerts and close them and had no
+way to report on them, and Firebase Messaging exposes no call that lists a
+device's topic subscriptions. So the fix was not a screen over two existing
+calls; it was a third fact the product had to start keeping — `AlertRegistry` —
+reconciled on every read against a permission the operating system can revoke
+without telling anybody.
+
+That is worth adding to this document's own thesis. "The adapter exposes a
+capability and nothing above it uses the capability" was accurate here and
+incomplete: the two calls had no caller *and* the contract was missing the
+third method a caller would have needed. A capability gap can hide a contract
+gap, and the way to tell is to try to write the caller.
+
+Two rows of §5's table went with it. `PermissionRequester.openSettings()` now
+exists, because `AlertsBlocked` is a case distinct from `AlertsRefused`
+precisely so that one of them can send somebody to the system settings — and
+nothing could. Wiring it into the camera and location blocked paths is still
+open.
 
 ## 4. Not fixed, and why — the background message handler
 
@@ -147,7 +175,7 @@ Unfixed, with the evidence, ordered by what they cost.
 | `image_picker.getLostData()` unused | `image_picker_media_capture.dart` | Android can kill the app during capture; the photo is then recoverable only through it, and photos are this product's payload |
 | Android background location has no foreground service | `geolocator_location_source.dart:77` passes a plain `LocationSettings` | `track(inBackground: true)` is in the contract; Android kills the stream within minutes |
 | `Position.isMocked` is dropped | `GeoFix` does not carry it | mock location is the fraud vector for a delivery proof |
-| `openAppSettings()` unused | `device_permissions` | `…PermissionBlocked` is produced in three packages and no caller can act on it |
+| ~~`openAppSettings()` unused~~ — port added 2026-09-01, wired into alerts only | `device_permissions` | `…PermissionBlocked` is produced in three packages; the alerts screen can now act on its one, camera and location still cannot |
 | No `dispose:` on any registration | ~8 classes have `dispose()` | `IdentityCoordinator`'s stream controller and `ConnectivityMonitor`'s subscription outlive `container.reset()` |
 | No go_router `errorBuilder`/`onException` | all three routers | entry is a URL from a push payload; an unmatched one shows the framework's error page |
 | No router `observers` | all three routers | `AnalyticsSink.track` exists and nothing reports a screen view |

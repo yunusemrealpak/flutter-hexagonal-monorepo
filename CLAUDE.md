@@ -378,10 +378,12 @@ Read this list first; the sections after it are the log of what is already close
 
 | | Next | Why this one, and why now |
 |---|---|---|
-| **A** | **A screen that turns alerts on** (backlog item 8) | `NotificationsFacade.openAlertsFor` and `closeAlertsFor` have no callers, so push is inert end to end and PR #19's deep-link entry can only be reached by a notification the device was never registered to receive. **Needs a product decision before code**: a notifications toggle in `settings_presentation`, or a priming step in the sign-in flow. The port forbids subscribing without an explanation first, so this is a screen and not a wire. |
-| **B** | **The `sync` drain's three storage defects** (backlog item 9) | One pull request, one code path. `OutboxDao.recordAttempt` has no caller while `DrainOutbox` does the read-modify-write it exists to prevent; `drop` then `saveCursor` are two writes with no transaction; `outbox_entries` has no index for the query every drain runs. |
-| **C** | **`image_picker.getLostData()`** (backlog item 9) | Android kills the app during capture and the photo is then recoverable only through it. This product's payload is proof-of-delivery photographs. |
-| **D** | **Pagination on a port** (backlog item 3) | Unchanged, and still the one decision that cannot be walked back later without touching the gateway, the use case, the controller and the screen at once. |
+| **A** | **The `sync` drain's three storage defects** (backlog item 9) | One pull request, one code path. `OutboxDao.recordAttempt` has no caller while `DrainOutbox` does the read-modify-write it exists to prevent; `drop` then `saveCursor` are two writes with no transaction; `outbox_entries` has no index for the query every drain runs. |
+| **B** | **`image_picker.getLostData()`** (backlog item 9) | Android kills the app during capture and the photo is then recoverable only through it. This product's payload is proof-of-delivery photographs. |
+| **C** | **Pagination on a port** (backlog item 3) | Unchanged, and still the one decision that cannot be walked back later without touching the gateway, the use case, the controller and the screen at once. |
+| **D** | **`openSettings()` for the camera and location blocked paths** | The port now exists and one of its three call sites is wired. `media_capture` and `location_service` still produce a `…PermissionBlocked` no screen can act on. Small, and it finishes something rather than starting it. |
+
+Turning alerts on — the item that stood at **A** through the last three sessions — is done. It is the entry immediately below.
 
 After those, the list below in its own order. Two items in it are stated rather than fixed on purpose — `onBackgroundMessage` and the native build gap — and both close with the same step: `flutter create --platforms=android,ios .` inside an app.
 
@@ -390,6 +392,52 @@ After those, the list below in its own order. Two items in it are stated rather 
 #### The log — what has already been closed
 
 Chronological, newest last. Each entry records the things worth not rediscovering.
+
+#### Alerts can be turned on — done, and it was not a wiring fix
+
+The design is
+[`docs/superpowers/specs/2026-09-01-alerts-opt-in-design.md`](docs/superpowers/specs/2026-09-01-alerts-opt-in-design.md);
+[`docs/research/integration-audit.md`](docs/research/integration-audit.md) §3 is
+resolved; the rule it sharpened is
+[`DEPENDENCY_RULES.md` §2.4](docs/DEPENDENCY_RULES.md)'s capability row, with the
+narrative in `docs/ARCHITECTURE.md` §5.6.
+
+The product decision was a section on the settings screen rather than a
+dedicated screen or a sign-in priming step. Priming was never in question —
+both platforms say explain-then-request and iOS spends its prompt once — but a
+sign-in step offers no way back to somebody who declined, and this is a decision
+people change.
+
+Four things worth not rediscovering.
+
+- **The handoff called it "a screen, not a wire" and it was neither.** A switch
+  needs a current value and nothing could produce one: `AlertChannel` opened and
+  closed alerts and could not report on them, and Firebase exposes no call that
+  lists a device's topic subscriptions. The fix is a third fact the product now
+  keeps — `AlertRegistry` — reconciled on every read against a permission the
+  operating system can revoke silently. **A capability gap can hide a contract
+  gap, and the way to tell is to try to write the caller.**
+- **The two kinds of permission are not the same edge.** `PermissionChecker`
+  (what the operation allows) is a feature's port and reaches a screen through a
+  foreign `_api`. `PermissionRequester` (what the device allows) lives in
+  `core_ports`, which §1.1 does *not* give a presentation package — so opening
+  the system settings page arrives as a `Future<bool> Function()` the app
+  supplies, beside `onSignOut`. A decision the product owns is a port; a
+  mechanism the platform owns is a callback.
+- **`AlertState` has three cases where its inputs have eight.** A screen decides
+  whether to draw a switch and which way it points, so carrying `notDetermined`
+  apart from `denied` would sell a distinction no caller can act on.
+  `PermissionRequester` keeps it, because *asking* depends on it.
+- **Sign-out closes alerts without being allowed to fail.** A device that could
+  not unsubscribe still has a person who asked to be signed out; refusing would
+  trap somebody on a handset because the network was down. The registry keeps
+  the record, so the next read still knows. The test was re-run with the fix
+  removed and failed.
+
+Open, and deliberately so: `app_dispatcher` draws no section (`DeskAlertChannel`
+refuses every open, so the switch would be a control that cannot work) and still
+answers the strings, because the catalogue test is a floor on what an app *can*
+answer rather than a claim about what it shows.
 
 #### 0. `core_navigation`'s `Navigation` port — deleted, done
 
@@ -501,9 +549,9 @@ Items 1 and 2 of this list are done, above. The rest stand as written; each entr
 
 **7. One app, one entry point.** `apps/app_courier/lib/` holds `main.dart` and nothing else, while rule S1 permits several precisely so that `main_staging.dart` can exist, and `codemagic.yaml` expects `config/<flavour>.json`. Flavours are also the missing half of the native-build gap below.
 
-**8. Push is inert end to end.** `NotificationsFacade.openAlertsFor` and `closeAlertsFor` have no callers anywhere, so nothing subscribes a courier to their alert topic and `PushAlertChannel.openFor` — the only code that requests the notification permission — never runs. The deep-link entry merged in PR #19 can only be reached by a notification the device was never registered to receive. **The missing piece is a screen, not a wire**: the port's own doc says *"called from a screen that has already explained why, never on first launch"*, and the app's pattern for every other permission is request-on-use. Alerts have no moment of use, which is exactly why they need one. A notifications toggle in `settings_presentation`, or a priming step in sign-in — a product decision, not a wiring fix.
+**8. Push is inert end to end.** — **closed 2026-09-01**, see the log entry above. What follows is the state that prompted it. `NotificationsFacade.openAlertsFor` and `closeAlertsFor` have no callers anywhere, so nothing subscribes a courier to their alert topic and `PushAlertChannel.openFor` — the only code that requests the notification permission — never runs. The deep-link entry merged in PR #19 can only be reached by a notification the device was never registered to receive. **The missing piece is a screen, not a wire**: the port's own doc says *"called from a screen that has already explained why, never on first launch"*, and the app's pattern for every other permission is request-on-use. Alerts have no moment of use, which is exactly why they need one. A notifications toggle in `settings_presentation`, or a priming step in sign-in — a product decision, not a wiring fix.
 
-**9. The rest of the integration audit.** `OutboxDao.recordAttempt` has no caller while `DrainOutbox` does the read-modify-write it exists to prevent; no `transaction()` anywhere; no index on `outbox_entries`; `image_picker.getLostData()` unused on the platform that loses photos; Android background location with no foreground-service config; `Position.isMocked` dropped; `openAppSettings()` never called though three packages produce a `…PermissionBlocked`; no `dispose:` on any DI registration; no go_router `errorBuilder` or `observers`; drift `.watch()` unused; `checked: true` off in every `build.yaml`. Each is one row of the table in the audit note, with its evidence.
+**9. The rest of the integration audit.** `OutboxDao.recordAttempt` has no caller while `DrainOutbox` does the read-modify-write it exists to prevent; no `transaction()` anywhere; no index on `outbox_entries`; `image_picker.getLostData()` unused on the platform that loses photos; Android background location with no foreground-service config; `Position.isMocked` dropped; no `dispose:` on any DI registration; no go_router `errorBuilder` or `observers`; drift `.watch()` unused; `checked: true` off in every `build.yaml`. Each is one row of the table in the audit note, with its evidence. `openAppSettings()` has come off this list halfway: the port exists and the alerts screen uses it, and `media_capture` and `location_service` still produce a `…PermissionBlocked` nothing can act on.
 
 **10. `onBackgroundMessage` is never set**, and it is in the same category as `codemagic.yaml`: real, and unrunnable here. It needs `apps/*/android`, Firebase initialisation and a native invoker this repository does not build, so a handler written now could not be exercised even by a test.
 

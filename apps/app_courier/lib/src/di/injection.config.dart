@@ -188,6 +188,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i60.InboxStore>(
       () => courierLightFeatures.inbox(gh<_i398.KeyValueStore>()),
     );
+    gh.lazySingleton<_i60.AlertRegistry>(
+      () => courierLightFeatures.alertRegistry(gh<_i398.KeyValueStore>()),
+    );
     gh.lazySingleton<_i499.IncidentLog>(
       () => courierLightFeatures.incidentLog(gh<_i398.KeyValueStore>()),
     );
@@ -396,6 +399,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i398.Logger>(),
       ),
     );
+    gh.lazySingleton<_i286.ReadAlertState>(
+      () => courierLightFeatures.readAlertState(
+        gh<_i60.AlertRegistry>(),
+        gh<_i398.PermissionRequester>(),
+      ),
+    );
     gh.lazySingleton<_i719.ShipmentFailureWatcher>(
       () => courierLightFeatures.incidentWatcher(
         gh<_i398.DomainEventBus>(),
@@ -494,12 +503,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i952.FindShipment>(),
       ),
     );
-    gh.lazySingleton<_i286.OpenAlerts>(
-      () => courierLightFeatures.openAlerts(gh<_i60.AlertChannel>()),
-    );
-    gh.lazySingleton<_i286.CloseAlerts>(
-      () => courierLightFeatures.closeAlerts(gh<_i60.AlertChannel>()),
-    );
     gh.lazySingleton<_i717.RecalculateOnDeviation>(
       () => courierFeatures.recalculate(
         gh<_i178.RouteCache>(),
@@ -527,17 +530,6 @@ extension GetItInjectableX on _i174.GetIt {
       () => _i811.CourierWatchers(
         reconciler: gh<_i901.CollectionReconciler>(),
         incidents: gh<_i719.ShipmentFailureWatcher>(),
-      ),
-    );
-    gh.lazySingleton<_i60.NotificationsFacade>(
-      () => courierLightFeatures.notifications(
-        gh<_i286.ReadInbox>(),
-        gh<_i286.MarkAlertRead>(),
-        gh<_i286.RecordArrivingAlert>(),
-        gh<_i286.OpenAlerts>(),
-        gh<_i286.CloseAlerts>(),
-        gh<_i60.AlertChannel>(),
-        gh<_i398.Logger>(),
       ),
     );
     gh.lazySingleton<_i780.ApplyPreferenceChange>(
@@ -590,6 +582,18 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i901.PaymentStatusOf>(),
       ),
     );
+    gh.lazySingleton<_i286.OpenAlerts>(
+      () => courierLightFeatures.openAlerts(
+        gh<_i60.AlertChannel>(),
+        gh<_i60.AlertRegistry>(),
+      ),
+    );
+    gh.lazySingleton<_i286.CloseAlerts>(
+      () => courierLightFeatures.closeAlerts(
+        gh<_i60.AlertChannel>(),
+        gh<_i60.AlertRegistry>(),
+      ),
+    );
     gh.lazySingleton<_i280.MessagingFacade>(
       () => courierLightFeatures.messaging(
         gh<_i111.ReadThread>(),
@@ -609,6 +613,18 @@ extension GetItInjectableX on _i174.GetIt {
       () => courierLightFeatures.settings(
         gh<_i780.LoadPreferences>(),
         gh<_i780.ApplyPreferenceChange>(),
+      ),
+    );
+    gh.lazySingleton<_i60.NotificationsFacade>(
+      () => courierLightFeatures.notifications(
+        gh<_i286.ReadInbox>(),
+        gh<_i286.MarkAlertRead>(),
+        gh<_i286.RecordArrivingAlert>(),
+        gh<_i286.OpenAlerts>(),
+        gh<_i286.CloseAlerts>(),
+        gh<_i286.ReadAlertState>(),
+        gh<_i60.AlertChannel>(),
+        gh<_i398.Logger>(),
       ),
     );
     gh.lazySingleton<_i243.PaymentsFacade>(

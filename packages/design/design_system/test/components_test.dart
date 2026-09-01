@@ -159,6 +159,84 @@ void main() {
     });
   });
 
+  group('PeykSwitchRow', () {
+    // A toggle and a choice are different promises to somebody who cannot see
+    // the screen. `PeykOptionRow` announces itself as one of several mutually
+    // exclusive options; this announces a thing that is on or off.
+    testWidgets('announces itself as toggled, not as selected', (tester) async {
+      await tester.pumpWidget(
+        PeykTheme.wrap(
+          child: PeykSwitchRow(
+            label: 'settings.alerts.toggle',
+            value: true,
+            onChanged: (_) {},
+          ),
+        ),
+      );
+
+      expect(
+        tester.getSemantics(find.byType(PeykSwitchRow)),
+        isSemantics(isToggled: true, hasToggledState: true),
+      );
+    });
+
+    testWidgets('reports the change that was asked for', (tester) async {
+      bool? asked;
+      await tester.pumpWidget(
+        PeykTheme.wrap(
+          child: PeykSwitchRow(
+            label: 'settings.alerts.toggle',
+            value: false,
+            onChanged: (value) => asked = value,
+          ),
+        ),
+      );
+
+      await tester.tap(find.byType(Switch));
+
+      expect(asked, isTrue);
+    });
+
+    // A screen passes null while a write is in flight rather than hiding the
+    // row, for the reason `_Choices` gives: a row that vanished on every tap
+    // would flicker, and somebody would tap it twice.
+    testWidgets('a row with nothing to do reports itself disabled', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        PeykTheme.wrap(
+          child: const PeykSwitchRow(
+            label: 'settings.alerts.toggle',
+            value: false,
+          ),
+        ),
+      );
+
+      expect(
+        tester.getSemantics(find.byType(PeykSwitchRow)),
+        isSemantics(isEnabled: false),
+      );
+    });
+
+    testWidgets('draws the explanation when there is one', (tester) async {
+      await tester.pumpWidget(
+        PeykTheme.wrap(
+          child: PeykSwitchRow(
+            label: 'settings.alerts.toggle',
+            description: 'Assignments and route changes reach this phone.',
+            value: false,
+            onChanged: (_) {},
+          ),
+        ),
+      );
+
+      expect(
+        find.text('Assignments and route changes reach this phone.'),
+        findsOneWidget,
+      );
+    });
+  });
+
   group('PeykFailureView', () {
     testWidgets('offers no retry when trying again is not the answer', (
       tester,

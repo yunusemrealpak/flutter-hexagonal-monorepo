@@ -1,6 +1,7 @@
 import 'package:core_kernel/core_kernel.dart';
 import 'package:identity_api/identity_api.dart';
 
+import 'alert_state.dart';
 import 'inbox_entry.dart';
 import 'notification_id.dart';
 import 'notifications_failure.dart';
@@ -39,6 +40,17 @@ abstract interface class NotificationsFacade {
 
   /// Stops alerts for [actor] reaching this device. Called on sign-out.
   Future<Result<void, NotificationsFailure>> closeAlertsFor(ActorId actor);
+
+  /// Whether alerts for [actor] currently reach this device.
+  ///
+  /// Read before drawing any control that offers to change it, and read again
+  /// after coming back from the system settings page — the operating system
+  /// can revoke the permission at any time and tells the application nothing.
+  ///
+  /// A `Result` because the answer is partly a stored fact and a store can
+  /// fail. Guessing on a failed read would draw a switch in a position nothing
+  /// stands behind.
+  Future<Result<AlertState, NotificationsFailure>> alertStateFor(ActorId actor);
 
   /// How many alerts are waiting to be seen, as it changes.
   ///

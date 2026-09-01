@@ -22,6 +22,12 @@ dependencies:
   # For ActorId. The screen is always somebody's settings, and the identity is
   # handed to it by whichever app composed it.
   identity_api: ^0.1.0
+  # The second foreign _api, and the operation behind the alerts switch. The
+  # section is on this screen so it belongs to this package; turning alerts on
+  # is notifications' operation so it arrives through its driving port. A
+  # presentation package may not depend on another presentation package, so
+  # drawing it from notifications_presentation was never an option.
+  notifications_api: ^0.1.0
   settings_api: ^0.1.0
 
 dev_dependencies:

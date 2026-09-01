@@ -362,6 +362,35 @@ class PeykCourierLocalizationsTr extends PeykCourierLocalizations {
   String get settingsSyncSection => 'Ne zaman gönderilsin';
 
   @override
+  String get settingsAlertsSection => 'Bildirimler';
+
+  @override
+  String get settingsAlertsExplanation =>
+      'Yeni görev, rota değişikliği ve merkezden gelen mesajlar anında telefonuna düşsün.';
+
+  @override
+  String get settingsAlertsToggle => 'Bu telefonda bildirim';
+
+  @override
+  String get settingsAlertsBlocked =>
+      'Bildirimler telefonun kendi ayarlarından kapatılmış, uygulama içeriden isteyemiyor.';
+
+  @override
+  String get settingsAlertsOpenSettings => 'Telefon ayarlarını aç';
+
+  @override
+  String get settingsAlertsFailureRefused =>
+      'Bildirimler kapalı kaldı. İstediğin zaman açabilirsin.';
+
+  @override
+  String get settingsAlertsFailureUnreachable =>
+      'Bu telefon bildirimlere kaydedilemedi. Birazdan tekrar dene.';
+
+  @override
+  String get settingsAlertsFailureUnavailable =>
+      'Bildirimlerin açık olup olmadığı okunamadı.';
+
+  @override
   String get settingsSignOut => 'Çıkış yap';
 
   @override

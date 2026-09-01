@@ -16,6 +16,15 @@ final class FakePermissionRequester implements PermissionRequester {
   final Map<DevicePermission, PermissionState> _states;
   final List<DevicePermission> _requested = [];
 
+  /// How many times the app sent somebody to the system settings.
+  ///
+  /// A count rather than a flag: a screen that opened the settings page twice
+  /// for one tap is a defect, and a boolean could not tell it from working.
+  int openedSettings = 0;
+
+  /// What [openSettings] answers. Assign to script a page that will not open.
+  bool settingsOpen = true;
+
   /// Every permission that was prompted for, in order.
   ///
   /// The assertion for "we do not ask for background location until the
@@ -43,5 +52,11 @@ final class FakePermissionRequester implements PermissionRequester {
     return current == PermissionState.notDetermined
         ? PermissionState.granted
         : current;
+  }
+
+  @override
+  Future<bool> openSettings() async {
+    openedSettings++;
+    return settingsOpen;
   }
 }

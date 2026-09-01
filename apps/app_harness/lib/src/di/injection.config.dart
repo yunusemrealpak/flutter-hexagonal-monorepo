@@ -207,6 +207,9 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i60.InboxStore>(
       () => harnessLightFeatures.inbox(gh<_i398.KeyValueStore>()),
     );
+    gh.lazySingleton<_i60.AlertRegistry>(
+      () => harnessLightFeatures.alertRegistry(gh<_i398.KeyValueStore>()),
+    );
     gh.lazySingleton<_i499.IncidentLog>(
       () => harnessLightFeatures.incidentLog(gh<_i398.KeyValueStore>()),
     );
@@ -392,6 +395,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i398.Logger>(),
       ),
     );
+    gh.lazySingleton<_i286.ReadAlertState>(
+      () => harnessLightFeatures.readAlertState(
+        gh<_i60.AlertRegistry>(),
+        gh<_i398.PermissionRequester>(),
+      ),
+    );
     gh.lazySingleton<_i719.ShipmentFailureWatcher>(
       () => harnessLightFeatures.incidentWatcher(
         gh<_i398.DomainEventBus>(),
@@ -464,12 +473,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i398.Logger>(),
       ),
     );
-    gh.lazySingleton<_i286.OpenAlerts>(
-      () => harnessLightFeatures.openAlerts(gh<_i60.AlertChannel>()),
-    );
-    gh.lazySingleton<_i286.CloseAlerts>(
-      () => harnessLightFeatures.closeAlerts(gh<_i60.AlertChannel>()),
-    );
     gh.lazySingleton<_i717.RecalculateOnDeviation>(
       () => harnessRouting.recalculate(
         gh<_i178.RouteCache>(),
@@ -498,17 +501,6 @@ extension GetItInjectableX on _i174.GetIt {
       () => harnessLightFeatures.manifests(
         gh<_i257.HttpManifestSource>(),
         gh<_i398.KeyValueStore>(),
-      ),
-    );
-    gh.lazySingleton<_i60.NotificationsFacade>(
-      () => harnessLightFeatures.notifications(
-        gh<_i286.ReadInbox>(),
-        gh<_i286.MarkAlertRead>(),
-        gh<_i286.RecordArrivingAlert>(),
-        gh<_i286.OpenAlerts>(),
-        gh<_i286.CloseAlerts>(),
-        gh<_i60.AlertChannel>(),
-        gh<_i398.Logger>(),
       ),
     );
     gh.lazySingleton<_i780.ApplyPreferenceChange>(
@@ -576,6 +568,18 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i257.FindOpenCount>(),
       ),
     );
+    gh.lazySingleton<_i286.OpenAlerts>(
+      () => harnessLightFeatures.openAlerts(
+        gh<_i60.AlertChannel>(),
+        gh<_i60.AlertRegistry>(),
+      ),
+    );
+    gh.lazySingleton<_i286.CloseAlerts>(
+      () => harnessLightFeatures.closeAlerts(
+        gh<_i60.AlertChannel>(),
+        gh<_i60.AlertRegistry>(),
+      ),
+    );
     gh.lazySingleton<_i901.CollectOnDelivery>(
       () => harnessPayments.collect(
         gh<_i243.PaymentsGateway>(),
@@ -606,6 +610,18 @@ extension GetItInjectableX on _i174.GetIt {
       () => harnessLightFeatures.settings(
         gh<_i780.LoadPreferences>(),
         gh<_i780.ApplyPreferenceChange>(),
+      ),
+    );
+    gh.lazySingleton<_i60.NotificationsFacade>(
+      () => harnessLightFeatures.notifications(
+        gh<_i286.ReadInbox>(),
+        gh<_i286.MarkAlertRead>(),
+        gh<_i286.RecordArrivingAlert>(),
+        gh<_i286.OpenAlerts>(),
+        gh<_i286.CloseAlerts>(),
+        gh<_i286.ReadAlertState>(),
+        gh<_i60.AlertChannel>(),
+        gh<_i398.Logger>(),
       ),
     );
     gh.lazySingleton<_i718.CompleteWithProof>(

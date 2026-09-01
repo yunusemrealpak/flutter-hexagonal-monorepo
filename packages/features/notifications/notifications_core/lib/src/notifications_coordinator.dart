@@ -8,6 +8,7 @@ import 'package:notifications_api/notifications_api.dart';
 import 'close_alerts.dart';
 import 'mark_alert_read.dart';
 import 'open_alerts.dart';
+import 'read_alert_state.dart';
 import 'read_inbox.dart';
 import 'record_arriving_alert.dart';
 
@@ -35,6 +36,7 @@ final class NotificationsCoordinator implements NotificationsFacade {
     required this._record,
     required this._open,
     required this._close,
+    required this._state,
     required this._channel,
     required this._logger,
   });
@@ -44,6 +46,7 @@ final class NotificationsCoordinator implements NotificationsFacade {
   final RecordArrivingAlert _record;
   final OpenAlerts _open;
   final CloseAlerts _close;
+  final ReadAlertState _state;
   final AlertChannel _channel;
   final Logger _logger;
 
@@ -94,6 +97,11 @@ final class NotificationsCoordinator implements NotificationsFacade {
     _relay = null;
     return _close(actor.value);
   }
+
+  @override
+  Future<Result<AlertState, NotificationsFailure>> alertStateFor(
+    ActorId actor,
+  ) => _state(actor.value);
 
   @override
   Stream<int> unreadCount() => _unread.stream;

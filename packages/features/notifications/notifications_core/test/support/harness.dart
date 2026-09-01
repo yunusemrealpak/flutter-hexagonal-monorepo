@@ -21,13 +21,15 @@ final class NotificationsHarness {
   NotificationsHarness() {
     final inbox = KeyValueInboxStore(store: keyValue);
     channel = PushAlertChannel(client: push);
+    registry = KeyValueAlertRegistry(store: keyValue);
     final read = ReadInbox(inbox: inbox);
     facade = NotificationsCoordinator(
       read: read,
       mark: MarkAlertRead(inbox: inbox, clock: clock),
       record: RecordArrivingAlert(inbox: inbox, clock: clock, ids: ids),
-      open: OpenAlerts(channel: channel),
-      close: CloseAlerts(channel: channel),
+      open: OpenAlerts(channel: channel, registry: registry),
+      close: CloseAlerts(channel: channel, registry: registry),
+      state: ReadAlertState(registry: registry, permissions: permissions),
       channel: channel,
       logger: logger,
     );
@@ -48,15 +50,25 @@ final class NotificationsHarness {
   /// Where a swallowed failure is looked for.
   final RecordingLogger logger = RecordingLogger();
 
+  /// The operating system's answer about notifications, under the test's
+  /// control. Starts at `notDetermined`, which is where every device starts.
+  final FakePermissionRequester permissions = FakePermissionRequester();
+
   /// The adapter over the push provider.
   late final PushAlertChannel channel;
+
+  /// What this device remembers about having opened alerts.
+  late final KeyValueAlertRegistry registry;
 
   /// The facade under test.
   late final NotificationsCoordinator facade;
 
   /// The actor every test acts as.
-  static final ActorId courier =
-      (ActorId.parse('courier-7') as Success<ActorId, IdentityFailure>).value;
+  static final ActorId courier = actor('courier-7');
+
+  /// Parses [id] into an actor, for the tests that need a second one.
+  static ActorId actor(String id) =>
+      (ActorId.parse(id) as Success<ActorId, IdentityFailure>).value;
 
   /// Delivers a push, as the provider would.
   void deliver({

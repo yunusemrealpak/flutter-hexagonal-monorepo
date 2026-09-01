@@ -381,6 +381,35 @@ class PeykCourierLocalizationsEn extends PeykCourierLocalizations {
   String get settingsSyncSection => 'When to send';
 
   @override
+  String get settingsAlertsSection => 'Alerts';
+
+  @override
+  String get settingsAlertsExplanation =>
+      'New jobs, route changes and messages from the office reach your phone as soon as they happen.';
+
+  @override
+  String get settingsAlertsToggle => 'Alerts on this phone';
+
+  @override
+  String get settingsAlertsBlocked =>
+      'Alerts are switched off in the phone\'s own settings, so the app cannot ask for them.';
+
+  @override
+  String get settingsAlertsOpenSettings => 'Open phone settings';
+
+  @override
+  String get settingsAlertsFailureRefused =>
+      'Alerts stayed off. You can turn them on whenever you like.';
+
+  @override
+  String get settingsAlertsFailureUnreachable =>
+      'This phone could not be registered for alerts. Try again in a moment.';
+
+  @override
+  String get settingsAlertsFailureUnavailable =>
+      'Whether alerts are on could not be read.';
+
+  @override
   String get settingsSignOut => 'Sign out';
 
   @override

@@ -147,8 +147,10 @@ What is left is what this repository already does for a capability a screen may 
 
 | | The screen offers | The app decides |
 |---|---|---|
-| A capability it may not depend on | `onCapturePhoto` | which camera |
+| A capability it may not depend on | `onCapturePhoto`, `openSystemSettings` | which camera, which settings page |
 | A destination it may not name | `onSettled(DeliveryAttempt)` | which screen is next |
+
+**The capability row is not a loophole for smuggling a port in as a function**, and the settings screen's alerts section is where the line is easiest to see. That section performs two operations. *Turning alerts on* arrives as `NotificationsFacade`, a real port, because a foreign `_api` is an edge the table grants and because the decision behind it — whether this device is open to alerts — belongs to a feature. *Opening the operating system's settings page* arrives as a `Future<bool> Function()`, because `PermissionRequester` lives in `core_ports` and this row has no `core_ports` edge. The test is whether the thing being asked for is a **decision the product owns** or a **mechanism the platform owns**: the first is a port and belongs to a feature, the second is a callback and belongs to the app.
 
 Three consequences worth stating, because each has been got wrong somewhere:
 
