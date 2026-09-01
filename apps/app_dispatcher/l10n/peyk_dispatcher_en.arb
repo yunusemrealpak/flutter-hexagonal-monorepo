@@ -381,6 +381,38 @@
   "@settingsSyncSection": {
     "description": "The sentence behind \"settings.sync.section\"."
   },
+  "settingsAlertsSection": "Alerts",
+  "@settingsAlertsSection": {
+    "description": "The sentence behind \"settings.alerts.section\"."
+  },
+  "settingsAlertsExplanation": "Notifications about assignments and route changes on this device.",
+  "@settingsAlertsExplanation": {
+    "description": "The sentence behind \"settings.alerts.explanation\"."
+  },
+  "settingsAlertsToggle": "Alerts on this device",
+  "@settingsAlertsToggle": {
+    "description": "The sentence behind \"settings.alerts.toggle\"."
+  },
+  "settingsAlertsBlocked": "Notifications are disabled for this application in the system settings.",
+  "@settingsAlertsBlocked": {
+    "description": "The sentence behind \"settings.alerts.blocked\"."
+  },
+  "settingsAlertsOpenSettings": "Open system settings",
+  "@settingsAlertsOpenSettings": {
+    "description": "The sentence behind \"settings.alerts.openSettings\"."
+  },
+  "settingsAlertsFailureRefused": "Alerts were not enabled.",
+  "@settingsAlertsFailureRefused": {
+    "description": "The sentence behind \"settings.alerts.failure.refused\"."
+  },
+  "settingsAlertsFailureUnreachable": "This device could not be registered for alerts.",
+  "@settingsAlertsFailureUnreachable": {
+    "description": "The sentence behind \"settings.alerts.failure.unreachable\"."
+  },
+  "settingsAlertsFailureUnavailable": "The alert state could not be read.",
+  "@settingsAlertsFailureUnavailable": {
+    "description": "The sentence behind \"settings.alerts.failure.unavailable\"."
+  },
   "settingsSignOut": "Sign out",
   "@settingsSignOut": {
     "description": "The sentence behind \"settings.signOut\"."

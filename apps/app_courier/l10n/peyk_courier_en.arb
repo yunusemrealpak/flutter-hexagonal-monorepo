@@ -523,6 +523,38 @@
   "@settingsSyncSection": {
     "description": "The sentence behind \"settings.sync.section\"."
   },
+  "settingsAlertsSection": "Alerts",
+  "@settingsAlertsSection": {
+    "description": "The sentence behind \"settings.alerts.section\"."
+  },
+  "settingsAlertsExplanation": "New jobs, route changes and messages from the office reach your phone as soon as they happen.",
+  "@settingsAlertsExplanation": {
+    "description": "The sentence behind \"settings.alerts.explanation\"."
+  },
+  "settingsAlertsToggle": "Alerts on this phone",
+  "@settingsAlertsToggle": {
+    "description": "The sentence behind \"settings.alerts.toggle\"."
+  },
+  "settingsAlertsBlocked": "Alerts are switched off in the phone's own settings, so the app cannot ask for them.",
+  "@settingsAlertsBlocked": {
+    "description": "The sentence behind \"settings.alerts.blocked\"."
+  },
+  "settingsAlertsOpenSettings": "Open phone settings",
+  "@settingsAlertsOpenSettings": {
+    "description": "The sentence behind \"settings.alerts.openSettings\"."
+  },
+  "settingsAlertsFailureRefused": "Alerts stayed off. You can turn them on whenever you like.",
+  "@settingsAlertsFailureRefused": {
+    "description": "The sentence behind \"settings.alerts.failure.refused\"."
+  },
+  "settingsAlertsFailureUnreachable": "This phone could not be registered for alerts. Try again in a moment.",
+  "@settingsAlertsFailureUnreachable": {
+    "description": "The sentence behind \"settings.alerts.failure.unreachable\"."
+  },
+  "settingsAlertsFailureUnavailable": "Whether alerts are on could not be read.",
+  "@settingsAlertsFailureUnavailable": {
+    "description": "The sentence behind \"settings.alerts.failure.unavailable\"."
+  },
   "settingsSignOut": "Sign out",
   "@settingsSignOut": {
     "description": "The sentence behind \"settings.signOut\"."

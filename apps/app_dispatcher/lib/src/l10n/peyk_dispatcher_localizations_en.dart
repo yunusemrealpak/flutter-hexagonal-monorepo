@@ -282,6 +282,34 @@ class PeykDispatcherLocalizationsEn extends PeykDispatcherLocalizations {
   String get settingsSyncSection => 'When couriers send';
 
   @override
+  String get settingsAlertsSection => 'Alerts';
+
+  @override
+  String get settingsAlertsExplanation =>
+      'Notifications about assignments and route changes on this device.';
+
+  @override
+  String get settingsAlertsToggle => 'Alerts on this device';
+
+  @override
+  String get settingsAlertsBlocked =>
+      'Notifications are disabled for this application in the system settings.';
+
+  @override
+  String get settingsAlertsOpenSettings => 'Open system settings';
+
+  @override
+  String get settingsAlertsFailureRefused => 'Alerts were not enabled.';
+
+  @override
+  String get settingsAlertsFailureUnreachable =>
+      'This device could not be registered for alerts.';
+
+  @override
+  String get settingsAlertsFailureUnavailable =>
+      'The alert state could not be read.';
+
+  @override
   String get settingsSignOut => 'Sign out';
 
   @override

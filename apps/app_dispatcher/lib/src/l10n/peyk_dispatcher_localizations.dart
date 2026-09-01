@@ -515,6 +515,54 @@ abstract class PeykDispatcherLocalizations {
   /// **'When couriers send'**
   String get settingsSyncSection;
 
+  /// The sentence behind "settings.alerts.section".
+  ///
+  /// In en, this message translates to:
+  /// **'Alerts'**
+  String get settingsAlertsSection;
+
+  /// The sentence behind "settings.alerts.explanation".
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications about assignments and route changes on this device.'**
+  String get settingsAlertsExplanation;
+
+  /// The sentence behind "settings.alerts.toggle".
+  ///
+  /// In en, this message translates to:
+  /// **'Alerts on this device'**
+  String get settingsAlertsToggle;
+
+  /// The sentence behind "settings.alerts.blocked".
+  ///
+  /// In en, this message translates to:
+  /// **'Notifications are disabled for this application in the system settings.'**
+  String get settingsAlertsBlocked;
+
+  /// The sentence behind "settings.alerts.openSettings".
+  ///
+  /// In en, this message translates to:
+  /// **'Open system settings'**
+  String get settingsAlertsOpenSettings;
+
+  /// The sentence behind "settings.alerts.failure.refused".
+  ///
+  /// In en, this message translates to:
+  /// **'Alerts were not enabled.'**
+  String get settingsAlertsFailureRefused;
+
+  /// The sentence behind "settings.alerts.failure.unreachable".
+  ///
+  /// In en, this message translates to:
+  /// **'This device could not be registered for alerts.'**
+  String get settingsAlertsFailureUnreachable;
+
+  /// The sentence behind "settings.alerts.failure.unavailable".
+  ///
+  /// In en, this message translates to:
+  /// **'The alert state could not be read.'**
+  String get settingsAlertsFailureUnavailable;
+
   /// The sentence behind "settings.signOut".
   ///
   /// In en, this message translates to:

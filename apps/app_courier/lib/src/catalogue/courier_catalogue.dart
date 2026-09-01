@@ -247,6 +247,19 @@ final class CourierCatalogue implements StringCatalogue {
     'settings.language.section': (l, arguments) => l.settingsLanguageSection,
     'settings.theme.section': (l, arguments) => l.settingsThemeSection,
     'settings.sync.section': (l, arguments) => l.settingsSyncSection,
+    'settings.alerts.section': (l, arguments) => l.settingsAlertsSection,
+    'settings.alerts.explanation': (l, arguments) =>
+        l.settingsAlertsExplanation,
+    'settings.alerts.toggle': (l, arguments) => l.settingsAlertsToggle,
+    'settings.alerts.blocked': (l, arguments) => l.settingsAlertsBlocked,
+    'settings.alerts.openSettings': (l, arguments) =>
+        l.settingsAlertsOpenSettings,
+    'settings.alerts.failure.refused': (l, arguments) =>
+        l.settingsAlertsFailureRefused,
+    'settings.alerts.failure.unreachable': (l, arguments) =>
+        l.settingsAlertsFailureUnreachable,
+    'settings.alerts.failure.unavailable': (l, arguments) =>
+        l.settingsAlertsFailureUnavailable,
     'settings.signOut': (l, arguments) => l.settingsSignOut,
     'settings.language.tr': (l, arguments) => l.settingsLanguageTr,
     'settings.theme.system': (l, arguments) => l.settingsThemeSystem,

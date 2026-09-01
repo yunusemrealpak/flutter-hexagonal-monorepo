@@ -265,6 +265,33 @@ class PeykDispatcherLocalizationsTr extends PeykDispatcherLocalizations {
   String get settingsSyncSection => 'Kuryeler ne zaman göndersin';
 
   @override
+  String get settingsAlertsSection => 'Bildirimler';
+
+  @override
+  String get settingsAlertsExplanation =>
+      'Bu cihazda görev ve rota değişikliği bildirimleri.';
+
+  @override
+  String get settingsAlertsToggle => 'Bu cihazda bildirim';
+
+  @override
+  String get settingsAlertsBlocked =>
+      'Bu uygulama için bildirimler sistem ayarlarından kapatılmış.';
+
+  @override
+  String get settingsAlertsOpenSettings => 'Sistem ayarlarını aç';
+
+  @override
+  String get settingsAlertsFailureRefused => 'Bildirimler açılmadı.';
+
+  @override
+  String get settingsAlertsFailureUnreachable =>
+      'Bu cihaz bildirimlere kaydedilemedi.';
+
+  @override
+  String get settingsAlertsFailureUnavailable => 'Bildirim durumu okunamadı.';
+
+  @override
   String get settingsSignOut => 'Oturumu kapat';
 
   @override

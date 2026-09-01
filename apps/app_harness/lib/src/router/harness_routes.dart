@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:core_kernel/core_kernel.dart';
+import 'package:core_ports/core_ports.dart';
 import 'package:delivery_api/delivery_api.dart';
 import 'package:delivery_presentation/delivery_presentation.dart';
 import 'package:design_system/design_system.dart';
@@ -161,11 +162,28 @@ PeykRouter buildHarnessRouter(GetIt container) {
           settings: container<SettingsFacade>(),
           actor: actor(),
         ),
+        // The screen `NotificationsFacade.openAlertsFor` was written for, and
+        // had no caller until now. It is supplied here rather than always,
+        // because whether a device can be alerted at all is an app's answer:
+        // `app_dispatcher` composes `DeskAlertChannel` and passes nothing.
+        //
+        // Opening the operating system's settings page arrives as a function
+        // because section 2 does not give a presentation package `core_ports`.
+        alerts: AlertsController(
+          notifications: container<NotificationsFacade>(),
+          actor: actor(),
+          openSystemSettings: container<PermissionRequester>().openSettings,
+        ),
         // The one call site `IdentityFacade.signOut` had been waiting for.
         // Nothing here says where to go afterwards, and nothing has to: the
         // session ends, the router's SessionRefresh fires, and the guard that
         // was always right about a sessionless actor finally gets asked.
-        onSignOut: () => unawaited(container<IdentityFacade>().signOut()),
+        //
+        // Alerts are closed first, and the order is forced rather than tidy:
+        // closing needs the actor, and signing out is what takes the actor
+        // away. A handset left subscribed to a former courier's topic keeps
+        // buzzing with somebody else's work.
+        onSignOut: () => unawaited(_signOut(container, actor())),
       ),
       'notifications.inbox': (context, _) => InboxScreen(
         controller: InboxController(
@@ -234,3 +252,16 @@ Widget _parsed<T, F>(Result<T, F> parsed, Widget Function(T) onValue) =>
       Success(:final value) => onValue(value),
       Failed() => const PeykFailureView(message: 'peyk.route.badParameter'),
     };
+
+/// Ends the session, after making sure this device stops being alerted.
+///
+/// Two facades, one gesture, and the order matters: `closeAlertsFor` needs the
+/// actor and `signOut` is what takes the actor away. Closing is not made
+/// conditional on succeeding — a device that could not unsubscribe still has a
+/// person who asked to be signed out, and refusing that would trap somebody on
+/// a handset because the network was down. The registry keeps the record, so
+/// the next read still knows the device is subscribed.
+Future<void> _signOut(GetIt container, ActorId actor) async {
+  await container<NotificationsFacade>().closeAlertsFor(actor);
+  await container<IdentityFacade>().signOut();
+}
