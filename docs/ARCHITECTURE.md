@@ -216,6 +216,12 @@ The whole investigation, including what the literature said and what was ruled o
 
 `delivery_presentation` asks the same port about `Permission.completeDelivery`, and reads it on every build rather than caching it. A permission can be revoked mid-shift, and a screen that answered from a value it captured when it opened would keep offering an action the operation has taken away.
 
+**There is a second kind of permission in this product, and it is deliberately not this one.** `PermissionChecker` answers what the *operation* allows; `PermissionRequester` in `core_ports` answers what the *device* allows. The settings screen's alerts section needs both kinds of thing and gets them from different places, which is the clearest small statement of §2.4's capability row.
+
+It holds `NotificationsFacade` — a foreign `_api`, an edge the table grants — because "are alerts open for this person on this device" is a decision the product owns, made by reconciling a stored intent against the operating system's answer. It does *not* hold `PermissionRequester`, because a presentation package has no `core_ports` edge; opening the system settings page arrives as a `Future<bool> Function()` the app supplies, next to `onSignOut`.
+
+The distinction is worth the sentence because both look like "the screen needs a permission thing". A decision the product owns is a port and belongs to a feature. A mechanism the platform owns is a callback and belongs to the app. Getting it the other way round is how `core_ports` starts growing methods one screen needed once.
+
 ### 5.7 One feature, two UIs
 
 `shipments` has `shipments_presentation_courier` and `shipments_presentation_dispatcher`. This is the driving adapter's substitutability made concrete: two screens over one `ShipmentsFacade`, sharing no widget and no controller.
