@@ -18,8 +18,8 @@ without shipping in anybody's product build.
 | | |
 |---|---|
 | Packages | 75 |
-| Runtime edges | 414 |
-| Dev-dependency edges | 59 |
+| Runtime edges | 415 |
+| Dev-dependency edges | 60 |
 | Cycles | none |
 
 ## Cycles
@@ -277,6 +277,8 @@ graph LR
   core_testing --> core_kernel
   core_testing --> core_ports
   http_dio --> core_kernel
+  http_dio --> core_ports
+  http_dio -.-> core_testing
   identity_api --> core_kernel
   identity_api --> core_ports
   location_service --> core_kernel
@@ -409,7 +411,7 @@ graph LR
 | `analytics_otel` | platform | `core_ports` |
 | `connectivity_monitor` | platform | `core_ports` |
 | `device_permissions` | platform | `core_kernel`, `core_ports` |
-| `http_dio` | platform | `core_kernel` |
+| `http_dio` | platform | `core_kernel`, `core_ports` |
 | `location_service` | platform | `core_kernel`, `core_ports` |
 | `media_capture` | platform | `core_kernel`, `core_ports` |
 | `push_messaging` | platform | `core_kernel`, `core_ports` |
@@ -826,6 +828,7 @@ digraph peyk {
   "documents_presentation" -> "documents_api";
   "documents_presentation" -> "shipments_api";
   "http_dio" -> "core_kernel";
+  "http_dio" -> "core_ports";
   "identity_api" -> "core_kernel";
   "identity_api" -> "core_ports";
   "identity_application" -> "core_kernel";
@@ -1046,6 +1049,7 @@ digraph peyk {
   "delivery_presentation" -> "identity_testing" [style=dashed, color="#cfd8dc"];
   "device_permissions" -> "core_testing" [style=dashed, color="#cfd8dc"];
   "documents_core" -> "core_testing" [style=dashed, color="#cfd8dc"];
+  "http_dio" -> "core_testing" [style=dashed, color="#cfd8dc"];
   "identity_application" -> "core_testing" [style=dashed, color="#cfd8dc"];
   "identity_application" -> "identity_testing" [style=dashed, color="#cfd8dc"];
   "identity_infrastructure" -> "core_testing" [style=dashed, color="#cfd8dc"];

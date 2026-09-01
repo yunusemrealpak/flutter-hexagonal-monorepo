@@ -7,11 +7,18 @@ import 'transport_failure.dart';
 
 /// The [HttpTransport] the shipped applications run on.
 ///
-/// This file is the only one in the workspace that imports Dio, and that is
-/// the whole point of the package: base URL, interceptors, retry policy and
-/// certificate pinning are configured on the [Dio] instance handed to the
-/// constructor, so the composition root owns the environment and no caller
-/// can accidentally address a different one.
+/// This package is the only one in the workspace that imports Dio, and that is
+/// the whole point of it: base URL, timeouts, interceptors and certificate
+/// pinning are configured on the [Dio] instance handed to the constructor, so
+/// the composition root owns the environment and no caller can accidentally
+/// address a different one. `PeykTransport` is where the applications get
+/// those settings from, and the interceptors beside this file are what turn
+/// them into behaviour.
+///
+/// **`validateStatus: (_) => true` below has a consequence worth carrying into
+/// those files.** No status ever becomes a `DioException`, so an interceptor
+/// that wants to act on a 401 or a 503 has to do it in `onResponse`; `onError`
+/// sees only a connection that broke or a clock that ran out.
 ///
 /// Its real work is the translation in [_mapException]. Dio reports failure by
 /// throwing, and an exception that escaped here would cross a port boundary —

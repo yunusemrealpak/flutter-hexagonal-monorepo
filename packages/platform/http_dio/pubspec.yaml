@@ -11,10 +11,24 @@ environment:
 
 dependencies:
   core_kernel: ^0.1.0
-  # The only technology this package is allowed to know about. Nothing outside
-  # `src/dio_http_transport.dart` imports it, which is what makes replacing Dio
-  # a one-file change rather than a workspace-wide one.
+  # The interceptors log, identify and jitter, and rules A1 to A4 say where
+  # each of those comes from. A platform package may depend on core_ports
+  # (§1.1); the contract it must not depend on is a feature's, which is why
+  # the credential arrives through `AuthorizationProvider` rather than from
+  # identity directly.
+  core_ports: ^0.1.0
+  # The only technology this package is allowed to know about, and this is the
+  # only package in the workspace that names it — the adapter and the
+  # interceptors it runs under are all under `lib/src/` here, which is what
+  # makes replacing Dio a change to one package rather than to thirty
+  # gateways.
   dio: ^5.11.0
 
 dev_dependencies:
+  # The interceptors take Logger, Clock, IdGenerator and RandomSource, so
+  # their tests need the recording and fake adapters. A dev dependency used
+  # only by test/ is outside the dependency table's scope
+  # (docs/DEPENDENCY_RULES.md §2.0): nothing under lib/ imports it, so no edge
+  # is created in the product graph.
+  core_testing: ^0.1.0
   test: ^1.26.0
