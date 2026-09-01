@@ -447,6 +447,9 @@ extension GetItInjectableX on _i174.GetIt {
       () =>
           dispatcherFeatures.permissionChecker(gh<_i902.IdentityCoordinator>()),
     );
+    gh.lazySingleton<_i966.SessionTokens>(
+      () => dispatcherFeatures.sessionTokens(gh<_i902.IdentityCoordinator>()),
+    );
     gh.lazySingleton<_i60.NotificationsFacade>(
       () => dispatcherLightFeatures.notifications(
         gh<_i286.ReadInbox>(),
@@ -477,6 +480,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i202.SyncFacade>(),
         gh<_i398.DomainEventBus>(),
         gh<_i398.Clock>(),
+      ),
+    );
+    gh.lazySingleton<_i62.AuthorizationProvider>(
+      () => dispatcherFeatures.authorization(
+        gh<_i966.SessionTokens>(),
+        gh<_i398.Logger>(),
       ),
     );
     gh.singleton<_i642.DispatcherWatchers>(

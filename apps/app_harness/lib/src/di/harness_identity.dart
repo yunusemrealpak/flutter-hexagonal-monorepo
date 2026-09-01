@@ -35,11 +35,17 @@ abstract class HarnessIdentity {
 
   /// The coordinator, registered once under its own type.
   ///
-  /// It implements three interfaces — `IdentityFacade`, `SessionReader` and
-  /// `PermissionChecker` — and the three registrations below are three
-  /// *views* of this one object rather than three objects. That matters:
+  /// It implements four interfaces — `IdentityFacade`, `SessionReader`,
+  /// `PermissionChecker` and `SessionTokens` — and the registrations below are
+  /// *views* of this one object rather than several objects. That matters:
   /// `PermissionChecker` answering from a session `SessionReader` does not
   /// have would be a screen showing actions for somebody who is not signed in.
+  ///
+  /// The fourth is deliberately not registered here. `SessionTokens` exists to
+  /// authorise outbound requests, and this app's transport is
+  /// `FakeHttpTransport` — nothing leaves the process, so there is nothing to
+  /// authorise. A binding whose only purpose was completeness would be a
+  /// binding no test ever resolves.
   ///
   /// It is also the shape scenario 6 needs. `payments_presentation` and
   /// `shipments_presentation_dispatcher` each hold a `PermissionChecker` and

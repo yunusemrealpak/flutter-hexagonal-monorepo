@@ -139,12 +139,24 @@ void main() {
       );
     });
 
-    test('identity answers three interfaces from one object', () {
+    test('identity answers four interfaces from one object', () {
       expect(container<SessionReader>(), same(container<IdentityFacade>()));
       expect(
         container<PermissionChecker>(),
         same(container<IdentityFacade>()),
       );
+      // The fourth is the one the transport holds. A second object here would
+      // be a second answer to "which session is in force", and the request
+      // going out would be authorised as somebody the screens no longer show.
+      expect(container<SessionTokens>(), same(container<IdentityFacade>()));
+    });
+
+    // Nothing outside identity may build the header, and nothing inside
+    // identity's own use cases may know there is one. This binding is the
+    // whole join, and it resolving is what stops every gateway but identity's
+    // own from sending an anonymous request.
+    test('the credential the transport attaches comes out of identity', () {
+      expect(container<AuthorizationProvider>(), isA<BearerAuthorization>());
     });
 
     // Every REST adapter has to send through one client, or a retry policy

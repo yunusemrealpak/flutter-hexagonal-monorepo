@@ -217,6 +217,103 @@ void main() {
     );
   });
 
+  group('the token the outbound transport presents', () {
+    test('hands over the current token while it is comfortable', () async {
+      gateway.accept(credentials);
+      await identity.signIn(credentials);
+
+      final result = await identity.presentable();
+
+      expect(
+        result.fold((token) => token.value, (failure) => '$failure'),
+        identity.current?.accessToken.value,
+      );
+      expect(gateway.refreshCount, 0);
+    });
+
+    test('refreshes first when the token is inside the threshold', () async {
+      // The whole reason the port exists. Waiting for the 401 works, but it
+      // costs a failed round trip on the connection that is already the reason
+      // the app feels slow.
+      gateway.accept(
+        credentials,
+        session: SessionBuilder().tokenLife(const Duration(minutes: 4)).build(),
+      );
+      await identity.signIn(credentials);
+
+      final result = await identity.presentable();
+
+      expect(
+        result.fold((token) => token.value, (failure) => '$failure'),
+        'jwt.refreshed.1',
+      );
+      expect(gateway.refreshCount, 1);
+    });
+
+    test('answers NoSession rather than a token nobody holds', () async {
+      // The ordinary state of an app on its sign-in screen, which is why the
+      // adapter above this logs it at debug and sends the request without a
+      // credential rather than refusing to send it.
+      expect(
+        await identity.presentable(),
+        const Failed<AccessToken, IdentityFailure>(NoSession()),
+      );
+    });
+
+    test('renewing refreshes a token that still looks comfortable', () async {
+      // `renewed` is called after the server has said the token is not
+      // accepted. Consulting `needsRefreshAt` here would answer a 401 with the
+      // token that caused it whenever the two clocks disagree — and disagreeing
+      // clocks are exactly when this path runs.
+      gateway.accept(credentials);
+      await identity.signIn(credentials);
+
+      final result = await identity.renewed();
+
+      expect(
+        result.fold((token) => token.value, (failure) => '$failure'),
+        'jwt.refreshed.1',
+      );
+      expect(gateway.refreshCount, 1);
+    });
+
+    test('ten requests arriving at once produce one refresh', () async {
+      // A server that rotates refresh tokens invalidates the other nine, so
+      // the last one wins and nine sessions die. The collapse belongs here
+      // rather than in the interceptor that noticed the problem: not
+      // refreshing a session twice at once is a statement about the session.
+      gateway.accept(
+        credentials,
+        session: SessionBuilder().tokenLife(const Duration(minutes: 4)).build(),
+      );
+      await identity.signIn(credentials);
+
+      final results = await Future.wait([
+        for (var i = 0; i < 10; i++) identity.presentable(),
+      ]);
+
+      expect(gateway.refreshCount, 1);
+      expect(
+        results
+            .map((it) => it.fold((token) => token.value, (f) => '$f'))
+            .toSet(),
+        {'jwt.refreshed.1'},
+      );
+    });
+
+    test('a later refresh is a new one, not the finished one', () async {
+      // The in-flight future has to be released when it completes. Keeping it
+      // would make the second expiry of the day unrefreshable.
+      gateway.accept(credentials);
+      await identity.signIn(credentials);
+
+      await identity.renewed();
+      await identity.renewed();
+
+      expect(gateway.refreshCount, 2);
+    });
+  });
+
   group('signing out', () {
     test('revokes remotely, clears locally and forgets the session', () async {
       gateway.accept(credentials);
