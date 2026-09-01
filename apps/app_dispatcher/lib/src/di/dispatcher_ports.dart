@@ -107,8 +107,14 @@ abstract class DispatcherPorts {
   /// *feature* declares, which is exactly where two apps have reason to
   /// disagree.
   @lazySingleton
-  SecureStore secureStore(DispatcherPlatform platform) =>
-      KeychainSecureStore(platform.secureStorage, options: const {});
+  SecureStore secureStore(DispatcherPlatform platform) => KeychainSecureStore(
+    platform.secureStorage,
+    // Named rather than assembled here, and not a default: see
+    // `KeychainOptions`. What stood here was `const {}`, which states no
+    // accessibility class and no backup behaviour and leaves both to
+    // whatever the native side happens to pick.
+    options: KeychainOptions.deviceBound,
+  );
 
   /// The transport every REST adapter sends through.
   @lazySingleton
