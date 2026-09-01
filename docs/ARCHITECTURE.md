@@ -329,6 +329,47 @@ Step by step, with the rule each step is obeying:
 
 Nine packages, four of which cannot see each other, and every boundary crossed through a contract.
 
+### 4.1 What happens below `HttpTransport`
+
+Step 4 ends at `ProofStorePort.put`, and `RemoteProofStore` answers it with `HttpTransport.send`. Everything that happens after that is cross-cutting — it is the same for a proof, a manifest and a payment — and it lives in `platform/http_dio` as an interceptor chain the composition root installs.
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant G as delivery_infrastructure<br/>RemoteProofStore
+  participant T as http_dio<br/>DioHttpTransport
+  participant O as http_dio<br/>ObservabilityInterceptor
+  participant A as http_dio<br/>AuthorizationInterceptor
+  participant P as identity_infrastructure<br/>BearerAuthorization
+  participant K as identity_application<br/>IdentityCoordinator
+  participant N as the network
+
+  G->>T: send(HttpRequest)
+  T->>O: onRequest
+  O->>O: stamp X-Request-Id
+  O->>A: onRequest
+  A->>P: credential()
+  P->>K: SessionTokens.presentable()
+  K->>K: refreshIfDue()
+  K-->>P: AccessToken
+  P-->>A: "Bearer …"
+  A->>N: the request, authorised
+  N-->>A: 401
+  A->>P: renewedCredential()
+  P->>K: SessionTokens.renewed()
+  A->>N: the same request, renewed
+  N-->>T: 200
+  T-->>G: Result<HttpResponse, TransportFailure>
+```
+
+Three rules are visible in that diagram, and each of them is one of the sections above applied to a contract that runs the *other* way — declared by a platform package and answered by a feature.
+
+1. **`http_dio` never names identity.** It declares `AuthorizationProvider` in a technology's words — the value of a header — and §2.2 puts a technology contract in the package that holds its adapter. `identity_infrastructure` answers it, because §1.1 gives `<feature>_infrastructure` sight of both `platform/*` and its own `_api` and no other row has both.
+2. **`identity_application` never names a header.** It implements `SessionTokens`, whose two methods speak in `AccessToken`. The port is separate from `IdentityFacade` because §2.3 makes a driving port one audience's conversation, and the network layer's conversation with identity is two sentences long — it must not be able to sign anybody out.
+3. **`delivery_application` cannot see any of it.** It asked for a proof store. Authorization, retry, correlation and timeouts are all below the port it holds, which is what stops a use case from ever owning a retry policy.
+
+The chain also carries the answer to a question §3's scenarios raise and do not settle: where a policy that is true of *every* feature goes, when the constitution forbids a `shared` package. It goes below the technology contract they all already depend on.
+
 ---
 
 ## 5. Code generation, and why the output is committed

@@ -292,7 +292,7 @@ At the **end** of a phase: verify the acceptance criteria in the spec, push, ope
 
 This section is the handoff between sessions. It is rewritten at every phase boundary and it is the only part of this file that is expected to go stale — everything above is the constitution. Read it after section 9, then check it against `git log` before trusting it.
 
-**Branch:** `main`. **Last tag:** `phase-08`. The eight phases the specification defines are complete, merged and tagged; `main` is protected. What follows the spec is ordinary product work under the same constitution, and this is the first of it. **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,915 cases in 173 test files); `melos run gen:check` and `graph:check` clean.
+**Branch:** `main`. **Last tag:** `phase-08`. The eight phases the specification defines are complete, merged and tagged; `main` is protected. What follows the spec is ordinary product work under the same constitution, and this is the first of it. **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,958 cases in 178 test files); `melos run gen:check` and `graph:check` clean.
 
 ### Phase 8 is complete, merged and tagged
 
@@ -410,15 +410,24 @@ The test that pays for the design: a notification pressed while signed out lands
 
 Open, and deliberately so: the scanned barcode and the pasted URL produce no locations yet (both need no new mechanism — `shipments.courier.scan` is mounted at `/stops/scan`), a push that merely arrives shows nothing in-app, and `app_dispatcher` has no `PushEntry` because a desk does not run on notification presses.
 
+#### The authorised transport — items 1 and 2, done
+
+The largest hole in the list below is closed. The note is [`docs/research/authenticated-transport.md`](docs/research/authenticated-transport.md); the narrative is in `docs/ARCHITECTURE.md` §4.1; nothing in `DEPENDENCY_RULES.md` changed, and that is the argument that the shape was already right — §2.2 and §2.3 both applied unamended to a contract running the other way, declared by a platform package and answered by a feature.
+
+`platform/http_dio` gained `AuthorizationProvider` and three interceptors; `identity_api` gained `SessionTokens`; `identity_infrastructure` gained `BearerAuthorization`; both apps build their client through `PeykTransport.optionsFor` and install the chain after the container exists.
+
+Four things worth not rediscovering.
+
+- **The handoff's own estimate was wrong, and the reason is instructive.** It said "either a decorator over `HttpTransport` composed in each app, or a token-reader port in `core_ports` — both are one file". The second fails `core_ports`' own bar for entry (*more than one feature needs it and none owns it*); identity owns the token outright, and admitting it there is how that package starts becoming §2.1's forbidden `shared`. The first sits *above* the interface whose doc comment promises the adapter adds the header, so it would keep the promise from the wrong side. What is left is two contracts, and each is a kind the constitution already has.
+- **A 401 never reaches Dio's `onError` in this workspace.** `DioHttpTransport` sends with `validateStatus: (_) => true` — a phase 2 decision made so a 4xx keeps its body — so no status becomes a `DioException`. Refresh-on-401 belongs in `onResponse`. Every tutorial puts it in `onError`, where here it compiles, passes a test against a default client, and never fires.
+- **`QueuedInterceptor` deadlocks for this job.** It has three task queues; the replay is issued from an `onResponse` handler and its own response has to pass through the response queue that handler still occupies. Nothing times it out. Collapsing concurrent renewals belongs to `IdentityCoordinator.refreshSession` anyway, because "do not refresh a session twice at once" is a statement about the session.
+- **`TransportTimeout` was a case production could not produce.** Both apps built `Dio(BaseOptions(baseUrl: …))`, leaving all three timeouts null — Dio's spelling of "wait forever" — while eight adapters dutifully translated the case. Before adding a failure to a sealed hierarchy, check that something can construct it.
+
+Open, and deliberately so: `TransportCancelled` is still unreachable (it needs a `CancelToken` on `HttpRequest`, and the caller who would cancel is a presentation package that may not see `http_dio`), there is no certificate pinning, and a `sync` drain that spans a session ending is untested.
+
 #### What is worth taking next
 
-All three handoff items are closed, so this is the first list since the specification that nobody is owed. It was produced by reading the workspace rather than by remembering it, and each entry names the evidence so the next session does not have to re-derive it.
-
-**1. Nothing authenticates an outbound request.** This is the largest hole and it is invisible because no test needed it. `RestShipmentGateway` and every other feature gateway send `HttpRequest(method:, path:)` with no headers; `HttpRequest.headers`' own doc comment says *"the adapter adds its own — content type, authorization"* and `DioHttpTransport` adds no authorization. Against a real backend every request outside identity's own two gateways is a 401.
-
-The seam is missing rather than misplaced. `platform/*` may not see a feature, so `http_dio` cannot ask identity for a token; the answer is either a decorator over `HttpTransport` composed in each app, or a token-reader port in `core_ports` that identity answers. Both are one file. What makes it worth doing is the second half:
-
-**2. `IdentityCoordinator.refreshIfDue()` has no caller.** Grep it: the only references outside `identity_application` are in its own test. This is the fourth instance of the pattern this repository keeps finding — `signOut`, `SyncFacade.drain`, `core_navigation`'s `Navigation`, and now this — a contract that is written, tested, and never invoked. A token therefore expires and nothing refreshes it, and there is no 401 → refresh → retry anywhere. Take it with (1); the decorator is where both live.
+Items 1 and 2 of this list are done, above. The rest stand as written; each entry names the evidence so the next session does not have to re-derive it.
 
 **3. No port returns a page.** `ShipmentsFacade.manifestFor(ActorId)` answers `List<ShipmentSummary>` and `shipments_api` contains no cursor, limit or page type — while the workspace's own comments describe eleven hundred stops. An unbounded collection crossing a port is the one decision that cannot be walked back later without touching the gateway, the use case, the controller and the screen at once.
 
@@ -432,7 +441,7 @@ The seam is missing rather than misplaced. `platform/*` may not see a feature, s
 
 Smaller, and each named in a note: a push that merely arrives shows nothing in-app, `PeykNavigationDestination` carries no unread count, and the scanned barcode and pasted URL produce no locations yet.
 
-The two gaps the repository states rather than fixes are unchanged and deliberate:The two gaps the repository states rather than fixes are unchanged and deliberate: `codemagic.yaml` and `fastlane/Fastfile` cannot run without `apps/*/android/`, `apps/*/ios/` and `apps/*/config/<flavour>.json` (the specification excludes native builds), and no test carries the `golden` or `integration` tag yet — the tags, presets, exclusions and CI steps are the mechanism, and the images arrive with the screens that need them.
+The two gaps the repository states rather than fixes are unchanged and deliberate: `codemagic.yaml` and `fastlane/Fastfile` cannot run without `apps/*/android/`, `apps/*/ios/` and `apps/*/config/<flavour>.json` (the specification excludes native builds), and no test carries the `golden` or `integration` tag yet — the tags, presets, exclusions and CI steps are the mechanism, and the images arrive with the screens that need them.
 
 ### Verification, before every commit
 
