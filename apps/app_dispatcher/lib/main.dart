@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:analytics_otel/analytics_otel.dart';
 import 'package:connectivity_plus_platform_interface/connectivity_plus_platform_interface.dart';
 import 'package:core_ports/core_ports.dart';
 import 'package:dio/dio.dart';
@@ -12,6 +13,7 @@ import 'package:permission_handler_platform_interface/permission_handler_platfor
 import 'package:sync_api/sync_api.dart';
 
 import 'src/di/dispatcher_platform.dart';
+import 'src/di/dispatcher_runtime.dart';
 import 'src/di/injection.dart';
 import 'src/dispatcher_app.dart';
 import 'src/router/dispatcher_routes.dart';
@@ -53,6 +55,18 @@ export 'src/sync/sync_orchestrator.dart';
 /// silent `dart:html` import here.
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // Telemetry first, and the order is enforced by the library rather than by
+  // convention: `registerGlobalTracerProvider` throws once anything has read
+  // `globalTracerProvider`, and the line below this block reads it. Until this
+  // call existed the getter answered a no-op provider, so every span and every
+  // log line this application produced was discarded inside OpenTelemetry with
+  // nothing failing to say so.
+  PeykTelemetry.install(
+    exporter: PeykTelemetry.collectorAt(Uri.parse(_collectorEndpoint)),
+    serviceName: 'peyk.dispatcher',
+    clock: const SystemClock(),
+  );
 
   final platform = DispatcherPlatform(
     database: NativeDatabase.createInBackground(await _databaseFile()),
@@ -98,6 +112,15 @@ Future<void> main() async {
 /// backend to point at. A flavour file is where a real one would differ, and
 /// that is the shape the entry-point rule exists to permit.
 const String _apiBaseUrl = 'https://operations.peyk.example';
+
+/// Where traces and product events are collected.
+///
+/// A constant here for the same reason [_apiBaseUrl] is one, and subject to
+/// the same caveat: this repository has no collector to point at, so nothing
+/// arrives. The exporter batches and retries on a timer, so an unreachable
+/// endpoint costs a periodic failed request rather than anything an operator
+/// notices. A flavour file is where a real one would differ.
+const String _collectorEndpoint = 'https://otel.peyk.example/v1/traces';
 
 /// The device's database file.
 ///

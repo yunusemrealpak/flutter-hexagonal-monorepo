@@ -292,7 +292,7 @@ At the **end** of a phase: verify the acceptance criteria in the spec, push, ope
 
 This section is the handoff between sessions. It is rewritten at every phase boundary and it is the only part of this file that is expected to go stale — everything above is the constitution. Read it after section 9, then check it against `git log` before trusting it.
 
-**Branch:** `main`. **Last tag:** `phase-08`. The eight phases the specification defines are complete, merged and tagged; `main` is protected. What follows the spec is ordinary product work under the same constitution, and this is the first of it. **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,958 cases in 178 test files); `melos run gen:check` and `graph:check` clean.
+**Branch:** `main`. **Last tag:** `phase-08`. The eight phases the specification defines are complete, merged and tagged; `main` is protected. What follows the spec is ordinary product work under the same constitution, and this is the first of it. **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,967 cases in 180 test files); `melos run gen:check` and `graph:check` clean.
 
 ### Phase 8 is complete, merged and tagged
 
@@ -425,6 +425,49 @@ Four things worth not rediscovering.
 
 Open, and deliberately so: `TransportCancelled` is still unreachable (it needs a `CancelToken` on `HttpRequest`, and the caller who would cancel is a presentation package that may not see `http_dio`), there is no certificate pinning, and a `sync` drain that spans a session ending is untested.
 
+#### The integration audit — two composition-root defects closed
+
+Prompted by the transport work: if Dio was configured with no interceptors, no
+timeouts and no retry, was that one oversight or a pattern? Every third-party
+integration was read against what its package offers. The note is
+[`docs/research/integration-audit.md`](docs/research/integration-audit.md).
+
+**It is a pattern, but not the one it looked like.** The adapters are mostly
+better than average — `ConnectivityMonitor` closes the subscribe-then-seed race
+with `Stream.multi`, `DevicePermissionRequester` earns the `notDetermined` state
+the platform refuses to give it, the drift migration history handles a primary
+key change and three appended columns correctly. The defect is one layer up:
+**an adapter exposes a capability and nothing above it uses the capability.**
+
+Two were closed here, both in the composition roots.
+
+- **OpenTelemetry had no SDK behind it.** `globalTracerProvider` answers a no-op
+  provider until `registerGlobalTracerProvider` is called; both apps read the
+  getter and neither called the registrar, so every span and every log line the
+  workspace produced was discarded inside the library. `PeykTelemetry.install`
+  registers one — and finally consumes `ClockTimeProvider`, written in phase 2
+  with only its own tests as callers.
+- **The keychain ran on native defaults.** `KeychainSecureStore` made its
+  options a required argument with no default *on purpose*, and both apps
+  answered `const {}`. `KeychainOptions.deviceBound` is a named policy —
+  `first_unlock_this_device` on Apple, `resetOnError: false` on Android, and the
+  note explains why each.
+
+Three things worth not rediscovering.
+
+- **`registerGlobalTracerProvider` throws once anything has read the getter.**
+  Installation is not "before the first span", it is before `getTracer`. An app
+  that installs after building its platform object crashes at start-up.
+- **A capability gap passes every test it has.** `const {}` is a valid options
+  map; a no-op provider records nothing and reports success. The gap between
+  "the adapter works" and "the application uses it" is invisible from inside the
+  package, and becomes visible only in the composition root — the least-tested
+  file in any of these apps.
+- **One claim in the first draft of the audit was wrong.** It said Android was
+  falling back to unencrypted shared preferences. True of plugin version 9; this
+  workspace is on 11, where AES-GCM under a KeyStore-wrapped key is the default.
+  Check the version before naming the defect.
+
 #### What is worth taking next
 
 Items 1 and 2 of this list are done, above. The rest stand as written; each entry names the evidence so the next session does not have to re-derive it.
@@ -438,6 +481,12 @@ Items 1 and 2 of this list are done, above. The rest stand as written; each entr
 **6. `app_dispatcher` has no shell.** A desk wants a sidebar: the same split as `courierTabs` / `PeykNavigationBar` / `CourierShell` with a different component and a different tab set. Until a second app does it, the split is proven by one.
 
 **7. One app, one entry point.** `apps/app_courier/lib/` holds `main.dart` and nothing else, while rule S1 permits several precisely so that `main_staging.dart` can exist, and `codemagic.yaml` expects `config/<flavour>.json`. Flavours are also the missing half of the native-build gap below.
+
+**8. Push is inert end to end.** `NotificationsFacade.openAlertsFor` and `closeAlertsFor` have no callers anywhere, so nothing subscribes a courier to their alert topic and `PushAlertChannel.openFor` — the only code that requests the notification permission — never runs. The deep-link entry merged in PR #19 can only be reached by a notification the device was never registered to receive. **The missing piece is a screen, not a wire**: the port's own doc says *"called from a screen that has already explained why, never on first launch"*, and the app's pattern for every other permission is request-on-use. Alerts have no moment of use, which is exactly why they need one. A notifications toggle in `settings_presentation`, or a priming step in sign-in — a product decision, not a wiring fix.
+
+**9. The rest of the integration audit.** `OutboxDao.recordAttempt` has no caller while `DrainOutbox` does the read-modify-write it exists to prevent; no `transaction()` anywhere; no index on `outbox_entries`; `image_picker.getLostData()` unused on the platform that loses photos; Android background location with no foreground-service config; `Position.isMocked` dropped; `openAppSettings()` never called though three packages produce a `…PermissionBlocked`; no `dispose:` on any DI registration; no go_router `errorBuilder` or `observers`; drift `.watch()` unused; `checked: true` off in every `build.yaml`. Each is one row of the table in the audit note, with its evidence.
+
+**10. `onBackgroundMessage` is never set**, and it is in the same category as `codemagic.yaml`: real, and unrunnable here. It needs `apps/*/android`, Firebase initialisation and a native invoker this repository does not build, so a handler written now could not be exercised even by a test.
 
 Smaller, and each named in a note: a push that merely arrives shows nothing in-app, `PeykNavigationDestination` carries no unread count, and the scanned barcode and pasted URL produce no locations yet.
 

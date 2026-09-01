@@ -15,6 +15,7 @@ import 'package:payments_api/payments_api.dart';
 import 'package:payments_infrastructure/payments_infrastructure.dart';
 import 'package:routing_api/routing_api.dart';
 import 'package:routing_infrastructure/routing_infrastructure.dart';
+import 'package:secure_store/secure_store.dart';
 import 'package:settings_api/settings_api.dart';
 import 'package:shipments_api/shipments_api.dart';
 import 'package:shipments_infrastructure/shipments_infrastructure.dart';
@@ -157,6 +158,19 @@ void main() {
     // own from sending an anonymous request.
     test('the credential the transport attaches comes out of identity', () {
       expect(container<AuthorizationProvider>(), isA<BearerAuthorization>());
+    });
+
+    // The adapter takes its plugin configuration as a required argument with
+    // no default, and both apps used to answer it with `const {}` — which
+    // states no accessibility class and no backup behaviour and leaves both to
+    // the native side. What the policy *contains* is asserted in
+    // `secure_store`'s own test, on every platform; what this asserts is that
+    // the app named it.
+    test('the keychain is configured by name, not left to the platform', () {
+      expect(
+        (container<SecureStore>() as KeychainSecureStore).options,
+        KeychainOptions.deviceBound,
+      );
     });
 
     // Every REST adapter has to send through one client, or a retry policy
