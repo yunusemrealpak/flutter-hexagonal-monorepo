@@ -292,7 +292,7 @@ At the **end** of a phase: verify the acceptance criteria in the spec, push, ope
 
 This section is the handoff between sessions. It is rewritten at every phase boundary and it is the only part of this file that is expected to go stale — everything above is the constitution. Read it after section 9, then check it against `git log` before trusting it.
 
-**Branch:** `main`. **Last tag:** `phase-08`. The eight phases the specification defines are complete, merged and tagged; `main` is protected. What follows the spec is ordinary product work under the same constitution, and this is the first of it. **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,967 cases in 180 test files); `melos run gen:check` and `graph:check` clean.
+**Branch:** `main`. **Last tag:** `phase-08`. The eight phases the specification defines are complete, merged and tagged; `main` is protected. What follows the spec is ordinary product work under the same constitution — six pull requests of it so far, listed under "Start here in the next session" below. **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,967 cases in 180 test files); `melos run gen:check` and `graph:check` clean.
 
 ### Phase 8 is complete, merged and tagged
 
@@ -368,9 +368,28 @@ Also closed, because both were gaps the code had already documented: `IdentityFa
 
 ### Start here in the next session
 
-`main` is protected and green, and nothing from the specification is outstanding — its acceptance criteria all hold and every phase is tagged `phase-00` … `phase-08`. PR #16 (`ccee0a6`) closed the navigation work, PR #18 (`decc87a`) the shell, PR #19 (`99b4556`) entry from a notification.
+`main` is protected and green, and nothing from the specification is outstanding — its acceptance criteria all hold and every phase is tagged `phase-00` … `phase-08`. What follows is ordinary product work under the same constitution.
 
-Three items, in the order they should be taken. All three are closed; what follows them is in the last section.
+**Merged so far, newest first:** PR #22 (`9319aba`) the integration audit, PR #21 (`7157dbd`) the authorised transport, PR #20 (`529b92b`) the gap list, PR #19 (`99b4556`) entry from a notification, PR #18 (`decc87a`) the tabbed shell, PR #16 (`ccee0a6`) navigation and the first three flows.
+
+#### The plan, in the order it should be taken
+
+Read this list first; the sections after it are the log of what is already closed, and the detail behind each entry is in **"What is worth taking next"** further down.
+
+| | Next | Why this one, and why now |
+|---|---|---|
+| **A** | **A screen that turns alerts on** (backlog item 8) | `NotificationsFacade.openAlertsFor` and `closeAlertsFor` have no callers, so push is inert end to end and PR #19's deep-link entry can only be reached by a notification the device was never registered to receive. **Needs a product decision before code**: a notifications toggle in `settings_presentation`, or a priming step in the sign-in flow. The port forbids subscribing without an explanation first, so this is a screen and not a wire. |
+| **B** | **The `sync` drain's three storage defects** (backlog item 9) | One pull request, one code path. `OutboxDao.recordAttempt` has no caller while `DrainOutbox` does the read-modify-write it exists to prevent; `drop` then `saveCursor` are two writes with no transaction; `outbox_entries` has no index for the query every drain runs. |
+| **C** | **`image_picker.getLostData()`** (backlog item 9) | Android kills the app during capture and the photo is then recoverable only through it. This product's payload is proof-of-delivery photographs. |
+| **D** | **Pagination on a port** (backlog item 3) | Unchanged, and still the one decision that cannot be walked back later without touching the gateway, the use case, the controller and the screen at once. |
+
+After those, the list below in its own order. Two items in it are stated rather than fixed on purpose — `onBackgroundMessage` and the native build gap — and both close with the same step: `flutter create --platforms=android,ios .` inside an app.
+
+**Before starting anything**, read `docs/research/integration-audit.md`. It is the most recently learned thing about this workspace and it changes how to read every adapter: the adapters are good, and the defects live in the composition roots, which are the least-tested files in the repository.
+
+#### The log — what has already been closed
+
+Chronological, newest last. Each entry records the things worth not rediscovering.
 
 #### 0. `core_navigation`'s `Navigation` port — deleted, done
 
