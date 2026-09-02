@@ -378,11 +378,10 @@ Read this list first; the sections after it are the log of what is already close
 
 | | Next | Why this one, and why now |
 |---|---|---|
-| **B** | **Pagination on a port** (backlog item 3) | Unchanged, and still the one decision that cannot be walked back later without touching the gateway, the use case, the controller and the screen at once. |
 | **C** | **Signature capture** | The other half of proof of delivery, and the one the photograph work did not touch: `SignatureCapture` needs a drawing surface `design_system` does not have. A new component, not a wiring job. `onCaptureSignature` already has the widened shape waiting for it. |
 | **D** | **A background scheduler** (backlog item 4) | The last device capability the product plausibly needs, and the thing that turns the outbox's remaining race from theoretical into real — see the drain entry below. |
 
-Four items have come off the top of this list: turning alerts on, the drain's three storage defects, photo evidence, and the blocked-permission path. All are in the log below.
+Five items have come off the top of this list: turning alerts on, the drain's three storage defects, photo evidence, the blocked-permission path, and pagination. All are in the log below.
 
 After those, the list below in its own order. Two items in it are stated rather than fixed on purpose — `onBackgroundMessage` and the native build gap — and both close with the same step: `flutter create --platforms=android,ios .` inside an app.
 
@@ -391,6 +390,55 @@ After those, the list below in its own order. Two items in it are stated rather 
 #### The log — what has already been closed
 
 Chronological, newest last. Each entry records the things worth not rediscovering.
+
+#### Pagination — done, and it cost six packages in one commit
+
+Backlog item 3. `ShipmentsFacade.manifestFor` answered
+`List<ShipmentSummary>` in a product whose own comments describe eleven hundred
+stops. The vocabulary is `PageOf`/`PageRequest`/`PageCursor` in `core_kernel`;
+the rule it produced is [`DEPENDENCY_RULES.md`
+§2.2.1](docs/DEPENDENCY_RULES.md), with two new entries in §8; the narrative is
+`docs/ARCHITECTURE.md` §5.8.
+
+**The estimate was right and worth restating.** The change touched
+`ShipmentGateway`, `ShipmentsFacade`, `LoadManifest`, two controllers, two state
+types, two screens, the contract kit, both fakes and both apps' catalogues — in
+one commit, because none of them compile without the others.
+
+Five things worth not rediscovering.
+
+- **`Page` collides with Flutter's `Page`.** Every presentation package imports
+  both `flutter/widgets.dart` and `core_kernel`, so the short name would have
+  needed a `hide` in fourteen packages. `core_kernel` takes no Flutter
+  dependency and therefore *cannot see the collision it causes* — the innermost
+  ring has to pick names defensively. It is `PageOf`.
+- **The bar for `core_kernel` is "carries no domain meaning", not "several
+  features would find it convenient."** The second is how a `common` package
+  starts. §2.2.1 is that test, written down because rule 15's "not strictly
+  needed" is unusable as stated.
+- **A cursor stops at the source that produced it.** `LoadManifest` falls back
+  to the cache for the first page and refuses for any later one; restarting the
+  cache from the top would serve rows a courier already scrolled past as if they
+  were new. A port with two adapters and a caller that switches between them
+  cannot carry a cursor across the switch.
+- **A failed page must not take the successful ones with it.** `moreFailure`
+  sits beside the rows, exactly like `AtTheDoor.refusal`. The dispatcher's ticks
+  survive too — a selection assembled across two pages, kept when the third
+  fails.
+- **The in-flight guard is not optional.** A list that fetches when scrolled
+  fetches several times per gesture; without it the same page is requested from
+  the same state and appended twice, and a courier sees duplicate stops.
+
+`ShipmentCache.manifestFor` stays unpaged and says why: the gateway answers what
+the operation assigned and the cache answers what this device handled, which are
+bounded by different things.
+
+Open, and named: the affordance is an explicit *load more* row rather than a
+scroll trigger, because asking for a page from `itemBuilder` starts a request
+during a build. An app that wants a round to load as it is scrolled drives
+`loadMore` from a scroll listener it owns. No other port is paged —
+`DeliveryHistory.attemptsFor` and the incident and message lists are the next
+candidates, and each is now a small change rather than a design.
 
 #### The blocked permission — done, and it was two paths to one button
 
@@ -665,7 +713,7 @@ Three things worth not rediscovering.
 
 Items 1 and 2 of this list are done, above. The rest stand as written; each entry names the evidence so the next session does not have to re-derive it.
 
-**3. No port returns a page.** `ShipmentsFacade.manifestFor(ActorId)` answers `List<ShipmentSummary>` and `shipments_api` contains no cursor, limit or page type — while the workspace's own comments describe eleven hundred stops. An unbounded collection crossing a port is the one decision that cannot be walked back later without touching the gateway, the use case, the controller and the screen at once.
+**3. No port returns a page.** — **closed 2026-09-02** for the manifest; see the log entry above. Every other collection-returning port is still a `List`, and each is now a small change rather than a design.
 
 **4. Nothing runs while the app does not.** `platform/` holds nine packages and none of them schedules work. `SyncOrchestrator` drains on a connectivity change and on resume, so a courier who force-quits in a basement sends nothing until they reopen the app. A `BackgroundScheduler` port with a WorkManager/BGTaskScheduler adapter is the shape, and it is the last device capability the product plausibly needs.
 
