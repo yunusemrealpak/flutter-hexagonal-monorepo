@@ -1,0 +1,29 @@
+name: background_tasks
+description: >-
+  The scheduling contract an app asks for work while it is not running, its
+  WorkManager/BGTaskScheduler adapter, and the fake that keeps tests off the
+  operating system's queue.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  core_kernel: ^0.1.0
+  flutter:
+    sdk: flutter
+  # The plugin, for the platform implementations it registers.
+  workmanager: ^0.10.0
+  # The adapter is written against the platform interface, so that a test can
+  # substitute an implementation instead of a method channel. Same decision as
+  # location_service and media_capture, and it is what makes this package
+  # testable on a machine with no Android and no iOS.
+  workmanager_platform_interface: ^0.10.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  plugin_platform_interface: ^2.1.8
