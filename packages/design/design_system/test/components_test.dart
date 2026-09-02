@@ -266,6 +266,28 @@ void main() {
 
       expect(retries, 1);
     });
+
+    testWidgets('carries a way out that is not trying again', (tester) async {
+      // A permission blocked in the system settings is the case this exists
+      // for: the retry is a button that can never work, and the only thing
+      // that changes the answer is somewhere else entirely. The label is the
+      // caller's because it is a product sentence, unlike the retry's.
+      var opened = 0;
+
+      await tester.pumpWidget(
+        PeykTheme.wrap(
+          child: PeykFailureView(
+            message: 'Location is switched off for this app.',
+            actionLabel: 'Open settings',
+            onAction: () => opened++,
+          ),
+        ),
+      );
+      await tester.tap(find.text('Open settings'));
+
+      expect(opened, 1);
+      expect(find.text('Try again'), findsNothing);
+    });
   });
 
   group('PeykEmptyView', () {
