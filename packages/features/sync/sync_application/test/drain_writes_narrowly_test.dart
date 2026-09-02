@@ -1,6 +1,8 @@
 @Tags(['unit'])
 library;
 
+import 'dart:async';
+
 import 'package:core_kernel/core_kernel.dart';
 import 'package:core_testing/core_testing.dart';
 import 'package:sync_api/sync_api.dart';
@@ -26,21 +28,88 @@ void main() {
       .ofType('test.write')
       .build();
 
-  DrainOutbox drainOver(OutboxStore store, CommandTransportPort transport) =>
-      DrainOutbox(
-        store: store,
-        transport: transport,
-        skew: FakeClockSkew(),
-        clock: FakeClock(noon),
-        random: FakeRandomSource(),
-        network: FakeNetworkStatus(),
-        logger: RecordingLogger(),
-        status: ReadSyncStatus(
-          store: store,
-          network: FakeNetworkStatus(),
-          clock: FakeClock(noon),
-        ),
+  DrainOutbox drainOver(
+    OutboxStore store,
+    CommandTransportPort transport, {
+    RetrySchedule schedule = RetrySchedule.standard,
+  }) => DrainOutbox(
+    schedule: schedule,
+    store: store,
+    transport: transport,
+    skew: FakeClockSkew(),
+    clock: FakeClock(noon),
+    random: FakeRandomSource(),
+    network: FakeNetworkStatus(),
+    logger: RecordingLogger(),
+    status: ReadSyncStatus(
+      store: store,
+      network: FakeNetworkStatus(),
+      clock: FakeClock(noon),
+    ),
+  );
+
+  test(
+    'two drains cannot spend the retry budget twice',
+    () async {
+      // The race a background scheduler makes real: the app's own orchestrator
+      // and a task the operating system started are two drains over one store.
+      // Both read the entry, both send, and both then decide whether to give
+      // up. Deciding from the count each of them *read* lets both conclude
+      // they are within budget while the store has gone past it.
+      final schedule = RetrySchedule.of(
+        baseDelay: const Duration(seconds: 1),
+        maxDelay: const Duration(minutes: 1),
+        maxAttempts: 3,
+      ).fold((value) => value, (failure) => throw StateError('bad schedule'));
+
+      final store = InMemoryOutboxStore();
+      await store.put(
+        OutboxEntryBuilder()
+            .withId('e-1')
+            .queuedAt(noon)
+            .ofType('test.write')
+            // One attempt already spent, so a single further one is inside the
+            // budget and a second is not. That is the only arrangement in
+            // which the two answers differ — and the attempt is put an hour
+            // back so the entry is due now rather than waiting out its own
+            // backoff.
+            .attempted(at: noon.subtract(const Duration(hours: 1)))
+            .build(),
       );
+
+      // Both drains are held inside `send` until both have got there, which is
+      // the interleaving and the only place it can happen: a drain is holding
+      // its snapshot exactly while it waits on the network.
+      final gate = Completer<void>();
+      var arrived = 0;
+      final transport = _GatedTransport(
+        onSend: () async {
+          arrived++;
+          if (arrived == 2) gate.complete();
+          await gate.future;
+        },
+      );
+
+      await Future.wait([
+        drainOver(store, transport, schedule: schedule)(()),
+        drainOver(store, transport, schedule: schedule)(()),
+      ]);
+
+      final blocked = (await store.blocked()).fold(
+        (rows) => rows,
+        (failure) => throw StateError(r'$failure'),
+      );
+      // Three attempts against a budget of three, and the entry is out of the
+      // drain. Deciding from the snapshot leaves it queued with three attempts
+      // on it and a fourth still to come.
+      expect(blocked.map((row) => row.id.value), ['e-1']);
+      expect(blocked.single.attempts, 3);
+      expect(
+        (await store.pending()).fold((r) => r, (f) => throw StateError(r'$f')),
+        isEmpty,
+      );
+    },
+  );
 
   test(
     'a failed attempt does not resurrect an entry somebody blocked',
@@ -126,6 +195,22 @@ final class _MutatingTransport implements CommandTransportPort {
   }
 }
 
+/// A transport that holds every send until it is let go.
+///
+/// It always fails, transiently, because what this is for is the decision a
+/// drain makes *after* a failed attempt.
+final class _GatedTransport implements CommandTransportPort {
+  _GatedTransport({required this.onSend});
+
+  final Future<void> Function() onSend;
+
+  @override
+  Future<Result<SyncCursor, SyncFailure>> send(SyncEnvelope envelope) async {
+    await onSend();
+    return const Failed(SyncTransportFailed(detail: 'reset'));
+  }
+}
+
 /// A store whose standalone cursor write always fails.
 ///
 /// `accepted` still works, because saving the cursor as part of accepting is a
@@ -167,9 +252,13 @@ final class _NoCursorWrites implements OutboxStore {
   Future<Result<SyncCursor, SyncFailure>> cursor() => _inner.cursor();
 
   @override
-  Future<Result<void, SyncFailure>> recordAttempt(
+  Future<Result<int, SyncFailure>> recordAttempt(
     OutboxEntryId id, {
     required DateTime at,
     required DateTime nextAttemptAt,
   }) => _inner.recordAttempt(id, at: at, nextAttemptAt: nextAttemptAt);
+
+  @override
+  Future<Result<void, SyncFailure>> block(OutboxEntryId id, String reason) =>
+      _inner.block(id, reason);
 }

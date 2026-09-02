@@ -290,21 +290,114 @@ void runOutboxStoreContract(OutboxStore Function() createStore) {
         expect(stored.queuedAt, entry.queuedAt);
       });
 
+      test('it answers the count it wrote', () async {
+        // The property the drain spends its retry budget against. An
+        // implementation that answered the caller's number rather than its own
+        // would let two drains each believe they were within budget while the
+        // store had gone past it.
+        final entry = await put(OutboxEntryBuilder().withId('e-1').build());
+
+        final first = await store.recordAttempt(
+          entry.id,
+          at: noon,
+          nextAttemptAt: later,
+        );
+        final second = await store.recordAttempt(
+          entry.id,
+          at: noon,
+          nextAttemptAt: later,
+        );
+
+        expect(first.fold((count) => count, (f) => -1), entry.attempts + 1);
+        expect(second.fold((count) => count, (f) => -1), entry.attempts + 2);
+      });
+
       test('recording against an entry that is not there succeeds', () async {
         final missing = OutboxEntryId.parse(
           'nope',
         ).fold((id) => id, (f) => throw StateError('$f'));
 
         // Same reasoning as drop: a drain racing a person who resolved the
-        // entry must not stop on work that is no longer queued.
+        // entry must not stop on work that is no longer queued. Zero rather
+        // than one, because a caller reading it as an attempt count would give
+        // up on work that has already gone.
         expect(
           (await store.recordAttempt(
             missing,
             at: noon,
             nextAttemptAt: later,
-          )).isSuccess,
-          isTrue,
+          )).fold((count) => count, (f) => -1),
+          0,
         );
+      });
+    });
+
+    group('block', () {
+      test('takes the entry out of the drain and leaves it findable', () async {
+        final entry = await put(OutboxEntryBuilder().withId('e-1').build());
+
+        final blocked = await store.block(entry.id, 'rejected: 422');
+
+        expect(blocked.isSuccess, isTrue);
+        expect(
+          (await store.pending()).fold((r) => r, (f) => throw StateError('$f')),
+          isEmpty,
+        );
+        final left = (await store.blocked()).fold(
+          (rows) => rows,
+          (f) => throw StateError('$f'),
+        );
+        expect(left.single.id, entry.id);
+        expect(left.single.blockedReason, 'rejected: 422');
+      });
+
+      test('the first reason stands', () async {
+        // What a person opening the review queue needs to read is the thing
+        // that went wrong, not the symptom a later drain recorded. A second
+        // drain overwriting "rejected: 422" with "gave up after 5 attempts"
+        // hides the cause behind the count.
+        final entry = await put(OutboxEntryBuilder().withId('e-1').build());
+
+        await store.block(entry.id, 'rejected: 422');
+        await store.block(entry.id, 'gave up after 5 attempts');
+
+        final left = (await store.blocked()).fold(
+          (rows) => rows,
+          (f) => throw StateError('$f'),
+        );
+        expect(left.single.blockedReason, 'rejected: 422');
+      });
+
+      test('changes nothing else about the entry', () async {
+        final entry = await put(
+          OutboxEntryBuilder()
+              .withId('e-1')
+              .ofType('delivery.completeAttempt')
+              .under(const ConflictPolicy.manualReview())
+              .build(),
+        );
+        await store.recordAttempt(entry.id, at: noon, nextAttemptAt: later);
+
+        await store.block(entry.id, 'rejected: 422');
+
+        final left = (await store.blocked()).fold(
+          (rows) => rows.single,
+          (f) => throw StateError('$f'),
+        );
+        // The attempt counted a moment ago survives. Blocking used to write a
+        // whole entry from a copy read before it, which rolled the count back.
+        expect(left.attempts, entry.attempts + 1);
+        expect(left.type, entry.type);
+        expect(left.payload, entry.payload);
+        expect(left.policy, entry.policy);
+      });
+
+      test('blocking an entry that is not there succeeds', () async {
+        final missing = OutboxEntryId.parse(
+          'nope',
+        ).fold((id) => id, (f) => throw StateError('$f'));
+
+        expect((await store.block(missing, 'whatever')).isSuccess, isTrue);
       });
     });
 

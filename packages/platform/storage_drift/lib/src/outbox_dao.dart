@@ -83,19 +83,60 @@ class OutboxDao extends DatabaseAccessor<PeykDatabase> with _$OutboxDaoMixin {
   /// upsert writes every column from an in-memory copy read at the top of the
   /// drain; this writes the three that a failed attempt changes and leaves the
   /// payload, the policy and the blocked reason as the table has them.
-  Future<void> recordAttempt(
+  ///
+  /// **It answers the count it wrote**, read back inside the same transaction
+  /// as the increment. A caller that spent its retry budget against the number
+  /// it read at the top of the drain would, with two drains running, let both
+  /// decide `4` was within budget while the table had reached `5`. Reading it
+  /// back in a second statement outside a transaction would have the same
+  /// hole one step smaller.
+  ///
+  /// A `RETURNING` clause would say this in one statement and is deliberately
+  /// not used: it needs SQLite 3.35, and which SQLite a Flutter app gets is a
+  /// property of the device rather than of this repository.
+  Future<int> recordAttempt(
     String id,
     DateTime attemptedAt,
     DateTime nextAttemptAt,
   ) {
+    return transaction(() async {
+      await customUpdate(
+        'UPDATE outbox_entries SET attempt_count = attempt_count + 1, '
+        'last_attempt_at = ?, next_attempt_at = ? WHERE id = ?',
+        variables: [
+          Variable.withDateTime(attemptedAt),
+          Variable.withDateTime(nextAttemptAt),
+          Variable.withString(id),
+        ],
+        updates: {outboxEntries},
+      );
+
+      final row = await customSelect(
+        'SELECT attempt_count FROM outbox_entries WHERE id = ?',
+        variables: [Variable.withString(id)],
+        readsFrom: {outboxEntries},
+      ).getSingleOrNull();
+
+      // No row means the entry went while the drain was in flight — dropped
+      // by another pass, or resolved by a person on the review screen. Zero
+      // is the count that tells a caller to carry on rather than give up on
+      // work that is no longer there.
+      return row?.read<int>('attempt_count') ?? 0;
+    });
+  }
+
+  /// Blocks [id] with [reason], leaving an already-blocked entry alone.
+  ///
+  /// `WHERE blocked_reason IS NULL` is the domain's rule in SQL:
+  /// `OutboxEntry.blocked` keeps the first reason, because the first thing
+  /// that went wrong is what a person needs to read — a second drain
+  /// overwriting a 422 with "gave up after 5 attempts" hides the cause behind
+  /// the symptom. It also makes the statement safe against two drains.
+  Future<void> block(String id, String reason) {
     return customUpdate(
-      'UPDATE outbox_entries SET attempt_count = attempt_count + 1, '
-      'last_attempt_at = ?, next_attempt_at = ? WHERE id = ?',
-      variables: [
-        Variable.withDateTime(attemptedAt),
-        Variable.withDateTime(nextAttemptAt),
-        Variable.withString(id),
-      ],
+      'UPDATE outbox_entries SET blocked_reason = ? '
+      'WHERE id = ? AND blocked_reason IS NULL',
+      variables: [Variable.withString(reason), Variable.withString(id)],
       updates: {outboxEntries},
     );
   }
