@@ -186,6 +186,9 @@ class PeykCourierLocalizationsEn extends PeykCourierLocalizations {
   String get deliveryAddSignature => 'Add signature';
 
   @override
+  String get deliverySignaturePrompt => 'Please sign here';
+
+  @override
   String get deliveryAddPhoto => 'Add photo';
 
   @override

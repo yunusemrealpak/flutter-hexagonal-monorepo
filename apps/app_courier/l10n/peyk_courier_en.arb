@@ -237,6 +237,11 @@
   "@deliveryAddSignature": {
     "description": "The sentence behind \"delivery.addSignature\"."
   },
+  "deliverySignaturePrompt": "Please sign here",
+  "@deliverySignaturePrompt": {
+    "description": "The sentence behind \"delivery.signaturePrompt\". Shown as the title of the signature panel, so it says what is being signed for rather than what to do with the pad."
+  },
+
   "deliveryAddPhoto": "Add photo",
   "@deliveryAddPhoto": {
     "description": "The sentence behind \"delivery.addPhoto\"."

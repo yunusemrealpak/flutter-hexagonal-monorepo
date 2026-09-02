@@ -389,6 +389,12 @@ abstract class PeykCourierLocalizations {
   /// **'Add signature'**
   String get deliveryAddSignature;
 
+  /// The sentence behind "delivery.signaturePrompt". Shown as the title of the signature panel, so it says what is being signed for rather than what to do with the pad.
+  ///
+  /// In en, this message translates to:
+  /// **'Please sign here'**
+  String get deliverySignaturePrompt;
+
   /// The sentence behind "delivery.addPhoto".
   ///
   /// In en, this message translates to:

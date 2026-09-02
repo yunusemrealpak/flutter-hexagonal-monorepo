@@ -161,6 +161,7 @@ final class CourierCatalogue implements StringCatalogue {
     'delivery.captured': (l, arguments) =>
         l.deliveryCaptured(_text(arguments['kind'])),
     'delivery.addSignature': (l, arguments) => l.deliveryAddSignature,
+    'delivery.signaturePrompt': (l, arguments) => l.deliverySignaturePrompt,
     'delivery.addPhoto': (l, arguments) => l.deliveryAddPhoto,
     'delivery.delivered': (l, arguments) => l.deliveryDelivered,
     'delivery.couldNotDeliver': (l, arguments) => l.deliveryCouldNotDeliver,
