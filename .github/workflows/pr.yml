@@ -29,7 +29,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Check out the branch and its history
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           # Affected-test selection diffs against origin/main, and a shallow
           # clone has no base to diff against. test_runner falls back to
@@ -51,7 +51,7 @@ jobs:
           cache: true
 
       - name: Restore the build_runner cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           # build_runner keeps its incremental state here. Without it every
           # run regenerates the whole workspace, which is most of gen:check's
@@ -140,7 +140,7 @@ jobs:
 
       - name: Upload the JUnit report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: junit-pr-${{ github.run_id }}
           path: build/junit.xml

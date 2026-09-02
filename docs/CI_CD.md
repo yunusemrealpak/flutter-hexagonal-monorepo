@@ -140,6 +140,8 @@ Everything else in both files — the triggers, the flavour matrix, the obfuscat
 
 A phase ends the same way every time (§6 of the constitution): push the phase branch, open a pull request, **merge without squashing** — the in-phase history is the lesson — then tag `phase-NN` and push the tag.
 
+**Three tag shapes, and only one of them builds.** `phase-NN` marks a phase of the specification, which ended at `phase-08`. `vX.Y.Z` marks a product milestone in the work that followed it — `v0.2.0` is the four items A–D — and exists because a ninth phase would name a phase the specification does not define. `app_<name>-vX.Y.Z` is the only shape `release.yml` triggers on, so a milestone tag never starts a signed build.
+
 ---
 
 ## 9. Caching, and the one cache that is not shared
@@ -149,7 +151,11 @@ A phase ends the same way every time (§6 of the constitution): push the phase b
 | Flutter SDK | `subosito/flutter-action` | `cache: true`, keyed on the pinned version |
 | pub packages | same | one resolution for 75 packages, which is what `resolution: workspace` buys |
 | build_runner state | `actions/cache`, keyed on `pubspec.lock` + SHA | most of `gen:check`'s cost and none of its value |
-| test durations | `actions/upload-artifact` | balanced bucketing on the next run |
+| test durations | `actions/cache`, prefix-restored | balanced bucketing on the next run |
 | test hashes | **not shared** | `.cache/test_hashes.json` is local only |
+
+**The durations row was wrong for as long as it existed, and the way it was wrong is worth keeping.** It read the timings back with `actions/download-artifact`, which downloads from *one run* — and the run it named was the current one, whose timings are produced by its own last job. The lookup could therefore never succeed. It failed ten times per run, silently, because the step carried `continue-on-error: true`; the file was uploaded correctly every time and read back never. Bucketing fell through to the assumed cost for every package, which is splitting by count — the exact thing the step exists to prevent, and measurably: on the 76 packages of `v0.2.0`, the equal-weight split gives a slowest bucket of 71.7s against a measured 49.2s, so a third of the critical path was being spent on a step that was reporting an error nobody read.
+
+Two lessons rather than one. **A step allowed to fail has to be a step whose failure somebody will see**, or it is a feature that silently is not there. And **carrying state between runs is a cache's job**: an artefact belongs to the run that produced it, which is why `download-artifact` needs a run id at all. The readable copy is still uploaded, because a cache entry cannot be opened from a browser and comparing two runs' timings is how a suddenly slow bucket gets diagnosed.
 
 The last row is the deliberate one. A hash-skip is a claim that a package's sources have not moved since *this machine* saw them pass. Sharing that claim across machines would mean trusting a run nobody in this pipeline observed, which is exactly the guarantee the merge queue exists to provide. It stays a developer's convenience, and CI passes `--no-cache`.

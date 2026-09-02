@@ -35,7 +35,7 @@ jobs:
       matrix:
         bucket: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -53,13 +53,20 @@ jobs:
         # Bucketing is only as balanced as its input. Without this every
         # machine assumes the default cost for every package, which degrades
         # to splitting by count — one widget suite next to nine _api packages.
-        uses: actions/download-artifact@v4
-        continue-on-error: true
+        #
+        # A cache and not an artifact, and the difference is the whole point:
+        # `download-artifact` reads the *current* run, so a step asking for a
+        # file the same run's last job produces can only ever miss. It did,
+        # ten times a run, quietly, because the step was allowed to fail.
+        # Carrying state from a previous run is what a cache is for.
+        uses: actions/cache/restore@v5
         with:
-          name: timings
-          path: .cache
-          github-token: ${{ github.token }}
-          run-id: ${{ github.event.workflow_run.id || github.run_id }}
+          path: .cache/timings.json
+          # The exact key is unique to this run, so nothing ever hits it and
+          # the prefix always decides: the newest timings any earlier run
+          # saved. A miss is silent and costs balance, not correctness.
+          key: timings-${{ github.run_id }}
+          restore-keys: timings-
 
       - name: This machine's share of the suite
         # --no-cache: the hash cache is a developer's convenience. On the way
@@ -74,7 +81,7 @@ jobs:
 
       - name: Upload this bucket's report and timings
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: junit-${{ matrix.bucket }}
           path: |
@@ -89,10 +96,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Collect every bucket's timings
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: junit-*
           path: buckets
@@ -115,7 +122,16 @@ jobs:
           PY
 
       - name: Publish them for the next run
-        uses: actions/upload-artifact@v4
+        uses: actions/cache/save@v5
+        with:
+          path: .cache/timings.json
+          key: timings-${{ github.run_id }}
+
+      - name: Keep a readable copy beside the reports
+        # The cache is what the next run reads; this is what a person reads.
+        # A bucket that suddenly takes twice as long is diagnosed by comparing
+        # two of these, and a cache entry cannot be opened from a browser.
+        uses: actions/upload-artifact@v6
         with:
           name: timings
           path: .cache/timings.json

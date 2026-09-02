@@ -1,9 +1,11 @@
 name: release
 
-# Tag-triggered. The tags this repository cuts are phase tags (`phase-07`) and
-# app releases (`app_courier-v1.4.0`); only the second builds anything, and the
-# job below decides which it is from the tag's own shape rather than from a
-# second trigger nobody remembers to update.
+# Tag-triggered. The tags this repository cuts are phase tags (`phase-07`),
+# product milestones (`v0.2.0`) and app releases (`app_courier-v1.4.0`); only
+# the third builds anything, and the job below decides which it is from the
+# tag's own shape rather than from a second trigger nobody remembers to
+# update. The filter is deliberately narrow for that reason: a milestone tag
+# has to be able to arrive without starting a signed build.
 on:
   push:
     tags:
@@ -21,7 +23,7 @@ jobs:
     runs-on: macos-14
     timeout-minutes: 60
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 0
 
@@ -93,7 +95,7 @@ jobs:
       - name: Keep the symbols
         # Without these the obfuscated release's crash reports are unreadable,
         # and they cannot be regenerated after the fact.
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: symbols-${{ github.ref_name }}
           path: apps/${{ steps.target.outputs.app }}/build/symbols
