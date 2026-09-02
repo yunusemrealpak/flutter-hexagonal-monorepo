@@ -70,7 +70,7 @@ final class HttpGeoFence implements GeoFencePort {
     final GeoFix fix;
     switch (await location.currentFix(timeout: timeout)) {
       case Failed(:final failure):
-        return Failed(DeliveryPositionUnavailable(detail: '$failure'));
+        return Failed(_translate(failure));
       case Success(:final value):
         fix = value;
     }
@@ -100,6 +100,32 @@ final class HttpGeoFence implements GeoFencePort {
       ),
     );
   }
+
+  /// Turns a location failure into delivery's own words.
+  ///
+  /// **One of the five is kept apart and the other four are not.** A
+  /// permission the operating system has stopped asking about is the only case
+  /// a courier can do something about from inside this app — press a button
+  /// that opens the settings page — and it is the only one where the retry
+  /// every other case gets is a button that can never work. The rest differ in
+  /// why the fix did not arrive and not in what happens next, so they collapse
+  /// with the detail carried for the log.
+  ///
+  /// `LocationServicesDisabled` is on the collapsed side and is the seam worth
+  /// naming: it is also only fixable in settings, but in the *device's*
+  /// settings rather than this app's, which is a different platform call than
+  /// `PermissionRequester.openSettings` makes. Splitting it out before that
+  /// call exists would produce a second case with the same dead end.
+  static DeliveryFailure _translate(LocationFailure failure) =>
+      switch (failure) {
+        LocationPermissionBlocked() => const DevicePositionBlocked(),
+        LocationServicesDisabled() ||
+        LocationPermissionDenied() ||
+        LocationTimeout() ||
+        LocationUnavailable() => DeliveryPositionUnavailable(
+          detail: '$failure',
+        ),
+      };
 
   Future<
     Result<

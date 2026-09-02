@@ -58,6 +58,22 @@ sealed class DeliveryFailure extends Failure with _$DeliveryFailure {
   const factory DeliveryFailure.positionUnavailable({String? detail}) =
       DeliveryPositionUnavailable;
 
+  /// The device will not report its position, and only its settings page can
+  /// change that.
+  ///
+  /// Distinct from [DeliveryPositionUnavailable] for the reason
+  /// `location_service` keeps `LocationPermissionBlocked` apart from
+  /// `LocationPermissionDenied` one layer down: the two lead a courier to
+  /// different places. A fix that has not arrived is retried, and a permission
+  /// the operating system has stopped asking about is not — prompting again
+  /// shows nothing at all on iOS. A screen that could not tell them apart
+  /// would offer a retry that can never work.
+  ///
+  /// It carries no detail. What a courier does about it is the same whichever
+  /// operating system refused, and the string that would go here is the one
+  /// `positionUnavailable` already carries for the log.
+  const factory DeliveryFailure.positionBlocked() = DevicePositionBlocked;
+
   /// The evidence could not be written down.
   const factory DeliveryFailure.proofStoreUnavailable({String? detail}) =
       ProofStoreUnavailable;

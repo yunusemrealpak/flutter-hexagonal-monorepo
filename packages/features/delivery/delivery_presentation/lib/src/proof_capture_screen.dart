@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:core_kernel/core_kernel.dart';
 import 'package:delivery_api/delivery_api.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
@@ -32,6 +33,7 @@ final class ProofCaptureScreen extends StatefulWidget {
     this.onCaptureSignature,
     this.onCapturePhoto,
     this.onSettled,
+    this.onOpenSettings,
     super.key,
   });
 
@@ -49,10 +51,31 @@ final class ProofCaptureScreen extends StatefulWidget {
   final DeliveryGrade grade;
 
   /// Opens whatever this app captures signatures with.
-  final Future<SignatureCapture?> Function()? onCaptureSignature;
+  final Future<Result<SignatureCapture, CaptureRefusal>> Function()?
+  onCaptureSignature;
 
   /// Opens whatever this app takes photographs with.
-  final Future<PhotoEvidence?> Function()? onCapturePhoto;
+  ///
+  /// A `Result` rather than a nullable evidence, and the widening is what the
+  /// whole blocked path turns on: answering `null` made a camera switched off
+  /// in the system settings identical to a courier who changed their mind, so
+  /// the one outcome with a way out of it was the one nothing offered a way
+  /// out of. `CaptureRefusal` has a case per thing a courier does next.
+  final Future<Result<PhotoEvidence, CaptureRefusal>> Function()?
+  onCapturePhoto;
+
+  /// Opens this device's settings page for the application.
+  ///
+  /// The other half of every blocked permission on this screen, and a callback
+  /// for the same reason the captures are: opening it means
+  /// `PermissionRequester`, which lives in `core_ports` — a package section 2
+  /// does not give a presentation package. A decision the product owns is a
+  /// port; a mechanism the platform owns is a callback, and `AlertsController`
+  /// took the same argument for the same reason.
+  ///
+  /// An app that supplies none draws no button, which is what
+  /// `app_dispatcher` relies on: a desk has no camera permission to unblock.
+  final Future<bool> Function()? onOpenSettings;
 
   /// Reports the visit that was recorded, once it is recorded.
   ///
@@ -79,6 +102,7 @@ final class ProofCaptureScreen extends StatefulWidget {
   static String describe(DeliveryFailure failure) => switch (failure) {
     OutsideDeliveryArea() => DeliveryStrings.failureOutsideArea,
     DeliveryPositionUnavailable() => DeliveryStrings.failurePositionUnavailable,
+    DevicePositionBlocked() => DeliveryStrings.failurePositionBlocked,
     ProofInsufficient() => DeliveryStrings.failureProofInsufficient,
     AttemptAlreadySettled() => DeliveryStrings.failureAlreadySettled,
     ProofStoreUnavailable() => DeliveryStrings.failureProofStoreUnavailable,
@@ -86,6 +110,59 @@ final class ProofCaptureScreen extends StatefulWidget {
     MediaTooLarge() => DeliveryStrings.failureMediaTooLarge,
     DeliveryUnavailable() => DeliveryStrings.failureUnavailable,
     MalformedDeliveryValue() => DeliveryStrings.failureMalformed,
+  };
+
+  /// Which string a capture refusal should be shown as, or null for one that
+  /// is shown as nothing.
+  ///
+  /// [CaptureDeclined] is the null. A courier who opened the camera and backed
+  /// out is behaving normally, and a red chip in front of them would be the
+  /// screen reporting an event rather than a problem.
+  @visibleForTesting
+  static String? describeCapture(CaptureRefusal refusal) => switch (refusal) {
+    CaptureDeclined() => null,
+    CaptureNotAllowed() => DeliveryStrings.captureNotAllowed,
+    CaptureBlockedInSettings() => DeliveryStrings.captureBlocked,
+    EvidenceUnusable(:final failure) => describe(failure),
+  };
+
+  /// The arguments [refusal] contributes to its own message.
+  @visibleForTesting
+  static Map<String, Object?> argumentsForCapture(CaptureRefusal refusal) =>
+      switch (refusal) {
+        EvidenceUnusable(:final failure) => argumentsFor(failure),
+        CaptureDeclined() ||
+        CaptureNotAllowed() ||
+        CaptureBlockedInSettings() => const {},
+      };
+
+  /// Whether the way out of [refusal] is the settings page.
+  ///
+  /// Exactly one of the four. Offering it for [CaptureNotAllowed] would send
+  /// somebody the long way round to a prompt the button in front of them
+  /// already shows.
+  @visibleForTesting
+  static bool captureNeedsSettings(CaptureRefusal refusal) =>
+      refusal is CaptureBlockedInSettings;
+
+  /// Whether the way out of [failure] is the settings page rather than a
+  /// retry.
+  ///
+  /// Static and public for the reason [describe] is: an app drawing the same
+  /// failure in a different shape should not have to rediscover which of them
+  /// a retry cannot help.
+  @visibleForTesting
+  static bool needsSettings(DeliveryFailure failure) => switch (failure) {
+    DevicePositionBlocked() => true,
+    OutsideDeliveryArea() ||
+    DeliveryPositionUnavailable() ||
+    ProofInsufficient() ||
+    AttemptAlreadySettled() ||
+    ProofStoreUnavailable() ||
+    ProofNotFound() ||
+    MediaTooLarge() ||
+    DeliveryUnavailable() ||
+    MalformedDeliveryValue() => false,
   };
 
   /// The arguments [failure] contributes to its own message.
@@ -103,6 +180,7 @@ final class ProofCaptureScreen extends StatefulWidget {
         ProofInsufficient(:final missing) => {'kinds': missing},
         MalformedDeliveryValue(:final field) => {'field': field},
         DeliveryPositionUnavailable() ||
+        DevicePositionBlocked() ||
         AttemptAlreadySettled() ||
         ProofStoreUnavailable() ||
         ProofNotFound() ||
@@ -161,6 +239,9 @@ class _ProofCaptureScreenState extends State<ProofCaptureScreen> {
             state: state,
             canComplete: widget.controller.canComplete,
             onRecipient: widget.controller.recipientIs,
+            onOpenSettings: widget.onOpenSettings == null
+                ? null
+                : () => unawaited(widget.onOpenSettings!()),
             onSignature: widget.onCaptureSignature == null
                 ? null
                 : () => unawaited(_capture(_Kind.signature)),
@@ -177,31 +258,50 @@ class _ProofCaptureScreenState extends State<ProofCaptureScreen> {
           Settled() => PeykEmptyView(
             message: strings.resolve(DeliveryStrings.recorded),
           ),
-          CaptureFailed(:final failure) => PeykFailureView(
-            message: strings.resolve(
-              ProofCaptureScreen.describe(failure),
-              arguments: ProofCaptureScreen.argumentsFor(failure),
-            ),
-            onRetry: () => unawaited(
+          CaptureFailed(:final failure) => _failure(context, failure),
+        },
+      ),
+    );
+  }
+
+  /// The failure view, with whichever way out this failure has.
+  ///
+  /// A blocked permission gets the settings page and *no retry*: the operating
+  /// system has stopped asking, so trying again shows nothing at all. Drawing
+  /// both would put the useless button first.
+  Widget _failure(BuildContext context, DeliveryFailure failure) {
+    final strings = PeykStrings.of(context);
+    final settings = widget.onOpenSettings;
+    final blocked = ProofCaptureScreen.needsSettings(failure);
+
+    return PeykFailureView(
+      message: strings.resolve(
+        ProofCaptureScreen.describe(failure),
+        arguments: ProofCaptureScreen.argumentsFor(failure),
+      ),
+      onRetry: blocked
+          ? null
+          : () => unawaited(
               widget.controller.arrive(
                 shipment: widget.shipment,
                 grade: widget.grade,
               ),
             ),
-          ),
-        },
-      ),
+      actionLabel: blocked && settings != null
+          ? strings.resolve(DeliveryStrings.openSettings)
+          : null,
+      onAction: blocked && settings != null
+          ? () => unawaited(settings())
+          : null,
     );
   }
 
   Future<void> _capture(_Kind kind) async {
     switch (kind) {
       case _Kind.signature:
-        final signature = await widget.onCaptureSignature!();
-        if (signature != null) widget.controller.addSignature(signature);
+        widget.controller.capturedSignature(await widget.onCaptureSignature!());
       case _Kind.photo:
-        final photo = await widget.onCapturePhoto!();
-        if (photo != null) widget.controller.addPhoto(photo);
+        widget.controller.capturedPhoto(await widget.onCapturePhoto!());
     }
   }
 }
@@ -217,6 +317,7 @@ final class _Door extends StatelessWidget {
     required this.onFail,
     this.onSignature,
     this.onPhoto,
+    this.onOpenSettings,
   });
 
   final AtTheDoor state;
@@ -226,12 +327,18 @@ final class _Door extends StatelessWidget {
   final VoidCallback onFail;
   final VoidCallback? onSignature;
   final VoidCallback? onPhoto;
+  final VoidCallback? onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
     final signature = onSignature;
     final photo = onPhoto;
     final refusal = state.refusal;
+    final notice = state.notice;
+    final noticeKey = notice == null
+        ? null
+        : ProofCaptureScreen.describeCapture(notice);
+    final settings = onOpenSettings;
     final strings = PeykStrings.of(context);
 
     return ListView(
@@ -287,6 +394,28 @@ final class _Door extends StatelessWidget {
             label: strings.resolve(DeliveryStrings.addPhoto),
             onPressed: photo,
           ),
+        // What the last capture came back with, and — for the one case only
+        // the system settings can change — the way out of it. Beside the
+        // buttons rather than replacing the screen: a camera that would not
+        // open has not invalidated a signature already on the glass.
+        if (notice != null && noticeKey != null) ...[
+          const PeykGap.vertical(PeykGapSize.betweenLines),
+          PeykChip(
+            label: strings.resolve(
+              noticeKey,
+              arguments: ProofCaptureScreen.argumentsForCapture(notice),
+            ),
+            intent: PeykIntent.warning,
+          ),
+          if (settings != null &&
+              ProofCaptureScreen.captureNeedsSettings(notice)) ...[
+            const PeykGap.vertical(PeykGapSize.betweenLines),
+            PeykButton(
+              label: strings.resolve(DeliveryStrings.openSettings),
+              onPressed: settings,
+            ),
+          ],
+        ],
         const PeykGap.vertical(PeykGapSize.betweenGroups),
         // Scenario 6: the action a courier without the grant never sees. The
         // use case does not check permissions — identity is not one of its

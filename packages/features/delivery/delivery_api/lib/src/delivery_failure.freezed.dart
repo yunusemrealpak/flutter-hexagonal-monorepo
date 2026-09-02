@@ -56,7 +56,7 @@ extension DeliveryFailurePatterns on DeliveryFailure {
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( MalformedDeliveryValue value)?  malformedValue,TResult Function( ProofInsufficient value)?  proofInsufficient,TResult Function( AttemptAlreadySettled value)?  attemptAlreadySettled,TResult Function( OutsideDeliveryArea value)?  outsideDeliveryArea,TResult Function( DeliveryPositionUnavailable value)?  positionUnavailable,TResult Function( ProofStoreUnavailable value)?  proofStoreUnavailable,TResult Function( ProofNotFound value)?  proofNotFound,TResult Function( MediaTooLarge value)?  mediaTooLarge,TResult Function( DeliveryUnavailable value)?  deliveryUnavailable,required TResult orElse(),}){
+@optionalTypeArgs TResult maybeMap<TResult extends Object?>({TResult Function( MalformedDeliveryValue value)?  malformedValue,TResult Function( ProofInsufficient value)?  proofInsufficient,TResult Function( AttemptAlreadySettled value)?  attemptAlreadySettled,TResult Function( OutsideDeliveryArea value)?  outsideDeliveryArea,TResult Function( DeliveryPositionUnavailable value)?  positionUnavailable,TResult Function( DevicePositionBlocked value)?  positionBlocked,TResult Function( ProofStoreUnavailable value)?  proofStoreUnavailable,TResult Function( ProofNotFound value)?  proofNotFound,TResult Function( MediaTooLarge value)?  mediaTooLarge,TResult Function( DeliveryUnavailable value)?  deliveryUnavailable,required TResult orElse(),}){
 final _that = this;
 switch (_that) {
 case MalformedDeliveryValue() when malformedValue != null:
@@ -64,7 +64,8 @@ return malformedValue(_that);case ProofInsufficient() when proofInsufficient != 
 return proofInsufficient(_that);case AttemptAlreadySettled() when attemptAlreadySettled != null:
 return attemptAlreadySettled(_that);case OutsideDeliveryArea() when outsideDeliveryArea != null:
 return outsideDeliveryArea(_that);case DeliveryPositionUnavailable() when positionUnavailable != null:
-return positionUnavailable(_that);case ProofStoreUnavailable() when proofStoreUnavailable != null:
+return positionUnavailable(_that);case DevicePositionBlocked() when positionBlocked != null:
+return positionBlocked(_that);case ProofStoreUnavailable() when proofStoreUnavailable != null:
 return proofStoreUnavailable(_that);case ProofNotFound() when proofNotFound != null:
 return proofNotFound(_that);case MediaTooLarge() when mediaTooLarge != null:
 return mediaTooLarge(_that);case DeliveryUnavailable() when deliveryUnavailable != null:
@@ -86,7 +87,7 @@ return deliveryUnavailable(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( MalformedDeliveryValue value)  malformedValue,required TResult Function( ProofInsufficient value)  proofInsufficient,required TResult Function( AttemptAlreadySettled value)  attemptAlreadySettled,required TResult Function( OutsideDeliveryArea value)  outsideDeliveryArea,required TResult Function( DeliveryPositionUnavailable value)  positionUnavailable,required TResult Function( ProofStoreUnavailable value)  proofStoreUnavailable,required TResult Function( ProofNotFound value)  proofNotFound,required TResult Function( MediaTooLarge value)  mediaTooLarge,required TResult Function( DeliveryUnavailable value)  deliveryUnavailable,}){
+@optionalTypeArgs TResult map<TResult extends Object?>({required TResult Function( MalformedDeliveryValue value)  malformedValue,required TResult Function( ProofInsufficient value)  proofInsufficient,required TResult Function( AttemptAlreadySettled value)  attemptAlreadySettled,required TResult Function( OutsideDeliveryArea value)  outsideDeliveryArea,required TResult Function( DeliveryPositionUnavailable value)  positionUnavailable,required TResult Function( DevicePositionBlocked value)  positionBlocked,required TResult Function( ProofStoreUnavailable value)  proofStoreUnavailable,required TResult Function( ProofNotFound value)  proofNotFound,required TResult Function( MediaTooLarge value)  mediaTooLarge,required TResult Function( DeliveryUnavailable value)  deliveryUnavailable,}){
 final _that = this;
 switch (_that) {
 case MalformedDeliveryValue():
@@ -94,7 +95,8 @@ return malformedValue(_that);case ProofInsufficient():
 return proofInsufficient(_that);case AttemptAlreadySettled():
 return attemptAlreadySettled(_that);case OutsideDeliveryArea():
 return outsideDeliveryArea(_that);case DeliveryPositionUnavailable():
-return positionUnavailable(_that);case ProofStoreUnavailable():
+return positionUnavailable(_that);case DevicePositionBlocked():
+return positionBlocked(_that);case ProofStoreUnavailable():
 return proofStoreUnavailable(_that);case ProofNotFound():
 return proofNotFound(_that);case MediaTooLarge():
 return mediaTooLarge(_that);case DeliveryUnavailable():
@@ -112,7 +114,7 @@ return deliveryUnavailable(_that);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( MalformedDeliveryValue value)?  malformedValue,TResult? Function( ProofInsufficient value)?  proofInsufficient,TResult? Function( AttemptAlreadySettled value)?  attemptAlreadySettled,TResult? Function( OutsideDeliveryArea value)?  outsideDeliveryArea,TResult? Function( DeliveryPositionUnavailable value)?  positionUnavailable,TResult? Function( ProofStoreUnavailable value)?  proofStoreUnavailable,TResult? Function( ProofNotFound value)?  proofNotFound,TResult? Function( MediaTooLarge value)?  mediaTooLarge,TResult? Function( DeliveryUnavailable value)?  deliveryUnavailable,}){
+@optionalTypeArgs TResult? mapOrNull<TResult extends Object?>({TResult? Function( MalformedDeliveryValue value)?  malformedValue,TResult? Function( ProofInsufficient value)?  proofInsufficient,TResult? Function( AttemptAlreadySettled value)?  attemptAlreadySettled,TResult? Function( OutsideDeliveryArea value)?  outsideDeliveryArea,TResult? Function( DeliveryPositionUnavailable value)?  positionUnavailable,TResult? Function( DevicePositionBlocked value)?  positionBlocked,TResult? Function( ProofStoreUnavailable value)?  proofStoreUnavailable,TResult? Function( ProofNotFound value)?  proofNotFound,TResult? Function( MediaTooLarge value)?  mediaTooLarge,TResult? Function( DeliveryUnavailable value)?  deliveryUnavailable,}){
 final _that = this;
 switch (_that) {
 case MalformedDeliveryValue() when malformedValue != null:
@@ -120,7 +122,8 @@ return malformedValue(_that);case ProofInsufficient() when proofInsufficient != 
 return proofInsufficient(_that);case AttemptAlreadySettled() when attemptAlreadySettled != null:
 return attemptAlreadySettled(_that);case OutsideDeliveryArea() when outsideDeliveryArea != null:
 return outsideDeliveryArea(_that);case DeliveryPositionUnavailable() when positionUnavailable != null:
-return positionUnavailable(_that);case ProofStoreUnavailable() when proofStoreUnavailable != null:
+return positionUnavailable(_that);case DevicePositionBlocked() when positionBlocked != null:
+return positionBlocked(_that);case ProofStoreUnavailable() when proofStoreUnavailable != null:
 return proofStoreUnavailable(_that);case ProofNotFound() when proofNotFound != null:
 return proofNotFound(_that);case MediaTooLarge() when mediaTooLarge != null:
 return mediaTooLarge(_that);case DeliveryUnavailable() when deliveryUnavailable != null:
@@ -141,14 +144,15 @@ return deliveryUnavailable(_that);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String field,  String reason)?  malformedValue,TResult Function( String grade,  List<String> missing)?  proofInsufficient,TResult Function( String attempt)?  attemptAlreadySettled,TResult Function( double metresAway,  double allowedMetres)?  outsideDeliveryArea,TResult Function( String? detail)?  positionUnavailable,TResult Function( String? detail)?  proofStoreUnavailable,TResult Function( String reference)?  proofNotFound,TResult Function( int bytes,  int limit)?  mediaTooLarge,TResult Function( String? detail)?  deliveryUnavailable,required TResult orElse(),}) {final _that = this;
+@optionalTypeArgs TResult maybeWhen<TResult extends Object?>({TResult Function( String field,  String reason)?  malformedValue,TResult Function( String grade,  List<String> missing)?  proofInsufficient,TResult Function( String attempt)?  attemptAlreadySettled,TResult Function( double metresAway,  double allowedMetres)?  outsideDeliveryArea,TResult Function( String? detail)?  positionUnavailable,TResult Function()?  positionBlocked,TResult Function( String? detail)?  proofStoreUnavailable,TResult Function( String reference)?  proofNotFound,TResult Function( int bytes,  int limit)?  mediaTooLarge,TResult Function( String? detail)?  deliveryUnavailable,required TResult orElse(),}) {final _that = this;
 switch (_that) {
 case MalformedDeliveryValue() when malformedValue != null:
 return malformedValue(_that.field,_that.reason);case ProofInsufficient() when proofInsufficient != null:
 return proofInsufficient(_that.grade,_that.missing);case AttemptAlreadySettled() when attemptAlreadySettled != null:
 return attemptAlreadySettled(_that.attempt);case OutsideDeliveryArea() when outsideDeliveryArea != null:
 return outsideDeliveryArea(_that.metresAway,_that.allowedMetres);case DeliveryPositionUnavailable() when positionUnavailable != null:
-return positionUnavailable(_that.detail);case ProofStoreUnavailable() when proofStoreUnavailable != null:
+return positionUnavailable(_that.detail);case DevicePositionBlocked() when positionBlocked != null:
+return positionBlocked();case ProofStoreUnavailable() when proofStoreUnavailable != null:
 return proofStoreUnavailable(_that.detail);case ProofNotFound() when proofNotFound != null:
 return proofNotFound(_that.reference);case MediaTooLarge() when mediaTooLarge != null:
 return mediaTooLarge(_that.bytes,_that.limit);case DeliveryUnavailable() when deliveryUnavailable != null:
@@ -170,14 +174,15 @@ return deliveryUnavailable(_that.detail);case _:
 /// }
 /// ```
 
-@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String field,  String reason)  malformedValue,required TResult Function( String grade,  List<String> missing)  proofInsufficient,required TResult Function( String attempt)  attemptAlreadySettled,required TResult Function( double metresAway,  double allowedMetres)  outsideDeliveryArea,required TResult Function( String? detail)  positionUnavailable,required TResult Function( String? detail)  proofStoreUnavailable,required TResult Function( String reference)  proofNotFound,required TResult Function( int bytes,  int limit)  mediaTooLarge,required TResult Function( String? detail)  deliveryUnavailable,}) {final _that = this;
+@optionalTypeArgs TResult when<TResult extends Object?>({required TResult Function( String field,  String reason)  malformedValue,required TResult Function( String grade,  List<String> missing)  proofInsufficient,required TResult Function( String attempt)  attemptAlreadySettled,required TResult Function( double metresAway,  double allowedMetres)  outsideDeliveryArea,required TResult Function( String? detail)  positionUnavailable,required TResult Function()  positionBlocked,required TResult Function( String? detail)  proofStoreUnavailable,required TResult Function( String reference)  proofNotFound,required TResult Function( int bytes,  int limit)  mediaTooLarge,required TResult Function( String? detail)  deliveryUnavailable,}) {final _that = this;
 switch (_that) {
 case MalformedDeliveryValue():
 return malformedValue(_that.field,_that.reason);case ProofInsufficient():
 return proofInsufficient(_that.grade,_that.missing);case AttemptAlreadySettled():
 return attemptAlreadySettled(_that.attempt);case OutsideDeliveryArea():
 return outsideDeliveryArea(_that.metresAway,_that.allowedMetres);case DeliveryPositionUnavailable():
-return positionUnavailable(_that.detail);case ProofStoreUnavailable():
+return positionUnavailable(_that.detail);case DevicePositionBlocked():
+return positionBlocked();case ProofStoreUnavailable():
 return proofStoreUnavailable(_that.detail);case ProofNotFound():
 return proofNotFound(_that.reference);case MediaTooLarge():
 return mediaTooLarge(_that.bytes,_that.limit);case DeliveryUnavailable():
@@ -195,14 +200,15 @@ return deliveryUnavailable(_that.detail);}
 /// }
 /// ```
 
-@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String field,  String reason)?  malformedValue,TResult? Function( String grade,  List<String> missing)?  proofInsufficient,TResult? Function( String attempt)?  attemptAlreadySettled,TResult? Function( double metresAway,  double allowedMetres)?  outsideDeliveryArea,TResult? Function( String? detail)?  positionUnavailable,TResult? Function( String? detail)?  proofStoreUnavailable,TResult? Function( String reference)?  proofNotFound,TResult? Function( int bytes,  int limit)?  mediaTooLarge,TResult? Function( String? detail)?  deliveryUnavailable,}) {final _that = this;
+@optionalTypeArgs TResult? whenOrNull<TResult extends Object?>({TResult? Function( String field,  String reason)?  malformedValue,TResult? Function( String grade,  List<String> missing)?  proofInsufficient,TResult? Function( String attempt)?  attemptAlreadySettled,TResult? Function( double metresAway,  double allowedMetres)?  outsideDeliveryArea,TResult? Function( String? detail)?  positionUnavailable,TResult? Function()?  positionBlocked,TResult? Function( String? detail)?  proofStoreUnavailable,TResult? Function( String reference)?  proofNotFound,TResult? Function( int bytes,  int limit)?  mediaTooLarge,TResult? Function( String? detail)?  deliveryUnavailable,}) {final _that = this;
 switch (_that) {
 case MalformedDeliveryValue() when malformedValue != null:
 return malformedValue(_that.field,_that.reason);case ProofInsufficient() when proofInsufficient != null:
 return proofInsufficient(_that.grade,_that.missing);case AttemptAlreadySettled() when attemptAlreadySettled != null:
 return attemptAlreadySettled(_that.attempt);case OutsideDeliveryArea() when outsideDeliveryArea != null:
 return outsideDeliveryArea(_that.metresAway,_that.allowedMetres);case DeliveryPositionUnavailable() when positionUnavailable != null:
-return positionUnavailable(_that.detail);case ProofStoreUnavailable() when proofStoreUnavailable != null:
+return positionUnavailable(_that.detail);case DevicePositionBlocked() when positionBlocked != null:
+return positionBlocked();case ProofStoreUnavailable() when proofStoreUnavailable != null:
 return proofStoreUnavailable(_that.detail);case ProofNotFound() when proofNotFound != null:
 return proofNotFound(_that.reference);case MediaTooLarge() when mediaTooLarge != null:
 return mediaTooLarge(_that.bytes,_that.limit);case DeliveryUnavailable() when deliveryUnavailable != null:
@@ -555,6 +561,38 @@ as String?,
 
 
 }
+
+/// @nodoc
+
+
+class DevicePositionBlocked extends DeliveryFailure {
+  const DevicePositionBlocked(): super._();
+  
+
+
+
+
+
+
+@override
+bool operator ==(Object other) {
+  return identical(this, other) || (other.runtimeType == runtimeType&&other is DevicePositionBlocked);
+}
+
+
+@override
+int get hashCode => runtimeType.hashCode;
+
+@override
+String toString() {
+  return 'DeliveryFailure.positionBlocked()';
+}
+
+
+}
+
+
+
 
 /// @nodoc
 

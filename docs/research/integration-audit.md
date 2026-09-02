@@ -228,6 +228,55 @@ which is what §1 is about.
 The step that closes it is the same one named in `docs/CI_CD.md` §7:
 `flutter create --platforms=android,ios .` inside an app.
 
+## 4.4 The blocked permission, closed on both paths
+
+Two rows of the table below were one dead end. `PermissionRequester.openSettings`
+existed and only the alerts section called it; `media_capture` and
+`location_service` both produced a `…PermissionBlocked` that reached a courier
+as nothing at all. They closed together because neither could close alone: a
+settings button needs somewhere to hang, and nothing on the proof screen could
+say a permission was blocked.
+
+**The camera's half was a signature.** `onCapturePhoto` answered
+`PhotoEvidence?`, so a courier who backed out, a permission that can be asked
+for again and a camera switched off in the system settings were the same
+`null`. `CaptureRefusal` is those cases pulled apart — four of them, because a
+courier does four different things — and it lives in `delivery_api` so that
+`CameraProofSource` produces exactly what the screen consumes and the app
+passes the value through untouched.
+
+**The location's half was a collapse.** `HttpGeoFence` turned all five
+`LocationFailure`s into `positionUnavailable` with the reason in a string
+nothing renders, and the proof screen drew a retry over it. On iOS that retry
+shows no prompt at all, so the one failure a courier could act on was rendered
+as the one that looks most like bad signal.
+`DeliveryFailure.positionBlocked` is the case, and the failure view offers the
+settings action *instead of* the retry rather than beside it.
+
+Three things worth not rediscovering.
+
+- **Two mechanisms, because they are two flows.** The camera's answer comes
+  back through a callback the screen called; the position's comes back through
+  a use case as controller state. Trying to carry both in one type would mean
+  the geofence producing a `CaptureRefusal` for something nobody captured.
+- **`LocationServicesDisabled` is deliberately left collapsed.** It is also
+  only fixable in settings — the *device's*, not this app's — which is a
+  different platform call than `openSettings` makes. Splitting it out first
+  would have produced a second case with the same dead end, which is the defect
+  being fixed.
+- **The notice survives a keystroke and the refusal does not.** `recipientIs`
+  drops `AtTheDoor.refusal`, which is right: a refusal answers the completion
+  the courier is editing. A blocked camera permission answers nothing they are
+  editing, and it carries the settings button with it — dropping it makes the
+  only way out vanish under their thumb. The test was re-run without the carry
+  and produced exactly that.
+
+Open, and named rather than fixed: `RouteScreen` still shows a blocked position
+as an advisory with no settings action. Its collapse is documented and correct
+for what it does — a route stays drivable without a fresh fix — so the button
+there buys less than it costs until something on that screen depends on the
+position.
+
 ## 5. Everything else the audit found
 
 Unfixed, with the evidence, ordered by what they cost.
@@ -240,7 +289,7 @@ Unfixed, with the evidence, ordered by what they cost.
 | ~~`image_picker.getLostData()` unused~~ — **closed 2026-09-02** | `image_picker_media_capture.dart` | Android can kill the app during capture; the photo is then recoverable only through it, and photos are this product's payload |
 | Android background location has no foreground service | `geolocator_location_source.dart:77` passes a plain `LocationSettings` | `track(inBackground: true)` is in the contract; Android kills the stream within minutes |
 | `Position.isMocked` is dropped | `GeoFix` does not carry it | mock location is the fraud vector for a delivery proof |
-| ~~`openAppSettings()` unused~~ — port added 2026-09-01, wired into alerts only | `device_permissions` | `…PermissionBlocked` is produced in three packages; the alerts screen can now act on its one, camera and location still cannot |
+| ~~`openAppSettings()` unused~~ — **closed 2026-09-02** | `device_permissions` | `…PermissionBlocked` is produced in three packages; all three now reach a settings button |
 | No `dispose:` on any registration | ~8 classes have `dispose()` | `IdentityCoordinator`'s stream controller and `ConnectivityMonitor`'s subscription outlive `container.reset()` |
 | No go_router `errorBuilder`/`onException` | all three routers | entry is a URL from a push payload; an unmatched one shows the framework's error page |
 | No router `observers` | all three routers | `AnalyticsSink.track` exists and nothing reports a screen view |

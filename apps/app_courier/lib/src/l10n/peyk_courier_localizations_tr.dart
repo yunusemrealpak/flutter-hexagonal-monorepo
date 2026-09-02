@@ -212,6 +212,20 @@ class PeykCourierLocalizationsTr extends PeykCourierLocalizations {
       'Konumun okunamadı. Dışarı çıkıp tekrar dene.';
 
   @override
+  String get deliveryFailurePositionBlocked =>
+      'Bu uygulama için konum kapalı. Teslimat kaydedebilmek için ayarlardan aç.';
+
+  @override
+  String get deliveryOpenSettings => 'Ayarları aç';
+
+  @override
+  String get deliveryCaptureNotAllowed =>
+      'İzin verilmedi. Tekrar sormamız için yeniden dokun.';
+
+  @override
+  String get deliveryCaptureBlocked => 'Kanıt alabilmek için ayarlardan aç.';
+
+  @override
   String deliveryFailureProofInsufficient(String kinds) {
     return 'Bu gönderi için $kinds gerekiyor.';
   }

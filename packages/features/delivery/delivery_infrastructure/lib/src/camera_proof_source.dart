@@ -13,11 +13,15 @@ import 'package:media_capture/media_capture.dart';
 /// both `media_capture`'s words and `delivery_api`'s — which is exactly the
 /// translation this class performs.
 ///
-/// It answers `Success(null)` for a courier who backs out. `CaptureCancelled`
-/// is a failure only in the sense that there is no media; turning it into a
-/// `DeliveryFailure` would put a red banner in front of somebody who changed
-/// their mind, and `DeliveryFailure` has no case for it because nothing in the
-/// domain went wrong.
+/// It answers a `CaptureRefusal` rather than a `DeliveryFailure`, and that is
+/// the second thing this class is for. A camera has four ways of coming back
+/// with nothing and a courier does something different about each: nothing at
+/// all for a changed mind, press the button again for a refusal that can be
+/// asked about again, open the settings page for one that cannot, read a
+/// sentence for a photograph that will not do. `DeliveryFailure` has a case
+/// for the last of those and no business having the other three — they are
+/// facts about a device, not about a delivery — so the union that carries them
+/// is delivery's own and lives beside the callback it answers.
 ///
 /// ## Recovering a photograph nobody got back
 ///
@@ -81,11 +85,9 @@ final class CameraProofSource {
   /// Photographs [subject], or hands back the photograph of it that was
   /// interrupted.
   ///
-  /// `Success(null)` means the courier backed out. A `Failed` is something
-  /// that went wrong and that they should be told about — though the screen's
-  /// callback cannot carry one today, which is what has to change before a
-  /// blocked camera can offer the system settings.
-  Future<Result<PhotoEvidence?, DeliveryFailure>> photograph(
+  /// The shape `ProofCaptureScreen.onCapturePhoto` asks for, so an app passes
+  /// this straight through with no translation of its own.
+  Future<Result<PhotoEvidence, CaptureRefusal>> photograph(
     String subject,
   ) async {
     final recovered = await _recoverFor(subject);
@@ -104,11 +106,13 @@ final class CameraProofSource {
     );
 
     switch (captured) {
-      case Failed(failure: CaptureCancelled()):
-        await _forget();
-        return const Success(null);
       case Failed(:final failure):
-        return Failed(_translate(failure));
+        final refusal = _translate(failure);
+        // A courier who dismissed the camera took no photograph, so there is
+        // nothing left for the marker to attribute. A platform that broke may
+        // still be holding one, which is what the marker is for.
+        if (refusal is CaptureDeclined) await _forget();
+        return Failed(refusal);
       case Success(:final value):
         await _forget();
         return _evidenceFrom(value);
@@ -152,7 +156,7 @@ final class CameraProofSource {
   }
 
   /// Reads the file and turns it into evidence the domain accepts.
-  Future<Result<PhotoEvidence?, DeliveryFailure>> _evidenceFrom(
+  Future<Result<PhotoEvidence, CaptureRefusal>> _evidenceFrom(
     CapturedMedia media,
   ) async {
     final bytes = await _capture.bytesOf(media);
@@ -167,7 +171,7 @@ final class CameraProofSource {
       mimeType: media.mimeType,
     );
     if (evidence case Failed(:final failure)) {
-      return Failed(failure);
+      return Failed(EvidenceUnusable(failure));
     }
 
     final photo = (evidence as Success<PhotoEvidence, DeliveryFailure>).value;
@@ -175,7 +179,7 @@ final class CameraProofSource {
       photo,
       limitBytes: limitBytes,
     );
-    return compressed.map<PhotoEvidence?>((value) => value);
+    return compressed.mapFailure(EvidenceUnusable.new);
   }
 
   /// Records which subject the capture about to happen is for.
@@ -197,25 +201,21 @@ final class CameraProofSource {
 
   /// Turns the camera's words into delivery's.
   ///
-  /// Every case collapses to `DeliveryUnavailable` with a detail, and that is
-  /// deliberate rather than lazy: a caller behaves identically for a refused
-  /// permission, a blocked one and a broken platform, because the screen's
-  /// callback cannot carry a failure at all. Giving `DeliveryFailure` a case
-  /// per camera outcome would put a device's vocabulary into the domain's
-  /// sealed union to serve a distinction nothing acts on. The distinction
-  /// becomes worth making the day the screen can offer the system settings.
-  DeliveryFailure _translate(CaptureFailure failure) => switch (failure) {
-    CapturePermissionDenied() => const DeliveryFailure.deliveryUnavailable(
-      detail: 'the camera was refused',
-    ),
-    CapturePermissionBlocked() => const DeliveryFailure.deliveryUnavailable(
-      detail: 'the camera is blocked in the system settings',
-    ),
-    CaptureCancelled() => const DeliveryFailure.deliveryUnavailable(
-      detail: 'the camera was dismissed',
-    ),
-    CaptureUnavailable(:final detail) => DeliveryFailure.deliveryUnavailable(
-      detail: detail,
+  /// One case each, and the mapping is the point of the whole change: the four
+  /// `CaptureFailure`s used to collapse into `DeliveryUnavailable` with a
+  /// detail nothing rendered, so a camera switched off in the settings reached
+  /// a courier as silence. Every case here is one the screen draws
+  /// differently.
+  ///
+  /// Only the last needs a `DeliveryFailure`, because only the last is a
+  /// sentence rather than an affordance. The detail rides along for the log,
+  /// which is where it was always going.
+  CaptureRefusal _translate(CaptureFailure failure) => switch (failure) {
+    CaptureCancelled() => const CaptureDeclined(),
+    CapturePermissionDenied() => const CaptureNotAllowed(),
+    CapturePermissionBlocked() => const CaptureBlockedInSettings(),
+    CaptureUnavailable(:final detail) => EvidenceUnusable(
+      DeliveryFailure.deliveryUnavailable(detail: detail),
     ),
   };
 }

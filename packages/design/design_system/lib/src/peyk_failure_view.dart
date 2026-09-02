@@ -18,15 +18,36 @@ import 'peyk_text.dart';
 /// The retry label is this package's, and its absence is the caller's
 /// decision: a failure nothing can be done about should not offer a button
 /// that does nothing.
+///
+/// [onAction] is the second way out, for a failure that has one and where the
+/// retry is not it — a device permission blocked in the system settings is the
+/// case it was added for. Its label comes from the caller because it is a
+/// product sentence: every feature says *open settings* in its own words and
+/// its own catalogue, while *try again* is the same sentence in all fourteen.
 final class PeykFailureView extends StatelessWidget {
   /// Creates the view.
-  const PeykFailureView({required this.message, this.onRetry, super.key});
+  const PeykFailureView({
+    required this.message,
+    this.onRetry,
+    this.actionLabel,
+    this.onAction,
+    super.key,
+  }) : assert(
+         (actionLabel == null) == (onAction == null),
+         'an action needs both a label and something to do',
+       );
 
   /// What went wrong, in words a person can act on. Already resolved.
   final String message;
 
   /// What trying again does, or null when trying again is not the answer.
   final VoidCallback? onRetry;
+
+  /// What the second way out is called. Already resolved.
+  final String? actionLabel;
+
+  /// What that way out does, or null when there is not one.
+  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) => Center(
@@ -49,6 +70,10 @@ final class PeykFailureView extends StatelessWidget {
               label: PeykSystemLocalizations.of(context).retry,
               onPressed: onRetry,
             ),
+          ],
+          if (onAction case final VoidCallback onAction) ...[
+            const PeykGap.vertical(PeykGapSize.betweenRows),
+            PeykButton(label: actionLabel!, onPressed: onAction),
           ],
         ],
       ),
