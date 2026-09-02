@@ -141,6 +141,7 @@ PeykRouter buildHarnessRouter(GetIt container) {
             permissions: permissions,
             session: sessions,
           ),
+          onOpenSettings: container<PermissionRequester>().openSettings,
         ),
       ),
       'payments.collect': (context, parameters) => _parsed(

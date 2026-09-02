@@ -431,6 +431,30 @@ abstract class PeykCourierLocalizations {
   /// **'Your position could not be read. Step outside and try again.'**
   String get deliveryFailurePositionUnavailable;
 
+  /// The sentence behind "delivery.failure.positionBlocked". No retry accompanies it: the operating system has stopped asking, so trying again shows nothing.
+  ///
+  /// In en, this message translates to:
+  /// **'Location is switched off for this app. Turn it on in settings to record deliveries.'**
+  String get deliveryFailurePositionBlocked;
+
+  /// The sentence behind "delivery.openSettings". The action beside a blocked permission, on the failure view and beside the capture buttons.
+  ///
+  /// In en, this message translates to:
+  /// **'Open settings'**
+  String get deliveryOpenSettings;
+
+  /// The sentence behind "delivery.capture.notAllowed". A permission that can still be requested, so the button stays and no settings page is offered.
+  ///
+  /// In en, this message translates to:
+  /// **'That was refused. Tap again to be asked once more.'**
+  String get deliveryCaptureNotAllowed;
+
+  /// The sentence behind "delivery.capture.blocked". Accompanied by the settings action, which is the only thing that changes the answer.
+  ///
+  /// In en, this message translates to:
+  /// **'Turn this on in settings to capture proof.'**
+  String get deliveryCaptureBlocked;
+
   /// The sentence behind "delivery.failure.proofInsufficient".
   ///
   /// In en, this message translates to:

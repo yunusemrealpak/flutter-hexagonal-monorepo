@@ -254,6 +254,7 @@ void main() {
       DeliveryGrade grade = DeliveryGrade.standard,
       Future<PhotoEvidence?> Function()? onCapturePhoto,
       void Function(DeliveryAttempt)? onSettled,
+      Future<bool> Function()? onOpenSettings,
     }) {
       final built = _controller(facade, granted: granted);
       addTearDown(built.dispose);
@@ -264,6 +265,7 @@ void main() {
           grade: grade,
           onCapturePhoto: onCapturePhoto,
           onSettled: onSettled,
+          onOpenSettings: onOpenSettings,
         ),
       );
     }
@@ -307,6 +309,48 @@ void main() {
 
       expect(
         find.textContaining(DeliveryStrings.captured),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('sends a blocked position to the settings page', (
+      tester,
+    ) async {
+      // The retry every other failure gets is a button that can never work
+      // here: the operating system has stopped asking, so pressing it shows
+      // nothing at all. The settings page is the only thing that changes the
+      // answer, and before this the screen could not tell the two apart.
+      var opened = 0;
+      facade.startAnswer = const Failed(DevicePositionBlocked());
+
+      await tester.pumpWidget(
+        screen(
+          onOpenSettings: () async {
+            opened++;
+            return true;
+          },
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text(DeliveryStrings.openSettings));
+      await tester.pump();
+
+      expect(opened, 1);
+    });
+
+    testWidgets('offers no settings page an app cannot open', (tester) async {
+      // Opening one means `PermissionRequester`, which section 2 does not give
+      // a presentation package — so it arrives as a callback and an app that
+      // supplies none draws no button. The same shape as the camera.
+      facade.startAnswer = const Failed(DevicePositionBlocked());
+
+      await tester.pumpWidget(screen());
+      await tester.pump();
+
+      expect(find.text(DeliveryStrings.openSettings), findsNothing);
+      expect(
+        find.text(DeliveryStrings.failurePositionBlocked),
         findsOneWidget,
       );
     });

@@ -112,6 +112,33 @@ void main() {
       );
     });
 
+    test('a permission only settings can change is not a retry', () async {
+      // The distinction the whole blocked path turns on. A fix that has not
+      // arrived is retried; a permission the operating system will not ask
+      // about again is not, and a courier shown the retry for it is a courier
+      // pressing a button that cannot ever work.
+      publishTarget();
+      location.queue(const Failed(LocationPermissionBlocked()));
+
+      final refused = await fence.locate('SHP-1');
+
+      expect(refused.fold((_) => null, (f) => f), isA<DevicePositionBlocked>());
+    });
+
+    test('a permission that can still be asked for stays a retry', () async {
+      // Pressing the button again shows the prompt again, so this one is not
+      // the settings page's problem.
+      publishTarget();
+      location.queue(const Failed(LocationPermissionDenied()));
+
+      final refused = await fence.locate('SHP-1');
+
+      expect(
+        refused.fold((_) => null, (f) => f),
+        isA<DeliveryPositionUnavailable>(),
+      );
+    });
+
     test(
       'a target service that cannot be reached is not a position problem',
       () async {

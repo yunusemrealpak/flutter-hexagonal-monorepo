@@ -127,6 +127,12 @@ PeykRouter buildCourierRouter(GetIt container) {
           // see `platform/*`, so the app hands over the capture and the button
           // is drawn only because it did.
           onCapturePhoto: () => _photograph(container, shipment),
+          // The way out of a permission the operating system has stopped
+          // asking about. Same shape as the capture and for the same reason —
+          // `PermissionRequester` lives in `core_ports`, which §2 does not
+          // give a presentation package — and the same supplier the alerts
+          // section already uses.
+          onOpenSettings: container<PermissionRequester>().openSettings,
           onSettled: (attempt) => _follow(context, flow.afterProof(attempt)),
         ),
       ),

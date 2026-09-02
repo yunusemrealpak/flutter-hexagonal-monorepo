@@ -210,6 +210,21 @@ class PeykCourierLocalizationsEn extends PeykCourierLocalizations {
       'Your position could not be read. Step outside and try again.';
 
   @override
+  String get deliveryFailurePositionBlocked =>
+      'Location is switched off for this app. Turn it on in settings to record deliveries.';
+
+  @override
+  String get deliveryOpenSettings => 'Open settings';
+
+  @override
+  String get deliveryCaptureNotAllowed =>
+      'That was refused. Tap again to be asked once more.';
+
+  @override
+  String get deliveryCaptureBlocked =>
+      'Turn this on in settings to capture proof.';
+
+  @override
   String deliveryFailureProofInsufficient(String kinds) {
     return 'This parcel needs $kinds.';
   }

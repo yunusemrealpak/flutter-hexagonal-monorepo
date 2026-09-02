@@ -49,6 +49,18 @@ abstract final class DeliveryStrings {
   static const String failurePositionUnavailable =
       'delivery.failure.positionUnavailable';
 
+  /// The device will not report its position and only its settings can change
+  /// that.
+  static const String failurePositionBlocked =
+      'delivery.failure.positionBlocked';
+
+  /// The action that opens this app's page in the device settings.
+  ///
+  /// A product sentence rather than a system one, which is why it is here
+  /// instead of in `design_system` beside *try again*: every feature that
+  /// sends somebody to the settings page says why in its own words.
+  static const String openSettings = 'delivery.openSettings';
+
   /// The proof gathered is not enough. Takes a `kinds` argument.
   static const String failureProofInsufficient =
       'delivery.failure.proofInsufficient';
@@ -97,8 +109,10 @@ abstract final class DeliveryStrings {
     delivered,
     couldNotDeliver,
     recorded,
+    openSettings,
     failureOutsideArea,
     failurePositionUnavailable,
+    failurePositionBlocked,
     failureProofInsufficient,
     failureAlreadySettled,
     failureProofStoreUnavailable,

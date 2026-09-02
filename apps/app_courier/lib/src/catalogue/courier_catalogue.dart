@@ -170,6 +170,9 @@ final class CourierCatalogue implements StringCatalogue {
         l.deliveryFailureOutsideArea(_int(arguments['metres'])),
     'delivery.failure.positionUnavailable': (l, arguments) =>
         l.deliveryFailurePositionUnavailable,
+    'delivery.failure.positionBlocked': (l, arguments) =>
+        l.deliveryFailurePositionBlocked,
+    'delivery.openSettings': (l, arguments) => l.deliveryOpenSettings,
     'delivery.failure.proofInsufficient': (l, arguments) =>
         l.deliveryFailureProofInsufficient(_list(arguments['kinds'])),
     'delivery.failure.alreadySettled': (l, arguments) =>

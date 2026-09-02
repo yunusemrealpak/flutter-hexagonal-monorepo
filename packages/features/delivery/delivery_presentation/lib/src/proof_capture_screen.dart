@@ -32,6 +32,7 @@ final class ProofCaptureScreen extends StatefulWidget {
     this.onCaptureSignature,
     this.onCapturePhoto,
     this.onSettled,
+    this.onOpenSettings,
     super.key,
   });
 
@@ -53,6 +54,19 @@ final class ProofCaptureScreen extends StatefulWidget {
 
   /// Opens whatever this app takes photographs with.
   final Future<PhotoEvidence?> Function()? onCapturePhoto;
+
+  /// Opens this device's settings page for the application.
+  ///
+  /// The other half of every blocked permission on this screen, and a callback
+  /// for the same reason the captures are: opening it means
+  /// `PermissionRequester`, which lives in `core_ports` — a package section 2
+  /// does not give a presentation package. A decision the product owns is a
+  /// port; a mechanism the platform owns is a callback, and `AlertsController`
+  /// took the same argument for the same reason.
+  ///
+  /// An app that supplies none draws no button, which is what
+  /// `app_dispatcher` relies on: a desk has no camera permission to unblock.
+  final Future<bool> Function()? onOpenSettings;
 
   /// Reports the visit that was recorded, once it is recorded.
   ///
@@ -79,6 +93,7 @@ final class ProofCaptureScreen extends StatefulWidget {
   static String describe(DeliveryFailure failure) => switch (failure) {
     OutsideDeliveryArea() => DeliveryStrings.failureOutsideArea,
     DeliveryPositionUnavailable() => DeliveryStrings.failurePositionUnavailable,
+    DevicePositionBlocked() => DeliveryStrings.failurePositionBlocked,
     ProofInsufficient() => DeliveryStrings.failureProofInsufficient,
     AttemptAlreadySettled() => DeliveryStrings.failureAlreadySettled,
     ProofStoreUnavailable() => DeliveryStrings.failureProofStoreUnavailable,
@@ -86,6 +101,26 @@ final class ProofCaptureScreen extends StatefulWidget {
     MediaTooLarge() => DeliveryStrings.failureMediaTooLarge,
     DeliveryUnavailable() => DeliveryStrings.failureUnavailable,
     MalformedDeliveryValue() => DeliveryStrings.failureMalformed,
+  };
+
+  /// Whether the way out of [failure] is the settings page rather than a
+  /// retry.
+  ///
+  /// Static and public for the reason [describe] is: an app drawing the same
+  /// failure in a different shape should not have to rediscover which of them
+  /// a retry cannot help.
+  @visibleForTesting
+  static bool needsSettings(DeliveryFailure failure) => switch (failure) {
+    DevicePositionBlocked() => true,
+    OutsideDeliveryArea() ||
+    DeliveryPositionUnavailable() ||
+    ProofInsufficient() ||
+    AttemptAlreadySettled() ||
+    ProofStoreUnavailable() ||
+    ProofNotFound() ||
+    MediaTooLarge() ||
+    DeliveryUnavailable() ||
+    MalformedDeliveryValue() => false,
   };
 
   /// The arguments [failure] contributes to its own message.
@@ -103,6 +138,7 @@ final class ProofCaptureScreen extends StatefulWidget {
         ProofInsufficient(:final missing) => {'kinds': missing},
         MalformedDeliveryValue(:final field) => {'field': field},
         DeliveryPositionUnavailable() ||
+        DevicePositionBlocked() ||
         AttemptAlreadySettled() ||
         ProofStoreUnavailable() ||
         ProofNotFound() ||
@@ -177,20 +213,41 @@ class _ProofCaptureScreenState extends State<ProofCaptureScreen> {
           Settled() => PeykEmptyView(
             message: strings.resolve(DeliveryStrings.recorded),
           ),
-          CaptureFailed(:final failure) => PeykFailureView(
-            message: strings.resolve(
-              ProofCaptureScreen.describe(failure),
-              arguments: ProofCaptureScreen.argumentsFor(failure),
-            ),
-            onRetry: () => unawaited(
+          CaptureFailed(:final failure) => _failure(context, failure),
+        },
+      ),
+    );
+  }
+
+  /// The failure view, with whichever way out this failure has.
+  ///
+  /// A blocked permission gets the settings page and *no retry*: the operating
+  /// system has stopped asking, so trying again shows nothing at all. Drawing
+  /// both would put the useless button first.
+  Widget _failure(BuildContext context, DeliveryFailure failure) {
+    final strings = PeykStrings.of(context);
+    final settings = widget.onOpenSettings;
+    final blocked = ProofCaptureScreen.needsSettings(failure);
+
+    return PeykFailureView(
+      message: strings.resolve(
+        ProofCaptureScreen.describe(failure),
+        arguments: ProofCaptureScreen.argumentsFor(failure),
+      ),
+      onRetry: blocked
+          ? null
+          : () => unawaited(
               widget.controller.arrive(
                 shipment: widget.shipment,
                 grade: widget.grade,
               ),
             ),
-          ),
-        },
-      ),
+      actionLabel: blocked && settings != null
+          ? strings.resolve(DeliveryStrings.openSettings)
+          : null,
+      onAction: blocked && settings != null
+          ? () => unawaited(settings())
+          : null,
     );
   }
 
