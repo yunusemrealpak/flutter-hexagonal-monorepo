@@ -33,6 +33,7 @@ final class AtTheDoor extends ProofCaptureState {
     this.photo,
     this.scan,
     this.refusal,
+    this.notice,
   });
 
   /// The open attempt.
@@ -57,6 +58,18 @@ final class AtTheDoor extends ProofCaptureState {
   /// a failure state would send a courier back to the start of a hand-over
   /// they are halfway through.
   final DeliveryFailure? refusal;
+
+  /// What the last capture came back with instead of evidence, or `null`.
+  ///
+  /// Beside the attempt for the same reason [refusal] is: a camera that would
+  /// not open has not invalidated a signature already on the glass. It is a
+  /// `CaptureRefusal` rather than a sentence because one of its cases carries
+  /// an affordance — a blocked permission is drawn with the settings action
+  /// beside it — and a screen handed a string could not know which.
+  ///
+  /// [CaptureDeclined] never reaches here. A courier who changed their mind is
+  /// behaving normally, and the notice is what draws a chip.
+  final CaptureRefusal? notice;
 
   /// Which kinds of evidence have been captured so far.
   Set<EvidenceKind> get carries => {
@@ -87,6 +100,7 @@ final class AtTheDoor extends ProofCaptureState {
     PhotoEvidence? photo,
     ScanEvidence? scan,
     DeliveryFailure? refusal,
+    CaptureRefusal? notice,
   }) => AtTheDoor(
     attempt,
     recipientName: recipientName ?? this.recipientName,
@@ -94,6 +108,7 @@ final class AtTheDoor extends ProofCaptureState {
     photo: photo ?? this.photo,
     scan: scan ?? this.scan,
     refusal: refusal,
+    notice: notice,
   );
 }
 

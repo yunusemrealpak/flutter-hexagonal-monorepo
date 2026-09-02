@@ -197,6 +197,68 @@ void main() {
       expect(facade.proofs, isEmpty);
     });
 
+    test('a capture blocked in settings leaves a notice at the door', () async {
+      await arrive();
+
+      controller.capturedPhoto(const Failed(CaptureBlockedInSettings()));
+
+      final atTheDoor = controller.state as AtTheDoor;
+      expect(atTheDoor.notice, isA<CaptureBlockedInSettings>());
+    });
+
+    test('a courier who backs out is shown nothing', () async {
+      // Not an error, and never something to report. A red chip in front of
+      // somebody who changed their mind is the defect this whole type exists
+      // to stop, so the one case that reaches here as a `Failed` is the one
+      // that draws nothing.
+      await arrive();
+
+      controller.capturedPhoto(const Failed(CaptureDeclined()));
+
+      expect((controller.state as AtTheDoor).notice, isNull);
+    });
+
+    test('evidence that arrives clears whatever the last try said', () async {
+      await arrive();
+      controller
+        ..capturedPhoto(const Failed(CaptureNotAllowed()))
+        ..capturedPhoto(Success(DeliveryFixtures.photo()));
+
+      final atTheDoor = controller.state as AtTheDoor;
+      expect(atTheDoor.notice, isNull);
+      expect(atTheDoor.carries, contains(EvidenceKind.photo));
+    });
+
+    test('typing a name does not clear a blocked permission', () async {
+      // The notice carries the settings button with it. A courier who starts
+      // writing the recipient's name has not unblocked anything, and watching
+      // the only way out vanish under their thumb is worse than not offering
+      // it — which is what dropping it with the refusal would do.
+      await arrive();
+      controller
+        ..capturedPhoto(const Failed(CaptureBlockedInSettings()))
+        ..recipientIs('A. Yilmaz');
+
+      expect(
+        (controller.state as AtTheDoor).notice,
+        isA<CaptureBlockedInSettings>(),
+      );
+    });
+
+    test('a capture that produced nothing usable says so', () async {
+      await arrive();
+
+      controller.capturedPhoto(
+        const Failed(
+          EvidenceUnusable(MediaTooLarge(bytes: 9000000, limit: 2097152)),
+        ),
+      );
+
+      final notice = (controller.state as AtTheDoor).notice;
+      expect(notice, isA<EvidenceUnusable>());
+      expect((notice! as EvidenceUnusable).failure, isA<MediaTooLarge>());
+    });
+
     test('reads the permission every time rather than caching it', () async {
       // A grant can be revoked mid-shift, and a screen answering from a value
       // it captured when it opened would keep offering an action the operation
@@ -252,8 +314,9 @@ void main() {
     Widget screen({
       Set<Permission> granted = const {Permission.completeDelivery},
       DeliveryGrade grade = DeliveryGrade.standard,
-      Future<PhotoEvidence?> Function()? onCapturePhoto,
+      Future<Result<PhotoEvidence, CaptureRefusal>> Function()? onCapturePhoto,
       void Function(DeliveryAttempt)? onSettled,
+      Future<bool> Function()? onOpenSettings,
     }) {
       final built = _controller(facade, granted: granted);
       addTearDown(built.dispose);
@@ -264,6 +327,7 @@ void main() {
           grade: grade,
           onCapturePhoto: onCapturePhoto,
           onSettled: onSettled,
+          onOpenSettings: onOpenSettings,
         ),
       );
     }
@@ -298,7 +362,7 @@ void main() {
 
     testWidgets('takes the evidence the app captured', (tester) async {
       await tester.pumpWidget(
-        screen(onCapturePhoto: () async => DeliveryFixtures.photo()),
+        screen(onCapturePhoto: () async => Success(DeliveryFixtures.photo())),
       );
       await tester.pump();
 
@@ -307,6 +371,117 @@ void main() {
 
       expect(
         find.textContaining(DeliveryStrings.captured),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('offers the settings page beside a blocked camera', (
+      tester,
+    ) async {
+      // The half that closes with the position half. Before the callback
+      // widened, this outcome and a courier who changed their mind were the
+      // same `null`, so the camera could be switched off in the settings and
+      // the screen would say nothing at all.
+      var opened = 0;
+
+      await tester.pumpWidget(
+        screen(
+          onCapturePhoto: () async => const Failed(CaptureBlockedInSettings()),
+          onOpenSettings: () async {
+            opened++;
+            return true;
+          },
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text(DeliveryStrings.addPhoto));
+      await tester.pump();
+      await tester.tap(find.text(DeliveryStrings.openSettings));
+      await tester.pump();
+
+      expect(opened, 1);
+      expect(find.textContaining(DeliveryStrings.captureBlocked), findsOne);
+    });
+
+    testWidgets('says nothing to a courier who backed out', (tester) async {
+      await tester.pumpWidget(
+        screen(onCapturePhoto: () async => const Failed(CaptureDeclined())),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text(DeliveryStrings.addPhoto));
+      await tester.pump();
+
+      expect(find.text(DeliveryStrings.openSettings), findsNothing);
+      expect(find.textContaining(DeliveryStrings.captureBlocked), findsNothing);
+      expect(
+        find.textContaining(DeliveryStrings.captureNotAllowed),
+        findsNothing,
+      );
+    });
+
+    testWidgets('a refusal that can be asked again offers no settings', (
+      tester,
+    ) async {
+      // Pressing the button shows the prompt again, so sending somebody to
+      // the settings page would be sending them the long way round.
+      await tester.pumpWidget(
+        screen(
+          onCapturePhoto: () async => const Failed(CaptureNotAllowed()),
+          onOpenSettings: () async => true,
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text(DeliveryStrings.addPhoto));
+      await tester.pump();
+
+      expect(
+        find.textContaining(DeliveryStrings.captureNotAllowed),
+        findsOne,
+      );
+      expect(find.text(DeliveryStrings.openSettings), findsNothing);
+    });
+
+    testWidgets('sends a blocked position to the settings page', (
+      tester,
+    ) async {
+      // The retry every other failure gets is a button that can never work
+      // here: the operating system has stopped asking, so pressing it shows
+      // nothing at all. The settings page is the only thing that changes the
+      // answer, and before this the screen could not tell the two apart.
+      var opened = 0;
+      facade.startAnswer = const Failed(DevicePositionBlocked());
+
+      await tester.pumpWidget(
+        screen(
+          onOpenSettings: () async {
+            opened++;
+            return true;
+          },
+        ),
+      );
+      await tester.pump();
+
+      await tester.tap(find.text(DeliveryStrings.openSettings));
+      await tester.pump();
+
+      expect(opened, 1);
+    });
+
+    testWidgets('offers no settings page an app cannot open', (tester) async {
+      // Opening one means `PermissionRequester`, which section 2 does not give
+      // a presentation package — so it arrives as a callback and an app that
+      // supplies none draws no button. The same shape as the camera.
+      facade.startAnswer = const Failed(DevicePositionBlocked());
+
+      await tester.pumpWidget(screen());
+      await tester.pump();
+
+      expect(find.text(DeliveryStrings.openSettings), findsNothing);
+      expect(
+        find.text(DeliveryStrings.failurePositionBlocked),
         findsOneWidget,
       );
     });

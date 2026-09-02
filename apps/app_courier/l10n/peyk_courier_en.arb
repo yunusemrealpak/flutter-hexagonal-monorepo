@@ -270,6 +270,22 @@
   "@deliveryFailurePositionUnavailable": {
     "description": "The sentence behind \"delivery.failure.positionUnavailable\"."
   },
+  "deliveryFailurePositionBlocked": "Location is switched off for this app. Turn it on in settings to record deliveries.",
+  "@deliveryFailurePositionBlocked": {
+    "description": "The sentence behind \"delivery.failure.positionBlocked\". No retry accompanies it: the operating system has stopped asking, so trying again shows nothing."
+  },
+  "deliveryOpenSettings": "Open settings",
+  "@deliveryOpenSettings": {
+    "description": "The sentence behind \"delivery.openSettings\". The action beside a blocked permission, on the failure view and beside the capture buttons."
+  },
+  "deliveryCaptureNotAllowed": "That was refused. Tap again to be asked once more.",
+  "@deliveryCaptureNotAllowed": {
+    "description": "The sentence behind \"delivery.capture.notAllowed\". A permission that can still be requested, so the button stays and no settings page is offered."
+  },
+  "deliveryCaptureBlocked": "Turn this on in settings to capture proof.",
+  "@deliveryCaptureBlocked": {
+    "description": "The sentence behind \"delivery.capture.blocked\". Accompanied by the settings action, which is the only thing that changes the answer."
+  },
   "deliveryFailureProofInsufficient": "This parcel needs {kinds}.",
   "@deliveryFailureProofInsufficient": {
     "description": "The sentence behind \"delivery.failure.proofInsufficient\".",

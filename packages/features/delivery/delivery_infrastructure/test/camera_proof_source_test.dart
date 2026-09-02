@@ -44,10 +44,16 @@ void main() {
     );
   });
 
-  PhotoEvidence? unwrap(Result<PhotoEvidence?, DeliveryFailure> result) =>
+  PhotoEvidence unwrap(Result<PhotoEvidence, CaptureRefusal> result) =>
       result.fold(
         (photo) => photo,
-        (failure) => throw StateError('expected a photo, got $failure'),
+        (refusal) => throw StateError('expected a photo, got $refusal'),
+      );
+
+  CaptureRefusal refusalOf(Result<PhotoEvidence, CaptureRefusal> result) =>
+      result.fold(
+        (photo) => throw StateError('expected a refusal, got a photo'),
+        (refusal) => refusal,
       );
 
   group('taking one', () {
@@ -58,21 +64,43 @@ void main() {
 
       final photo = unwrap(await source.photograph('SHP-1'));
 
-      expect(photo?.byteCount, 32);
-      expect(photo?.capturedAt, noon);
-      expect(photo?.mimeType, 'image/jpeg');
+      expect(photo.byteCount, 32);
+      expect(photo.capturedAt, noon);
+      expect(photo.mimeType, 'image/jpeg');
     });
 
-    test('a courier who backs out is not a failure', () async {
+    test('a courier who backs out is told apart from the rest', () async {
       camera.queue(const Failed(CaptureCancelled()));
 
-      final result = await source.photograph('SHP-1');
+      // Not an error, and never something to report — but not a null either.
+      // Answering nothing is what made a blocked camera and a changed mind the
+      // same event, which is the whole reason this type exists.
+      expect(
+        refusalOf(await source.photograph('SHP-1')),
+        isA<CaptureDeclined>(),
+      );
+    });
 
-      // `CaptureCancelled` is a failure only in the sense that there is no
-      // media. Turning it into a `DeliveryFailure` would put a red banner in
-      // front of somebody who changed their mind.
-      expect(result, isA<Success<PhotoEvidence?, DeliveryFailure>>());
-      expect(unwrap(result), isNull);
+    test('a camera refused once can be asked for again', () async {
+      camera.queue(const Failed(CapturePermissionDenied()));
+
+      // Pressing the button shows the prompt again, so the button stays and
+      // the settings page is not offered.
+      expect(
+        refusalOf(await source.photograph('SHP-1')),
+        isA<CaptureNotAllowed>(),
+      );
+    });
+
+    test('a camera blocked in the settings says so', () async {
+      camera.queue(const Failed(CapturePermissionBlocked()));
+
+      // The case with a way out of it. Collapsed into the others, the only
+      // failure a courier could act on became the one nothing acted on.
+      expect(
+        refusalOf(await source.photograph('SHP-1')),
+        isA<CaptureBlockedInSettings>(),
+      );
     });
 
     test('reports a file the operating system already reclaimed', () async {
@@ -80,8 +108,12 @@ void main() {
       camera.queue(Success(media('/tmp/gone.jpg')));
 
       expect(
-        await source.photograph('SHP-1'),
-        isA<Failed<PhotoEvidence?, DeliveryFailure>>(),
+        refusalOf(await source.photograph('SHP-1')),
+        isA<EvidenceUnusable>().having(
+          (unusable) => unusable.failure,
+          'failure',
+          isA<DeliveryUnavailable>(),
+        ),
       );
     });
 
@@ -90,12 +122,10 @@ void main() {
         ..queue(Success(media('/tmp/huge.jpg')))
         ..bytes['/tmp/huge.jpg'] = List<int>.filled(4 * 1024 * 1024, 1);
 
-      final result = await source.photograph('SHP-1');
-
       expect(
-        result,
-        isA<Failed<PhotoEvidence?, DeliveryFailure>>().having(
-          (failed) => failed.failure,
+        refusalOf(await source.photograph('SHP-1')),
+        isA<EvidenceUnusable>().having(
+          (unusable) => unusable.failure,
           'failure',
           isA<MediaTooLarge>(),
         ),
@@ -114,7 +144,7 @@ void main() {
 
       final photo = unwrap(await source.photograph('SHP-1'));
 
-      expect(photo?.byteCount, 16);
+      expect(photo.byteCount, 16);
       // The camera was opened once, for the capture that was interrupted.
       // Asking a courier to photograph a parcel they have already photographed
       // is the whole thing `getLostData` exists to avoid.
@@ -134,7 +164,7 @@ void main() {
       // A photograph of one parcel attached to another is a false proof of
       // delivery, and nothing downstream could ever tell. The marker is what
       // makes the recovery attributable.
-      expect(photo?.byteCount, 8);
+      expect(photo.byteCount, 8);
       expect(camera.requestedSettings, hasLength(2));
     });
 
@@ -149,7 +179,7 @@ void main() {
 
       // No marker, so nothing claims the file. Using it would attach a
       // photograph from an unknown parcel to this one.
-      expect(photo?.byteCount, 8);
+      expect(photo.byteCount, 8);
     });
 
     test('is offered once, not on every visit', () async {
@@ -167,7 +197,7 @@ void main() {
       // The platform hands a lost capture over once and the marker is cleared
       // with it, so a courier taking a second photograph of the same parcel
       // gets the camera rather than the first photograph again.
-      expect(photo?.byteCount, 8);
+      expect(photo.byteCount, 8);
     });
   });
 
@@ -193,7 +223,7 @@ void main() {
       // Losing the marker costs one unattributable recovery. Refusing the
       // capture costs the courier their evidence at a door they are standing
       // at now.
-      expect(photo, isNotNull);
+      expect(photo.byteCount, 32);
       expect(logger.records, isNotEmpty);
     });
   });

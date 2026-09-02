@@ -89,7 +89,12 @@ final class ProofCaptureController extends ChangeNotifier {
   /// Records who is at the door.
   void recipientIs(String name) {
     if (_state case final AtTheDoor state) {
-      _emit(state.copyWith(recipientName: name));
+      // The notice is carried forward where the refusal is not. A refusal is
+      // an answer to the completion this keystroke is part of; a blocked
+      // camera permission is not, and it carries the settings button with it.
+      // Watching the only way out vanish under their thumb is worse than
+      // never offering it.
+      _emit(state.copyWith(recipientName: name, notice: state.notice));
     }
   }
 
@@ -116,6 +121,46 @@ final class ProofCaptureController extends ChangeNotifier {
   void addScan(ScanEvidence scan) {
     if (_state case final AtTheDoor state) {
       _emit(state.copyWith(scan: scan));
+    }
+  }
+
+  /// Records what came back when this app was asked for a photograph.
+  ///
+  /// The four-case answer `ProofCaptureScreen.onCapturePhoto` now gives. It
+  /// used to be a `PhotoEvidence?`, which made a camera switched off in the
+  /// system settings indistinguishable from a courier who changed their mind —
+  /// so the one outcome with a way out of it was the one nothing offered a way
+  /// out of.
+  void capturedPhoto(Result<PhotoEvidence, CaptureRefusal> capture) {
+    switch (capture) {
+      case Success(:final value):
+        addPhoto(value);
+      case Failed(:final failure):
+        _noticed(failure);
+    }
+  }
+
+  /// Records what came back when this app was asked for a signature.
+  void capturedSignature(Result<SignatureCapture, CaptureRefusal> capture) {
+    switch (capture) {
+      case Success(:final value):
+        addSignature(value);
+      case Failed(:final failure):
+        _noticed(failure);
+    }
+  }
+
+  /// Puts a refusal on the door state, or clears one.
+  ///
+  /// A courier who backed out is shown nothing — that is what
+  /// [CaptureDeclined] is for — and clearing rather than keeping the previous
+  /// notice matters: pressing the camera again and dismissing it is a courier
+  /// saying they are done with the question.
+  void _noticed(CaptureRefusal refusal) {
+    if (_state case final AtTheDoor state) {
+      _emit(
+        state.copyWith(notice: refusal is CaptureDeclined ? null : refusal),
+      );
     }
   }
 
