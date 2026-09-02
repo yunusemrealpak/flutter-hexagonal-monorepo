@@ -182,6 +182,9 @@ class PeykCourierLocalizationsTr extends PeykCourierLocalizations {
   String get deliveryAddSignature => 'İmza al';
 
   @override
+  String get deliverySignaturePrompt => 'Lütfen buraya imzalayın';
+
+  @override
   String get deliveryAddPhoto => 'Fotoğraf çek';
 
   @override

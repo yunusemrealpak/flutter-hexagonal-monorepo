@@ -29,6 +29,26 @@
     }
   },
 
+  "clear": "Clear",
+  "@clear": {
+    "description": "Takes back what somebody has drawn or entered, without leaving the surface they are on. Ships with the component for the same reason the retry does."
+  },
+
+  "done": "Done",
+  "@done": {
+    "description": "Finishes a capture and hands what was captured back to the screen that asked for it."
+  },
+
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Leaves a capture with nothing captured. Distinct from `dismiss`, which closes something that was only telling you a thing."
+  },
+
+  "signatureArea": "Signature area. Draw with one finger.",
+  "@signatureArea": {
+    "description": "The accessible label of the drawing surface. It says how to use it because a blank rectangle announces nothing at all to a screen reader, and the gesture is the whole control."
+  },
+
   "selected": "Selected",
   "@selected": {
     "description": "Announced for the chosen option in a group. The visual mark alone is not available to a screen reader."

@@ -310,6 +310,22 @@ Three consequences the layering forces, and each is a rule rather than a prefere
 
 **A page that fails must not take the pages that succeeded with it.** The failure sits beside the rows in `ManifestReady` and `BoardReady` rather than replacing the state. A courier whose twenty-first stop did not arrive still has twenty they can drive to, and a dispatcher who assembled a selection across two pages still has it when the third fails. This is the same shape as `AtTheDoor.refusal` and for the same reason: a partial failure that discards the successful part is a worse answer than the partial one.
 
+### 5.9 A capture with nothing underneath it
+
+The proof screen has taken `onCaptureSignature` and `onCapturePhoto` since phase 7, and the two look like the same problem. They are not, and the difference is a useful test of where a thing belongs.
+
+**A photograph is a device capability.** Taking one means `platform/media_capture`; turning one into evidence means `delivery_api`. Section 2 lets exactly one package hold both, so `CameraProofSource` exists in `delivery_infrastructure` and the app calls it.
+
+**A signature is not.** Nothing on a device produces ink; a component does. `PeykSignatureController` in `design_system` collects strokes and rasterises them, and `SignatureCapture.of` in `delivery_api` turns bytes and an instant into evidence. There is no package that must hold both vocabularies, because there is no technology to adapt — so there is no adapter, and the join happens in the composition root, which is the one place that can see a component, a `Clock` and a domain factory at once.
+
+That is the general rule the pair produces: **an adapter exists because two vocabularies must meet, not because a capability is being reached for.** Adding a `SignatureProofSource` for symmetry with the camera would have created a package boundary with nothing on the other side of it.
+
+Two smaller things the work settled.
+
+**The pad stamps no time, and could not.** `SignatureCapture` needs an instant, an instant comes from `Clock` in `core_ports`, and section 2 puts `core_ports` on neither the design-system row nor the presentation row. Both layers therefore hand bytes upward and let the app say when. A design system that reached for a clock would be one that had started to know what a proof is.
+
+**A modal that returns a value is still navigation.** The first draft of `PeykSignaturePanel` pushed and popped its own route, and `arch_check`'s `A6` refused the commit. §2.4 reads as being about destinations, and this was a component asking for a value back — the kind of case a mechanical rule is expected to over-catch. Obeying it produced the better component: one that decides how it is presented cannot also be the same pad in a dispatcher's side panel, and the app was going to own the route either way.
+
 ## 4. Following one request through the packages
 
 A courier taps **Done** on a delivery with a signature and a photograph. Here is every package it touches, in order.

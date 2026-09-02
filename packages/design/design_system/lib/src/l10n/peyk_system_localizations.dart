@@ -131,6 +131,30 @@ abstract class PeykSystemLocalizations {
   /// **'{count, plural, =0{No unread} =1{1 unread} other{{count} unread}}'**
   String unreadCount(int count);
 
+  /// Takes back what somebody has drawn or entered, without leaving the surface they are on. Ships with the component for the same reason the retry does.
+  ///
+  /// In en, this message translates to:
+  /// **'Clear'**
+  String get clear;
+
+  /// Finishes a capture and hands what was captured back to the screen that asked for it.
+  ///
+  /// In en, this message translates to:
+  /// **'Done'**
+  String get done;
+
+  /// Leaves a capture with nothing captured. Distinct from `dismiss`, which closes something that was only telling you a thing.
+  ///
+  /// In en, this message translates to:
+  /// **'Cancel'**
+  String get cancel;
+
+  /// The accessible label of the drawing surface. It says how to use it because a blank rectangle announces nothing at all to a screen reader, and the gesture is the whole control.
+  ///
+  /// In en, this message translates to:
+  /// **'Signature area. Draw with one finger.'**
+  String get signatureArea;
+
   /// Announced for the chosen option in a group. The visual mark alone is not available to a screen reader.
   ///
   /// In en, this message translates to:

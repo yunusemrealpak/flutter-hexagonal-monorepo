@@ -180,6 +180,8 @@ Three consequences worth stating, because each has been got wrong somewhere:
 
 **The flow belongs to the audience, not to the feature.** A courier goes manifest → route → door → money; a dispatcher opening the same delivery screen goes nowhere near a door. That is §2.3 one level up, and the only place that knows which audience is running is the app that mounted the features.
 
+**A modal that answers a value is still navigation, and `A6` is right to say so.** `PeykSignaturePanel` in `design_system` first pushed its own route and popped it with the ink — no destination named, no feature imported, nothing the paragraphs above are about. `A6` refused it anyway, because it lists `Navigator.of` and lives outside `apps/`. That is a mechanical rule over-catching a case, which is the moment to check whether the rule or the code is wrong: here the code was. A component that decides how it is presented is a component that cannot be presented another way — the same pad belongs in a dispatcher's side panel one day — and an app that pushes a route is going to own popping it whatever the component thinks. The panel reports `onSigned` and `onCancelled`; the app decides both mean *pop*.
+
 Rules `I8` and `A6` in §4 and §5 make this mechanical. Both were written while the workspace had zero violations of either, which is the point: the first one to appear is a mistake rather than a migration.
 
 ---

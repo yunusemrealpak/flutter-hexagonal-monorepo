@@ -33,5 +33,17 @@ class PeykSystemLocalizationsTr extends PeykSystemLocalizations {
   }
 
   @override
+  String get clear => 'Temizle';
+
+  @override
+  String get done => 'Tamam';
+
+  @override
+  String get cancel => 'Vazgeç';
+
+  @override
+  String get signatureArea => 'İmza alanı. Tek parmakla çizin.';
+
+  @override
   String get selected => 'Seçili';
 }

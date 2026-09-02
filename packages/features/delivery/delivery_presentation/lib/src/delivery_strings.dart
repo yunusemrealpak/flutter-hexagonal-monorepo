@@ -30,6 +30,14 @@ abstract final class DeliveryStrings {
   /// The action that opens the signature capture.
   static const String addSignature = 'delivery.addSignature';
 
+  /// What the recipient is being asked to do, shown on the signature panel.
+  ///
+  /// A product sentence rather than a component one, which is the same split
+  /// `design_system` makes for the panel: *clear*, *cancel* and *done* are the
+  /// same words in every product that takes a signature, and what somebody is
+  /// signing for is not.
+  static const String signaturePrompt = 'delivery.signaturePrompt';
+
   /// The action that opens the camera.
   static const String addPhoto = 'delivery.addPhoto';
 
@@ -111,6 +119,7 @@ abstract final class DeliveryStrings {
     stillNeeded,
     captured,
     addSignature,
+    signaturePrompt,
     addPhoto,
     delivered,
     couldNotDeliver,

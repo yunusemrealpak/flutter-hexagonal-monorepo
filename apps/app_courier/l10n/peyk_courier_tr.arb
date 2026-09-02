@@ -48,6 +48,7 @@
   "deliveryStillNeeded": "Hâlâ gerekli: {kinds}",
   "deliveryCaptured": "Alındı: {kind}",
   "deliveryAddSignature": "İmza al",
+  "deliverySignaturePrompt": "Lütfen buraya imzalayın",
   "deliveryAddPhoto": "Fotoğraf çek",
   "deliveryDelivered": "Teslim ettim",
   "deliveryCouldNotDeliver": "Teslim edemedim",

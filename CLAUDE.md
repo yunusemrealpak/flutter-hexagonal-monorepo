@@ -378,10 +378,9 @@ Read this list first; the sections after it are the log of what is already close
 
 | | Next | Why this one, and why now |
 |---|---|---|
-| **C** | **Signature capture** | The other half of proof of delivery, and the one the photograph work did not touch: `SignatureCapture` needs a drawing surface `design_system` does not have. A new component, not a wiring job. `onCaptureSignature` already has the widened shape waiting for it. |
 | **D** | **A background scheduler** (backlog item 4) | The last device capability the product plausibly needs, and the thing that turns the outbox's remaining race from theoretical into real — see the drain entry below. |
 
-Five items have come off the top of this list: turning alerts on, the drain's three storage defects, photo evidence, the blocked-permission path, and pagination. All are in the log below.
+Six items have come off the top of this list: turning alerts on, the drain's three storage defects, photo evidence, the blocked-permission path, pagination, and signature capture. All are in the log below.
 
 After those, the list below in its own order. Two items in it are stated rather than fixed on purpose — `onBackgroundMessage` and the native build gap — and both close with the same step: `flutter create --platforms=android,ios .` inside an app.
 
@@ -520,9 +519,10 @@ Four things worth not rediscovering.
 - **A courier who backs out is `Success(null)`, not a failure.** `DeliveryFailure`
   has no case for it because nothing in the domain went wrong.
 
-Open, and it is now item **A** above: `onCapturePhoto` answers `PhotoEvidence?`,
-so a blocked camera is indistinguishable from a cancelled one. Signature capture
-is untouched — it needs a drawing surface `design_system` does not have.
+Both of the things left open here are closed further down: `onCapturePhoto`
+answered `PhotoEvidence?`, so a blocked camera was indistinguishable from a
+cancelled one — see the blocked-permission entry; and signature capture needed
+a drawing surface `design_system` did not have — see its own entry.
 
 #### The outbox drain's three storage defects — done, and they were one defect
 
@@ -708,6 +708,51 @@ Three things worth not rediscovering.
   falling back to unencrypted shared preferences. True of plugin version 9; this
   workspace is on 11, where AES-GCM under a KeyStore-wrapped key is the default.
   Check the version before naming the defect.
+
+#### Signature capture — done, and the shape of it is the lesson
+
+`PeykSignatureController`, `PeykSignaturePad` and `PeykSignaturePanel` in
+`design_system`; `_sign` in `app_courier`'s router; `DeliveryStrings
+.signaturePrompt`. The narrative is `docs/ARCHITECTURE.md` §5.9, and
+`DEPENDENCY_RULES.md` §2.4 gained a paragraph.
+
+**There is no adapter under it, and that is the point.** A photograph travels
+app → `CameraProofSource` → `platform/media_capture`, because taking one means
+a technology and turning one into evidence means `delivery_api`, and §1.1 lets
+exactly one package hold both. Ink has no technology under it: a component
+makes it. So there is nothing to adapt, and the join happens in the router —
+the one place that can see a `design_system` component, a `Clock` and a domain
+factory at once. **An adapter exists because two vocabularies must meet, not
+because a capability is being reached for**; a `SignatureProofSource` written
+for symmetry would have been a boundary with nothing on the far side.
+
+Four more things worth not rediscovering.
+
+- **`arch_check` refused the first draft, and it was right.** The panel pushed
+  and popped its own route — a modal answering a value, naming no destination
+  and importing no feature, which is the letter of §2.4 over-catching. That is
+  the moment to ask whether the rule or the code is wrong, and the code was: a
+  component that decides how it is presented cannot be the same pad in a
+  dispatcher's side panel, and the app owns popping what it pushed anyway.
+- **Engine work does not run in a `testWidgets` body.** `Picture.toImage` and
+  `instantiateImageCodec` complete on the engine, and fake async never gives it
+  a turn — the work finishes and then the test hangs forever on a port fake
+  async will not drain, which reads exactly like an implementation bug. Twelve
+  minutes were spent on that. `runAsync` is the window, and it has to
+  *alternate* with pumping, because no widget advances while it is open, so a
+  route cannot pop inside one.
+- **The rendered ink is black on white whatever the palette is.** On-screen ink
+  follows the palette; the PNG must not. A proof captured at night on the dark
+  palette and stored as white ink on nothing disappears the first time somebody
+  prints it. The test reads the corner pixel back out of the PNG.
+- **Pointer events, not a pan gesture.** A `GestureDetector` drag enters the
+  gesture arena and an ancestor `Scrollable` wins it, so a pad in a list scrolls
+  the list instead of drawing — on vertical strokes only. `Listener` is outside
+  the arena.
+
+Open, deliberately: `app_harness` and `app_dispatcher` supply no
+`onCaptureSignature`, the same way they supply no camera; and nothing yet draws
+a signature back out of a stored proof.
 
 #### What is worth taking next
 

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:core_kernel/core_kernel.dart';
 import 'package:core_ports/core_ports.dart';
@@ -8,7 +9,7 @@ import 'package:delivery_presentation/delivery_presentation.dart';
 import 'package:design_system/design_system.dart';
 import 'package:documents_api/documents_api.dart';
 import 'package:documents_presentation/documents_presentation.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:identity_api/identity_api.dart';
@@ -126,6 +127,12 @@ PeykRouter buildCourierRouter(GetIt container) {
           // no supplier until now. §2.4's capability row: the screen may not
           // see `platform/*`, so the app hands over the capture and the button
           // is drawn only because it did.
+          // The callback `ProofCaptureScreen` has taken since phase 7 and
+          // nothing could answer. Unlike the photograph it needs no device
+          // capability at all — a `design_system` panel and a `Clock` — and it
+          // still arrives as a callback, because §1.1 gives a presentation
+          // package neither `core_ports` nor a `Navigator`.
+          onCaptureSignature: () => _sign(context, container),
           onCapturePhoto: () => _photograph(container, shipment),
           // The way out of a permission the operating system has stopped
           // asking about. Same shape as the capture and for the same reason —
@@ -265,14 +272,6 @@ Future<void> _signOut(GetIt container, ActorId actor) async {
   await container<IdentityFacade>().signOut();
 }
 
-/// Photographs [shipment], answering null when there is nothing to attach.
-///
-/// The failure is logged rather than shown, and that is a gap this signature
-/// cannot close: `onCapturePhoto` answers `PhotoEvidence?`, so a camera blocked
-/// in the system settings looks exactly like a courier who changed their mind.
-/// Widening it is what has to happen before that case can offer the settings
-/// page — the same half-open state `openSettings` is in for camera and
-/// location.
 /// Takes a photograph of [shipment], or says why there is not one.
 ///
 /// A pass-through now, where it used to swallow the refusal into a log line
@@ -293,4 +292,51 @@ Future<Result<PhotoEvidence, CaptureRefusal>> _photograph(
     );
   }
   return taken;
+}
+
+/// Takes a signature, or says why there is not one.
+///
+/// **The capture that needs no adapter.** A photograph goes through
+/// `CameraProofSource` in `delivery_infrastructure`, because taking one means
+/// `platform/media_capture` and turning one into evidence means `delivery_api`
+/// — and that package is the only one allowed to hold both vocabularies. A
+/// signature has no device behind it: `design_system` produces the ink and
+/// `core_ports` supplies the instant, and *this file* is the only place that
+/// can see a component, a clock and a domain factory at once. There is nothing
+/// for an adapter to adapt.
+///
+/// The push and the two pops are here rather than in the panel because §2.4
+/// and rule `A6` give navigation to the app. What comes back is a `Uint8List?`
+/// where `null` means the panel was left with nothing captured — cancelled, or
+/// dismissed with the system's own back gesture, which mean the same thing to
+/// a courier and so mean the same thing here.
+Future<Result<SignatureCapture, CaptureRefusal>> _sign(
+  BuildContext context,
+  GetIt container,
+) async {
+  final title = PeykStrings.of(
+    context,
+  ).resolve(DeliveryStrings.signaturePrompt);
+
+  final ink = await Navigator.of(context).push<Uint8List>(
+    MaterialPageRoute<Uint8List>(
+      fullscreenDialog: true,
+      builder: (context) => PeykSignaturePanel(
+        title: title,
+        onSigned: (ink) => Navigator.of(context).pop(ink),
+        onCancelled: () => Navigator.of(context).pop(),
+      ),
+    ),
+  );
+
+  // A courier who backed out is a `CaptureDeclined` and not a failure:
+  // nothing in the domain went wrong, and the screen draws nothing for it.
+  if (ink == null) return const Failed(CaptureDeclined());
+
+  // The one line the panel could not write. `Clock` is a `core_ports` port and
+  // rule 1.2.8 forbids reaching for `DateTime.now()` instead.
+  return SignatureCapture.of(
+    bytes: ink,
+    capturedAt: container<Clock>().now(),
+  ).mapFailure(EvidenceUnusable.new);
 }

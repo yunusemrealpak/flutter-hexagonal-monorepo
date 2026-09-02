@@ -64,6 +64,22 @@ That is §2.4 of [`docs/DEPENDENCY_RULES.md`](../../../docs/DEPENDENCY_RULES.md)
 
 Two behaviours the tests pin down. **Every destination is labelled**, not only the selected one, for the reason in the section above: the icons are grey glyphs of the same size and the alternative is a bar you have to tap to read. And **a tap on the destination already in force is reported**, because that repeat is how somebody three screens deep gets back to the top of their tab — a bar that swallowed it would make that behaviour impossible to build above.
 
+## The signature pad produces bytes and stamps nothing
+
+`PeykSignaturePad` is the only component here that *produces* something a feature stores rather than drawing something a feature already has. `PeykSignatureController` holds the strokes, and `render()` answers a PNG — or `null`, when nobody drew anything.
+
+**It does not say when.** A `SignatureCapture` needs an instant, and an instant has to come from `Clock` in `core_ports`, which section 2 does not put on this row. That is the right split independently of the rule: this package knows what ink looks like, and *when a proof was taken* is a fact about a delivery. The app composes the two, and it is the only place that can see both.
+
+**The bytes are black on white whatever the palette is.** A signature captured at night on the dark palette and stored as white ink on nothing is a proof that disappears the first time somebody prints it. The on-screen ink follows the palette; the rendered ink does not, and a test asserts the corner pixel.
+
+**Pointer events, not a pan gesture.** A `GestureDetector`'s drag enters the gesture arena, where an ancestor `Scrollable` beats it — so a pad inside a list would scroll the list rather than draw, on the vertical strokes only, which is the kind of defect that reaches a courier instead of a test. `Listener` is outside the arena and always gets the events.
+
+`PeykSignaturePanel` composes the pad with the three things somebody can do with it, and it occupies a whole surface rather than sitting in one — for the reason above: every screen that would ask for a signature draws a list, and an app that pushes this as a route leaves the pad nothing to compete with.
+
+**It navigates nowhere.** §2.4 gives navigation to the app and rule `A6` makes that mechanical, so the panel reports `onSigned` and `onCancelled` and the app decides that both mean *pop*. The first draft of it pushed and popped its own route — a modal returning a value, which reads like something the rule was not written about — and `arch_check` refused the commit. Obeying it turned out to be the better component: one that decides how it is presented cannot also be the pad on a dispatcher's desk in a side panel. A test asserts the panel is still on screen after *cancel*.
+
+Its *clear*, *cancel* and *done* are this package's words, like the failure view's retry; the title is the caller's, because what somebody is being asked to sign is not.
+
 ## `PeykTheme.wrap` is a test helper that lives in `lib/`
 
 Fourteen presentation packages write widget tests against these components. Each of them needs a tree carrying a palette, a locale, the generated delegates and a catalogue. Leaving that to the callers produced fourteen wrappers that drift; putting it here means a component which grows a new ambient requirement is fixed once.
@@ -76,7 +92,7 @@ Its default catalogue is `KeyEchoCatalogue`, which is what lets a widget test as
 - **A route name.** Including in the navigation bar. A component that knows where a tap leads is a component that has to be recompiled when an app rearranges its tabs.
 - **A product sentence.** See the table above.
 - **A raw number or colour reaching a caller.** Callers get components and vocabulary; `design_tokens` is not re-exported, and rule S4 would not allow it if somebody tried.
-- **A `core_ports` dependency.** Not on this row, and nothing here needs a `Clock`.
+- **A `core_ports` dependency.** Not on this row, and nothing here needs a `Clock` — including the signature pad, which is exactly why it hands back bytes and lets somebody else say when they were drawn.
 - **A font or asset file.** A design system that shipped a font would make every app that draws a button carry it.
 
 ## Code generation

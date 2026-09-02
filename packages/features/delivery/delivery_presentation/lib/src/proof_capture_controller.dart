@@ -100,10 +100,13 @@ final class ProofCaptureController extends ChangeNotifier {
 
   /// Adds a signature to what has been captured.
   ///
-  /// The evidence arrives already built. Capturing it means a camera or a
-  /// signature pad, both of which live behind `platform/*`, and a presentation
-  /// package may not depend on one — so the app supplies the capture and this
-  /// layer holds the result.
+  /// The evidence arrives already built, and the two captures reach the app
+  /// by different routes. A photograph is a device capability behind
+  /// `platform/*`, which §1.1 does not give a presentation package. A
+  /// signature needs no device at all — it is a `design_system` component and
+  /// a `Clock` — and this layer still does not build one, because §1.1 does
+  /// not give it `core_ports` either. Both end in the same place for different
+  /// reasons: the app supplies the capture and this holds the result.
   void addSignature(SignatureCapture signature) {
     if (_state case final AtTheDoor state) {
       _emit(state.copyWith(signature: signature));
