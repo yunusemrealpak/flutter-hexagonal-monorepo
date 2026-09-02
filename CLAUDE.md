@@ -370,9 +370,7 @@ Also closed, because both were gaps the code had already documented: `IdentityFa
 
 `main` is protected and green, and nothing from the specification is outstanding — its acceptance criteria all hold and every phase is tagged `phase-00` … `phase-08`. What follows is ordinary product work under the same constitution.
 
-**Open, and stacked in this order** — each is based on the one below it, so they merge bottom-up: PR #30 the background scheduler, PR #29 signature capture, PR #28 the paginated manifest, PR #27 the blocked-permission path.
-
-**Merged so far, newest first:** PR #26 (`886305d`) photo evidence, PR #25 the outbox drain's storage defects, PR #24 turning alerts on, PR #23 the handoff, PR #22 (`9319aba`) the integration audit, PR #21 (`7157dbd`) the authorised transport, PR #20 (`529b92b`) the gap list, PR #19 (`99b4556`) entry from a notification, PR #18 (`decc87a`) the tabbed shell, PR #16 (`ccee0a6`) navigation and the first three flows.
+**Merged so far, newest first:** PR #30 (`35c3fb2`) the background scheduler, PR #29 (`c68b645`) signature capture, PR #28 (`6aeb6d7`) the paginated manifest, PR #27 (`677765b`) the blocked-permission path — the four are tagged **`v0.2.0`** on `main`. A product milestone rather than a `phase-09`: the specification defines eight phases and stops, so a ninth would name something that does not exist. `release.yml` triggers only on `app_*-v*`, so the milestone tag starts no build. PR #26 (`886305d`) photo evidence, PR #25 the outbox drain's storage defects, PR #24 turning alerts on, PR #23 the handoff, PR #22 (`9319aba`) the integration audit, PR #21 (`7157dbd`) the authorised transport, PR #20 (`529b92b`) the gap list, PR #19 (`99b4556`) entry from a notification, PR #18 (`decc87a`) the tabbed shell, PR #16 (`ccee0a6`) navigation and the first three flows.
 
 #### The plan, in the order it should be taken
 
@@ -803,6 +801,48 @@ Five things worth not rediscovering.
 Open, deliberately: the entry point itself (`courierBackgroundTasks`, six lines
 under `@pragma('vm:entry-point')`) cannot run here, for exactly the reason
 `codemagic.yaml` cannot — see item 10 and the plan table above.
+
+#### The bucketing input nothing was reading — done
+
+Not a plan item; found by reading the annotations on `main.yml`'s run for the
+`v0.2.0` merge. Ten errors and eleven warnings on a run whose conclusion was
+`success`, which is the shape of a defect nobody is going to open.
+
+**The timings restore could never have worked.** It read the previous run's
+durations with `actions/download-artifact`, which downloads from *one run* —
+and the run id it passed resolved to the current one, whose timings are
+produced by its own last job. `github.event.workflow_run.id` is empty outside
+an `on: workflow_run` trigger, and this workflow has none, so the `||`
+fallback was the only branch ever taken. `continue-on-error: true` kept it
+quiet.
+
+The file was uploaded correctly every time and read back never, so `Timings`
+loaded empty and `costOf` answered the assumed 20 seconds for all 76 packages
+— which is splitting by count, the exact thing the step exists to prevent. Off
+the artefact of run `33618786747`: the equal-weight split gives a slowest
+bucket of **71.7s** where the measured one gives **49.2s**. A third of the
+critical path, on a step that was printing an error ten times a run.
+
+Three things worth not rediscovering.
+
+- **`continue-on-error` on a step nobody watches is a feature that silently is
+  not there.** The annotation was the only evidence, and annotations do not
+  fail anything. If a step is allowed to fail, something has to read that it
+  did.
+- **Carrying state between runs is a cache's job, not an artefact's.** An
+  artefact belongs to the run that produced it — that is why
+  `download-artifact` wants a run id at all. `actions/cache/restore` with a
+  unique key and a `timings-` prefix says the intent directly: never hit the
+  exact key, always take the newest earlier one.
+- **The readable copy is still uploaded.** A cache entry cannot be opened from
+  a browser, and comparing two runs' timings is how a suddenly slow bucket gets
+  diagnosed. This one was diagnosed exactly that way.
+
+Also in the same change: every `actions/*` pinned to the first major that runs
+on Node 24 — `checkout@v5`, `upload-artifact@v6`, `download-artifact@v7`,
+`cache@v5`. The first major and not the newest, deliberately: the newest bring
+ESM, direct uploads and hash-mismatch failures, none of which this repository
+asked for. The bump answers the deprecation warning and imports nothing else.
 
 #### What is worth taking next
 
