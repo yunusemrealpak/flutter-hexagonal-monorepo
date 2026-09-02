@@ -100,7 +100,7 @@ final class InMemoryOutboxStore implements OutboxStore {
   }
 
   @override
-  Future<Result<void, SyncFailure>> recordAttempt(
+  Future<Result<int, SyncFailure>> recordAttempt(
     OutboxEntryId id, {
     required DateTime at,
     required DateTime nextAttemptAt,
@@ -112,12 +112,34 @@ final class InMemoryOutboxStore implements OutboxStore {
     // count this increments is the store's, which is what the drift adapter's
     // `attempt_count = attempt_count + 1` says in SQL.
     final stored = _entries[id.value];
-    if (stored == null) return const Success(null);
+    // Zero, and not a failure: the entry went while the drain was in flight,
+    // and zero is the count that tells a caller to carry on rather than give
+    // up on work that is no longer queued.
+    if (stored == null) return const Success(0);
 
-    _entries[id.value] = stored.attempted(
+    final attempted = stored.attempted(
       at: at,
       backoff: nextAttemptAt.difference(at),
     );
+    _entries[id.value] = attempted;
+    return Success(attempted.attempts);
+  }
+
+  @override
+  Future<Result<void, SyncFailure>> block(
+    OutboxEntryId id,
+    String reason,
+  ) async {
+    final failure = _takeFailure();
+    if (failure != null) return Failed(failure);
+
+    final stored = _entries[id.value];
+    if (stored == null) return const Success(null);
+
+    // `OutboxEntry.blocked` already keeps the first reason, so this is the
+    // domain's rule rather than this fake's: the thing that went wrong first
+    // is what a person needs to read.
+    _entries[id.value] = stored.blocked(reason);
     return const Success(null);
   }
 

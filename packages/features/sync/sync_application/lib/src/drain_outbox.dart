@@ -35,14 +35,22 @@ import 'read_sync_status.dart';
 ///
 /// **What it writes is as deliberate as what it decides.** A drain reads a
 /// batch and then spends a network round trip per entry, so every value it
-/// holds is a snapshot. `recordAttempt` and `accepted` change the fields their
-/// outcome changes; `put` — which writes a whole entry from that snapshot — is
-/// left for `_block`, where the caller has just computed the entry it means.
+/// holds is a snapshot. `recordAttempt`, `block` and `accepted` each change
+/// the fields their own outcome changes; nothing here writes a whole entry
+/// from the copy it read.
 ///
-/// The attempt count is the store's for the same reason. This class still
-/// decides *whether to give up* from the count it read, which is correct while
-/// one drain runs at a time and is the thing to revisit when background work
-/// adds a second.
+/// **Whether to give up is decided from the count the store wrote**, not from
+/// the one this class read. That was the last place the snapshot leaked into a
+/// decision, and it was correct exactly while one drain ran at a time: two
+/// drains both holding `3` would each decide `4` was within budget while the
+/// store had reached `5`. `platform/background_tasks` is what makes the second
+/// drain real, so `recordAttempt` now answers its count and this spends the
+/// budget against that.
+///
+/// The backoff is still computed from the local count, and that asymmetry is
+/// deliberate: the length of a wait is a heuristic and being one step out
+/// costs a few seconds, while giving up is irreversible and costs a person a
+/// review queue entry that should not be there.
 final class DrainOutbox
     implements UseCase<(), Result<SyncStatus, SyncFailure>> {
   /// Creates the use case.
@@ -186,38 +194,60 @@ final class DrainOutbox
   };
 
   /// Counts a failed attempt and schedules the next one, or gives up.
+  ///
+  /// The order is *record, then decide*, and it is the other way round from
+  /// how it reads. Only the store knows how many attempts this entry has had
+  /// once a second drain exists, and the only way to ask is to write. The
+  /// intermediate state that leaves — an entry scheduled for a next attempt it
+  /// will never get — lasts one statement and is harmless either way: a
+  /// blocked entry is never due.
   Future<Result<void, SyncFailure>> _recordAttempt(
     OutboxEntry entry,
     SyncFailure failure,
     DateTime now,
-  ) {
-    if (!schedule.allowsAnotherAttempt(entry.attempts + 1)) {
-      return _block(entry, 'gave up after ${entry.attempts + 1} attempts');
-    }
-
+  ) async {
+    // From the local count, on purpose. The backoff has to be chosen before
+    // the write that reveals the real count, and a wait one step out costs a
+    // few seconds — where giving up one attempt early costs a person a review
+    // queue entry that should not be there.
     final backoff = schedule.delayAfter(
       entry.attempts + 1,
       jitter: _random.nextDouble(),
     );
-    _logger.debug(
-      'retrying queued work later',
-      context: {
-        'entry': entry.id.value,
-        'attempts': entry.attempts + 1,
-        'in': '${backoff.inMilliseconds}ms',
-        'failure': '$failure',
-      },
-    );
+
     // Not `put`. The entry in hand was read at the top of this pass and one
     // network round trip has happened since, so writing it back whole would
     // undo anything that changed in between — including a person blocking it
     // from the review screen, which would put work somebody deliberately
     // stopped back into the queue with no reason on it.
-    return _store.recordAttempt(
+    final counted = await _store.recordAttempt(
       entry.id,
       at: now,
       nextAttemptAt: now.add(backoff),
     );
+
+    final int attempts;
+    switch (counted) {
+      case Failed(:final failure):
+        return Failed(failure);
+      case Success(:final value):
+        attempts = value;
+    }
+
+    if (!schedule.allowsAnotherAttempt(attempts)) {
+      return _block(entry, 'gave up after $attempts attempts');
+    }
+
+    _logger.debug(
+      'retrying queued work later',
+      context: {
+        'entry': entry.id.value,
+        'attempts': attempts,
+        'in': '${backoff.inMilliseconds}ms',
+        'failure': '$failure',
+      },
+    );
+    return const Success(null);
   }
 
   /// Takes an entry out of the drain and leaves it for a person.
@@ -226,6 +256,9 @@ final class DrainOutbox
       'queued work needs a person',
       context: {'entry': entry.id.value, 'type': entry.type, 'reason': reason},
     );
-    return _store.put(entry.blocked(reason));
+    // An intent rather than `put(entry.blocked(reason))`. The entry in hand is
+    // the snapshot again: writing it whole would roll back an attempt a second
+    // drain counted since, and the store keeps whichever reason arrived first.
+    return _store.block(entry.id, reason);
   }
 }

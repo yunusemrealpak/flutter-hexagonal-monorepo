@@ -115,11 +115,15 @@ final class DriftOutboxStore implements OutboxStore {
   );
 
   @override
-  Future<Result<void, SyncFailure>> recordAttempt(
+  Future<Result<int, SyncFailure>> recordAttempt(
     OutboxEntryId id, {
     required DateTime at,
     required DateTime nextAttemptAt,
   }) => _guard(() => entries.recordAttempt(id.value, at, nextAttemptAt));
+
+  @override
+  Future<Result<void, SyncFailure>> block(OutboxEntryId id, String reason) =>
+      _guard(() => entries.block(id.value, reason));
 
   @override
   Future<Result<void, SyncFailure>> accepted(

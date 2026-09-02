@@ -292,7 +292,7 @@ At the **end** of a phase: verify the acceptance criteria in the spec, push, ope
 
 This section is the handoff between sessions. It is rewritten at every phase boundary and it is the only part of this file that is expected to go stale — everything above is the constitution. Read it after section 9, then check it against `git log` before trusting it.
 
-**Branch:** `main`. **Last tag:** `phase-08`. The eight phases the specification defines are complete, merged and tagged; `main` is protected. What follows the spec is ordinary product work under the same constitution — six pull requests of it so far, listed under "Start here in the next session" below. **Working tree:** clean; `arch_check` clean across 75 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (1,967 cases in 180 test files); `melos run gen:check` and `graph:check` clean.
+**Branch:** `main`. **Last tag:** `phase-08`. The eight phases the specification defines are complete, merged and tagged; `main` is protected. What follows the spec is ordinary product work under the same constitution — ten pull requests merged and four open in a stack, all listed under "Start here in the next session" below. **Working tree:** clean; `arch_check` clean across 76 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (2,138 cases in 193 test files); `melos run gen:check` and `graph:check` clean.
 
 ### Phase 8 is complete, merged and tagged
 
@@ -370,7 +370,9 @@ Also closed, because both were gaps the code had already documented: `IdentityFa
 
 `main` is protected and green, and nothing from the specification is outstanding — its acceptance criteria all hold and every phase is tagged `phase-00` … `phase-08`. What follows is ordinary product work under the same constitution.
 
-**Merged so far, newest first:** PR #22 (`9319aba`) the integration audit, PR #21 (`7157dbd`) the authorised transport, PR #20 (`529b92b`) the gap list, PR #19 (`99b4556`) entry from a notification, PR #18 (`decc87a`) the tabbed shell, PR #16 (`ccee0a6`) navigation and the first three flows.
+**Open, and stacked in this order** — each is based on the one below it, so they merge bottom-up: PR #30 the background scheduler, PR #29 signature capture, PR #28 the paginated manifest, PR #27 the blocked-permission path.
+
+**Merged so far, newest first:** PR #26 (`886305d`) photo evidence, PR #25 the outbox drain's storage defects, PR #24 turning alerts on, PR #23 the handoff, PR #22 (`9319aba`) the integration audit, PR #21 (`7157dbd`) the authorised transport, PR #20 (`529b92b`) the gap list, PR #19 (`99b4556`) entry from a notification, PR #18 (`decc87a`) the tabbed shell, PR #16 (`ccee0a6`) navigation and the first three flows.
 
 #### The plan, in the order it should be taken
 
@@ -378,11 +380,13 @@ Read this list first; the sections after it are the log of what is already close
 
 | | Next | Why this one, and why now |
 |---|---|---|
-| **D** | **A background scheduler** (backlog item 4) | The last device capability the product plausibly needs, and the thing that turns the outbox's remaining race from theoretical into real — see the drain entry below. |
+| **A** | **Native platform folders** (backlog item 7) | Promoted, because it is no longer one gap. `codemagic.yaml`, `fastlane/`, `onBackgroundMessage` and now `courierBackgroundTasks` are four pieces of real, consistent, unrunnable code waiting on the same step, and a fifth will arrive with the next device capability. `flutter create --platforms=android,ios .` inside an app, then flavours. |
+| **B** | **The first golden** (backlog item 5) | Two CI gates have never run against a real selection, and phase 8's lesson was that a gate with no input has to have a defined answer for the empty case. `CourierShell` is the obvious first image. |
+| **C** | **A sidebar for `app_dispatcher`** (backlog item 6) | The tabbed shell's split is proven by one app. A desk wants a different component over the same `RouteDefinition.path` rule, which is what would show whether the split was a design or a coincidence. |
 
-Six items have come off the top of this list: turning alerts on, the drain's three storage defects, photo evidence, the blocked-permission path, pagination, and signature capture. All are in the log below.
+Seven items have come off the top of this list: turning alerts on, the drain's three storage defects, photo evidence, the blocked-permission path, pagination, signature capture, and the background scheduler. All are in the log below.
 
-After those, the list below in its own order. Two items in it are stated rather than fixed on purpose — `onBackgroundMessage` and the native build gap — and both close with the same step: `flutter create --platforms=android,ios .` inside an app.
+After those, the list below in its own order.
 
 **Before starting anything**, read `docs/research/integration-audit.md`. It is the most recently learned thing about this workspace and it changes how to read every adapter: the adapters are good, and the defects live in the composition roots, which are the least-tested files in the repository.
 
@@ -754,13 +758,59 @@ Open, deliberately: `app_harness` and `app_dispatcher` supply no
 `onCaptureSignature`, the same way they supply no camera; and nothing yet draws
 a signature back out of a stored proof.
 
+#### A background scheduler — done, and the second drain was the point
+
+Backlog item 4. Every trigger the outbox had needed the process alive — a
+connectivity change, a foreground transition, and the retry button — so a
+courier who force-quit in a basement sent nothing until they reopened the app.
+`platform/background_tasks` is the tenth platform package; the narrative is
+`docs/ARCHITECTURE.md` §5.10; nothing in `DEPENDENCY_RULES.md` changed.
+
+`BackgroundScheduler` / `TaskConstraints` / `SchedulingFailure` with a
+`WorkManagerScheduler` over `WorkmanagerPlatform` and a fake beside it;
+`SyncOrchestrator` takes an optional scheduler and `app_courier` supplies one
+(`app_dispatcher` does not — a desk's outbox is in memory).
+
+Five things worth not rediscovering.
+
+- **A task is a name, not a function, and everything else follows from that.**
+  The operating system starts the work in a second isolate with a fresh Dart
+  heap, long after the scheduling call returned: no container, no database, no
+  widgets. A closure cannot survive the trip, so the port schedules strings and
+  the app registers the one entry point they arrive at. Nobody chose this shape.
+- **Adding a second drain did not create the race; it made an existing one
+  observable.** `DrainOutbox` decided whether to give up from the count it read
+  before a network round trip, and its own doc comment said that was correct
+  only while one drain ran. Two drains holding `attempts: 1` each conclude
+  `2 < 3` while the store reaches 3. `recordAttempt` now answers the count it
+  wrote and `block` joined it as an intent. The test runs two drains against a
+  gated transport; it fails without the fix.
+- **The backoff is still computed locally and that asymmetry is deliberate.** A
+  wait one step out costs seconds; giving up one attempt early costs a person a
+  review-queue entry that should not be there.
+- **Raise the interval in the adapter, not at the call site.** WorkManager
+  clamps anything under fifteen minutes silently, so an app asking for five
+  would get fifteen and believe it had five. `BackgroundScheduler.minimumInterval`
+  is the number a caller can read, and `schedulePeriodic` raises to it.
+- **What the entry point answers is a retry request, so it is not "did it work".**
+  A drain in which *every entry failed to send* answers `true`: the queue has
+  its own `RetrySchedule`, and asking WorkManager to retry as well stacks a
+  second backoff over one queue. `false` is kept for a `SyncFailure`, which
+  `DrainOutbox` only produces when the store itself could not be read — a task
+  that genuinely did not run. An unknown name answers `true` too: it is a
+  schedule left by an older build, and it will not start working on a retry.
+
+Open, deliberately: the entry point itself (`courierBackgroundTasks`, six lines
+under `@pragma('vm:entry-point')`) cannot run here, for exactly the reason
+`codemagic.yaml` cannot — see item 10 and the plan table above.
+
 #### What is worth taking next
 
 Items 1 and 2 of this list are done, above. The rest stand as written; each entry names the evidence so the next session does not have to re-derive it.
 
 **3. No port returns a page.** — **closed 2026-09-02** for the manifest; see the log entry above. Every other collection-returning port is still a `List`, and each is now a small change rather than a design.
 
-**4. Nothing runs while the app does not.** `platform/` holds nine packages and none of them schedules work. `SyncOrchestrator` drains on a connectivity change and on resume, so a courier who force-quits in a basement sends nothing until they reopen the app. A `BackgroundScheduler` port with a WorkManager/BGTaskScheduler adapter is the shape, and it is the last device capability the product plausibly needs.
+**4. Nothing runs while the app does not.** — **closed 2026-09-02**; see the log entry above. What follows is the state that prompted it. `platform/` holds nine packages and none of them schedules work. `SyncOrchestrator` drains on a connectivity change and on resume, so a courier who force-quits in a basement sends nothing until they reopen the app. A `BackgroundScheduler` port with a WorkManager/BGTaskScheduler adapter is the shape, and it is the last device capability the product plausibly needs.
 
 **5. Two CI gates have never run against a real selection.** No test carries the `golden` or `integration` tag. The tags, presets, exclusions and steps have been in place since phase 8, and phase 8's own lesson was that a gate with no input has to have a defined answer for the empty case. The shell is the obvious first golden.
 
@@ -772,11 +822,11 @@ Items 1 and 2 of this list are done, above. The rest stand as written; each entr
 
 **9. The rest of the integration audit.** Three rows — the unused `recordAttempt`, the missing `transaction()` and the missing index — are **closed 2026-09-01**; see the log entry above. What remains: `image_picker.getLostData()` unused on the platform that loses photos; Android background location with no foreground-service config; `Position.isMocked` dropped; no `dispose:` on any DI registration; no go_router `errorBuilder` or `observers`; drift `.watch()` unused; `checked: true` off in every `build.yaml`. Each is one row of the table in the audit note, with its evidence. `openAppSettings()` is **closed 2026-09-02** along with both `…PermissionBlocked` producers; see the log entry above.
 
-**10. `onBackgroundMessage` is never set**, and it is in the same category as `codemagic.yaml`: real, and unrunnable here. It needs `apps/*/android`, Firebase initialisation and a native invoker this repository does not build, so a handler written now could not be exercised even by a test.
+**10. `onBackgroundMessage` is never set**, and it is in the same category as `codemagic.yaml`: real, and unrunnable here. It needs `apps/*/android`, Firebase initialisation and a native invoker this repository does not build, so a handler written now could not be exercised even by a test. `courierBackgroundTasks` joined it on 2026-09-02 for exactly the same reason, which is what promoted item 7 to the top of the plan: this category now has four members and gains one with every device capability.
 
 Smaller, and each named in a note: a push that merely arrives shows nothing in-app, `PeykNavigationDestination` carries no unread count, and the scanned barcode and pasted URL produce no locations yet.
 
-The two gaps the repository states rather than fixes are unchanged and deliberate: `codemagic.yaml` and `fastlane/Fastfile` cannot run without `apps/*/android/`, `apps/*/ios/` and `apps/*/config/<flavour>.json` (the specification excludes native builds), and no test carries the `golden` or `integration` tag yet — the tags, presets, exclusions and CI steps are the mechanism, and the images arrive with the screens that need them.
+The gaps the repository states rather than fixes are deliberate: `codemagic.yaml`, `fastlane/Fastfile`, `onBackgroundMessage` and `courierBackgroundTasks` cannot run without `apps/*/android/`, `apps/*/ios/` and `apps/*/config/<flavour>.json` (the specification excludes native builds), and no test carries the `golden` or `integration` tag yet — the tags, presets, exclusions and CI steps are the mechanism, and the images arrive with the screens that need them.
 
 ### Verification, before every commit
 

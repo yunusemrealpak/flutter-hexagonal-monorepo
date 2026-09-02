@@ -78,14 +78,40 @@ abstract interface class OutboxStore {
   /// spent against and two drains that both wrote "attempt 4" would give a
   /// device twice the budget it is allowed.
   ///
-  /// Recording against an identifier that is not there succeeds, for the
-  /// reason [drop] gives: a drain racing a person who resolved the entry must
-  /// not stop on work that is no longer queued.
-  Future<Result<void, SyncFailure>> recordAttempt(
+  /// **It answers the count it wrote**, and that is what a caller has to
+  /// spend the retry budget against. Deciding from `entry.attempts + 1` — a
+  /// number read before a network round trip — is correct while exactly one
+  /// drain runs, and two drains both holding `3` would each decide `4` was
+  /// within budget while the store had reached `5`. A background scheduler is
+  /// what makes that second drain real.
+  ///
+  /// Recording against an identifier that is not there succeeds and answers
+  /// `0`, for the reason [drop] gives: a drain racing a person who resolved
+  /// the entry must not stop on work that is no longer queued — and `0` is
+  /// the count that makes a caller carry on rather than give up on something
+  /// that has already gone.
+  Future<Result<int, SyncFailure>> recordAttempt(
     OutboxEntryId id, {
     required DateTime at,
     required DateTime nextAttemptAt,
   });
+
+  /// Takes [id] out of the drain and leaves it for a person.
+  ///
+  /// An intent, for the same reason [recordAttempt] and [accepted] are.
+  /// Blocking used to be `put(entry.blocked(reason))`, which writes every
+  /// column from a copy read at the top of the drain — so an attempt counted
+  /// by a second drain since then would be silently rolled back, and so would
+  /// a payload a retry had rewritten.
+  ///
+  /// **The first reason stands.** An implementation must leave an entry that
+  /// is already blocked alone, which is what `OutboxEntry.blocked` promises in
+  /// the domain: the first thing that went wrong is the one a person needs to
+  /// read, and a second drain overwriting it with "gave up after 5 attempts"
+  /// would hide the 422 that caused them.
+  ///
+  /// Blocking an identifier that is not there succeeds.
+  Future<Result<void, SyncFailure>> block(OutboxEntryId id, String reason);
 
   /// Records that the server took [id]'s work and is now at [cursor].
   ///

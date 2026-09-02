@@ -1,4 +1,5 @@
 import 'package:analytics_otel/analytics_otel.dart';
+import 'package:background_tasks/background_tasks.dart';
 import 'package:connectivity_monitor/connectivity_monitor.dart';
 import 'package:core_ports/core_ports.dart';
 import 'package:device_permissions/device_permissions.dart';
@@ -74,6 +75,18 @@ abstract class CourierPorts {
     CourierPlatform platform,
     KeyValueStore askLog,
   ) => DevicePermissionRequester(platform.permissions, askLog);
+
+  /// Asking the operating system to run work while this app is not.
+  ///
+  /// Registered here even though nothing inside a package can use it: §1.1
+  /// keeps `platform/*` out of every feature, so the only caller is
+  /// `SyncOrchestrator`, which is in this app for the same reason the drain
+  /// policy is. `app_dispatcher` registers nothing of the kind — a desk is at
+  /// a connection and its outbox is in memory, so there is nothing to send
+  /// while it is closed.
+  @lazySingleton
+  BackgroundScheduler scheduler(CourierPlatform platform) =>
+      WorkManagerScheduler(platform.scheduler);
 
   /// Feature flags.
   ///

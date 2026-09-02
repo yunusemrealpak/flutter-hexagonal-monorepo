@@ -117,6 +117,8 @@ Stated at the top of both files, and repeated here because it is the one honest 
 
 Everything else in both files — the triggers, the flavour matrix, the obfuscation flags, the artefact paths, the lane arguments — is real.
 
+**The same first bullet now blocks two things in `lib/`.** `app_courier`'s `courierBackgroundTasks` and the `onBackgroundMessage` handler are Dart entry points the operating system calls into, and both need the native projects to be registered at all. That is worth knowing here rather than only in `CLAUDE.md`: the native-project gap is no longer only a packaging gap, and it grows by one entry point with every device capability the product takes on.
+
 ---
 
 ## 8. Branch protection

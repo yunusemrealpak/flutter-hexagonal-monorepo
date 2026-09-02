@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:analytics_otel/analytics_otel.dart';
+import 'package:background_tasks/background_tasks.dart';
 import 'package:connectivity_plus_platform_interface/connectivity_plus_platform_interface.dart';
 import 'package:core_ports/core_ports.dart';
 import 'package:dio/dio.dart';
@@ -16,6 +17,7 @@ import 'package:opentelemetry/api.dart' as otel;
 import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
 import 'package:push_messaging/push_messaging.dart';
 import 'package:sync_api/sync_api.dart';
+import 'package:workmanager/workmanager.dart';
 
 import 'src/courier_app.dart';
 import 'src/di/courier_platform.dart';
@@ -23,6 +25,7 @@ import 'src/di/courier_runtime.dart';
 import 'src/di/injection.dart';
 import 'src/push/push_entry.dart';
 import 'src/router/courier_routes.dart';
+import 'src/sync/background_drain.dart';
 import 'src/sync/sync_orchestrator.dart';
 
 /// What this app's own tests build it from.
@@ -45,6 +48,7 @@ export 'src/router/peyk_router.dart';
 export 'src/router/session_refresh.dart';
 export 'src/shell/courier_shell.dart';
 export 'src/shell/courier_tabs.dart';
+export 'src/sync/background_drain.dart';
 export 'src/sync/sync_orchestrator.dart';
 
 /// The courier app, in production.
@@ -81,6 +85,7 @@ Future<void> main() async {
     location: GeolocatorPlatform.instance,
     camera: ImagePickerPlatform.instance,
     push: FirebaseMessagingPlatform.instance,
+    scheduler: WorkmanagerPlatform.instance,
     tracer: otel.globalTracerProvider.getTracer('peyk.courier'),
   );
 
@@ -108,6 +113,10 @@ Future<void> main() async {
     sync: container<SyncFacade>(),
     network: container<NetworkStatus>(),
     logger: container<Logger>(),
+    // The fourth trigger, and the only one that does not need this process to
+    // be alive. See `courierBackgroundTasks` at the bottom of this file for
+    // the half of it that cannot run in this repository.
+    scheduler: container<BackgroundScheduler>(),
   ).start();
 
   final router = buildCourierRouter(container).build();
@@ -152,3 +161,55 @@ const String _collectorEndpoint = 'https://otel.peyk.example/v1/traces';
 /// production shape is one line; what matters architecturally is that
 /// `CourierPlatform` takes a `QueryExecutor` and does not care which.
 Future<File> _databaseFile() async => File('peyk.sqlite');
+
+/// The entry point the operating system calls into, in a second isolate.
+///
+/// **Real, consistent, and unrunnable in this repository as it stands** — the
+/// same status `codemagic.yaml` and `fastlane/Fastfile` declare at the top of
+/// themselves, and for the same reason. It needs `apps/app_courier/android/`
+/// and `ios/` to exist, `Workmanager().initialize(courierBackgroundTasks)`
+/// called from a `main` running on a device, and a native process to invoke
+/// it. The specification this repository is built from excludes iOS and
+/// Android builds; `flutter create --platforms=android,ios .` inside this app
+/// is the step that closes it, and it is the same step that closes
+/// `onBackgroundMessage`.
+///
+/// It is six lines because everything that could be an ordinary function is
+/// one: `runBackgroundTask` takes a container and is tested like anything
+/// else. What is left here is the pragma, the plugin handshake and building a
+/// container — none of which a test can reach.
+///
+/// **The container is a second one.** This isolate has a fresh Dart heap, so
+/// nothing the foreground built exists here and `configureCourier` runs again
+/// — which opens a second connection to the same SQLite file. SQLite's own
+/// locking makes that safe rather than fast, and `DrainOutbox` is now correct
+/// against a concurrent drain. What is *not* addressed is contention: two
+/// connections mean a foreground write can wait on a background transaction.
+/// `DriftIsolate` is the answer if that ever shows up, and it is a change to
+/// how `PeykDatabase` is created rather than to anything above it.
+@pragma('vm:entry-point')
+void courierBackgroundTasks() {
+  Workmanager().executeTask((name, _) async {
+    final container = await configureCourier(
+      CourierPlatform(
+        database: NativeDatabase.createInBackground(await _databaseFile()),
+        http: Dio(PeykTransport.optionsFor(_apiBaseUrl)),
+        secureStorage: FlutterSecureStoragePlatform.instance,
+        connectivity: ConnectivityPlatform.instance,
+        permissions: PermissionHandlerPlatform.instance,
+        location: GeolocatorPlatform.instance,
+        camera: ImagePickerPlatform.instance,
+        push: FirebaseMessagingPlatform.instance,
+        scheduler: WorkmanagerPlatform.instance,
+        tracer: otel.globalTracerProvider.getTracer('peyk.courier.background'),
+      ),
+    );
+    try {
+      return await runBackgroundTask(name, container);
+    } finally {
+      // The isolate is about to end either way; releasing the database handle
+      // is what stops a killed task from leaving a lock behind.
+      await container.reset();
+    }
+  });
+}
