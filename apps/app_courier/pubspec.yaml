@@ -12,6 +12,7 @@ environment:
 
 dependencies:
   analytics_otel: ^0.1.0
+  background_tasks: ^0.1.0
   connectivity_monitor: ^0.1.0
   connectivity_plus_platform_interface: ^2.1.0
   core_kernel: ^0.1.0
@@ -84,6 +85,12 @@ dependencies:
   vehicle_inventory_api: ^0.1.0
   vehicle_inventory_core: ^0.1.0
   vehicle_inventory_presentation: ^0.1.0
+  # The app-facing half of background work: `executeTask` is on this class
+  # rather than on the platform interface, because it is what a native entry
+  # point calls into. `WorkManagerScheduler` in platform/background_tasks does
+  # the scheduling and takes the interface.
+  workmanager: ^0.10.0
+  workmanager_platform_interface: ^0.10.0
 
 dev_dependencies:
   build_runner: ^2.9.0

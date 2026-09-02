@@ -17,8 +17,8 @@ without shipping in anybody's product build.
 
 | | |
 |---|---|
-| Packages | 75 |
-| Runtime edges | 417 |
+| Packages | 76 |
+| Runtime edges | 419 |
 | Dev-dependency edges | 60 |
 | Cycles | none |
 
@@ -47,7 +47,7 @@ loop — see the payments/shipments diagram below.
 | `#fff3e0` | feature _infrastructure (adapters) | 6 |
 | `#fce4ec` | feature _presentation (UI) | 14 |
 | `#ede7f6` | feature _testing (fakes) | 7 |
-| `#fbe9e7` | platform/* (technology) | 9 |
+| `#fbe9e7` | platform/* (technology) | 10 |
 | `#eceff1` | tooling/* | 4 |
 
 ## The constitution, as it was actually built
@@ -346,7 +346,7 @@ graph LR
 
 | Package | Type | Depends on (workspace) |
 |---|---|---|
-| `app_courier` | app | `analytics_otel`, `connectivity_monitor`, `core_kernel`, `core_navigation`, `core_ports`, `delivery_api`, `delivery_application`, `delivery_infrastructure`, `delivery_presentation`, `design_system`, `design_tokens`, `device_permissions`, `documents_api`, `documents_core`, `documents_presentation`, `http_dio`, `identity_api`, `identity_application`, `identity_infrastructure`, `identity_presentation`, `incidents_api`, `incidents_core`, `incidents_presentation`, `location_service`, `media_capture`, `messaging_api`, `messaging_core`, `messaging_presentation`, `notifications_api`, `notifications_core`, `notifications_presentation`, `payments_api`, `payments_application`, `payments_infrastructure`, `payments_presentation`, `push_messaging`, `routing_api`, `routing_application`, `routing_infrastructure`, `routing_presentation`, `secure_store`, `settings_api`, `settings_core`, `settings_presentation`, `shipments_api`, `shipments_application`, `shipments_infrastructure`, `shipments_presentation_courier`, `storage_drift`, `sync_api`, `sync_application`, `sync_infrastructure`, `sync_presentation`, `vehicle_inventory_api`, `vehicle_inventory_core`, `vehicle_inventory_presentation` |
+| `app_courier` | app | `analytics_otel`, `background_tasks`, `connectivity_monitor`, `core_kernel`, `core_navigation`, `core_ports`, `delivery_api`, `delivery_application`, `delivery_infrastructure`, `delivery_presentation`, `design_system`, `design_tokens`, `device_permissions`, `documents_api`, `documents_core`, `documents_presentation`, `http_dio`, `identity_api`, `identity_application`, `identity_infrastructure`, `identity_presentation`, `incidents_api`, `incidents_core`, `incidents_presentation`, `location_service`, `media_capture`, `messaging_api`, `messaging_core`, `messaging_presentation`, `notifications_api`, `notifications_core`, `notifications_presentation`, `payments_api`, `payments_application`, `payments_infrastructure`, `payments_presentation`, `push_messaging`, `routing_api`, `routing_application`, `routing_infrastructure`, `routing_presentation`, `secure_store`, `settings_api`, `settings_core`, `settings_presentation`, `shipments_api`, `shipments_application`, `shipments_infrastructure`, `shipments_presentation_courier`, `storage_drift`, `sync_api`, `sync_application`, `sync_infrastructure`, `sync_presentation`, `vehicle_inventory_api`, `vehicle_inventory_core`, `vehicle_inventory_presentation` |
 | `app_dispatcher` | app | `analytics_otel`, `connectivity_monitor`, `core_kernel`, `core_navigation`, `core_ports`, `delivery_api`, `delivery_application`, `delivery_infrastructure`, `design_system`, `design_tokens`, `device_permissions`, `http_dio`, `identity_api`, `identity_application`, `identity_infrastructure`, `identity_presentation`, `incidents_api`, `incidents_core`, `incidents_presentation`, `messaging_api`, `messaging_core`, `messaging_presentation`, `notifications_api`, `notifications_core`, `notifications_presentation`, `payments_api`, `payments_application`, `payments_infrastructure`, `payments_presentation`, `reporting_api`, `reporting_core`, `reporting_presentation`, `routing_api`, `routing_application`, `routing_infrastructure`, `routing_presentation`, `secure_store`, `settings_api`, `settings_core`, `settings_presentation`, `shipments_api`, `shipments_application`, `shipments_infrastructure`, `shipments_presentation_dispatcher`, `storage_drift`, `sync_api`, `sync_application`, `sync_infrastructure`, `sync_presentation`, `sync_testing` |
 | `app_harness` | app | `core_kernel`, `core_navigation`, `core_ports`, `core_testing`, `delivery_api`, `delivery_application`, `delivery_presentation`, `delivery_testing`, `design_system`, `design_tokens`, `documents_api`, `documents_core`, `documents_presentation`, `http_dio`, `identity_api`, `identity_application`, `identity_presentation`, `identity_testing`, `incidents_api`, `incidents_core`, `incidents_presentation`, `messaging_api`, `messaging_core`, `messaging_presentation`, `messaging_testing`, `notifications_api`, `notifications_core`, `notifications_presentation`, `payments_api`, `payments_application`, `payments_presentation`, `payments_testing`, `push_messaging`, `reporting_api`, `reporting_core`, `reporting_presentation`, `routing_api`, `routing_application`, `routing_presentation`, `routing_testing`, `settings_api`, `settings_core`, `settings_presentation`, `shipments_api`, `shipments_application`, `shipments_presentation_courier`, `shipments_presentation_dispatcher`, `shipments_testing`, `sync_api`, `sync_application`, `sync_presentation`, `sync_testing`, `vehicle_inventory_api`, `vehicle_inventory_core`, `vehicle_inventory_presentation` |
 | `core_kernel` | core_kernel | — |
@@ -409,6 +409,7 @@ graph LR
 | `vehicle_inventory_core` | feature_core | `core_kernel`, `core_ports`, `http_dio`, `identity_api`, `shipments_api`, `vehicle_inventory_api` |
 | `vehicle_inventory_presentation` | feature_presentation | `core_kernel`, `core_navigation`, `design_system`, `identity_api`, `shipments_api`, `vehicle_inventory_api` |
 | `analytics_otel` | platform | `core_ports` |
+| `background_tasks` | platform | `core_kernel` |
 | `connectivity_monitor` | platform | `core_ports` |
 | `device_permissions` | platform | `core_kernel`, `core_ports` |
 | `http_dio` | platform | `core_kernel`, `core_ports` |
@@ -599,6 +600,7 @@ digraph peyk {
     style=dotted;
     color="#b0bec5";
     "analytics_otel" [fillcolor="#fbe9e7", color="#d84315"];
+    "background_tasks" [fillcolor="#fbe9e7", color="#d84315"];
     "connectivity_monitor" [fillcolor="#fbe9e7", color="#d84315"];
     "device_permissions" [fillcolor="#fbe9e7", color="#d84315"];
     "http_dio" [fillcolor="#fbe9e7", color="#d84315"];
@@ -621,6 +623,7 @@ digraph peyk {
 
   "analytics_otel" -> "core_ports";
   "app_courier" -> "analytics_otel";
+  "app_courier" -> "background_tasks";
   "app_courier" -> "connectivity_monitor";
   "app_courier" -> "core_kernel";
   "app_courier" -> "core_navigation";
@@ -781,6 +784,7 @@ digraph peyk {
   "app_harness" -> "vehicle_inventory_api";
   "app_harness" -> "vehicle_inventory_core";
   "app_harness" -> "vehicle_inventory_presentation";
+  "background_tasks" -> "core_kernel";
   "connectivity_monitor" -> "core_ports";
   "core_navigation" -> "core_kernel";
   "core_ports" -> "core_kernel";

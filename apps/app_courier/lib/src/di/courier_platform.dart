@@ -7,6 +7,7 @@ import 'package:geolocator_platform_interface/geolocator_platform_interface.dart
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:opentelemetry/api.dart' as otel;
 import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
+import 'package:workmanager_platform_interface/workmanager_platform_interface.dart';
 
 /// Everything this app needs from a device, gathered into one object.
 ///
@@ -36,6 +37,7 @@ final class CourierPlatform {
     required this.location,
     required this.camera,
     required this.push,
+    required this.scheduler,
     required this.tracer,
   });
 
@@ -62,6 +64,9 @@ final class CourierPlatform {
 
   /// What delivers a push message.
   final FirebaseMessagingPlatform push;
+
+  /// What asks the operating system to wake the app up.
+  final WorkmanagerPlatform scheduler;
 
   /// Where spans and logs go.
   final otel.Tracer tracer;

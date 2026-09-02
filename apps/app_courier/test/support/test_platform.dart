@@ -9,6 +9,7 @@ import 'package:image_picker_platform_interface/image_picker_platform_interface.
 import 'package:opentelemetry/api.dart' as otel;
 import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart'
     as handler;
+import 'package:workmanager_platform_interface/workmanager_platform_interface.dart';
 
 /// The device, as a test can supply it.
 ///
@@ -30,6 +31,7 @@ CourierPlatform testPlatform() => CourierPlatform(
   location: _Location(),
   camera: _Camera(),
   push: _Push(),
+  scheduler: _Scheduler(),
   tracer: otel.globalTracerProvider.getTracer('peyk.courier.test'),
 );
 
@@ -125,3 +127,36 @@ final class _Location extends GeolocatorPlatform {
 final class _Camera extends ImagePickerPlatform {}
 
 final class _Push extends FirebaseMessagingPlatform {}
+
+/// A scheduler that accepts everything and remembers nothing.
+///
+/// The default `WorkmanagerPlatform` throws `UnimplementedError` from every
+/// method, so an app that schedules on start-up would fail every test that
+/// builds it. Accepting silently is what "there is no operating system here"
+/// looks like; a test that cares what was scheduled substitutes a
+/// `FakeBackgroundScheduler` for the port instead.
+final class _Scheduler extends WorkmanagerPlatform {
+  _Scheduler() : super();
+
+  @override
+  Future<void> registerPeriodicTask(
+    String uniqueName,
+    String taskName, {
+    Duration? frequency,
+    Duration? flexInterval,
+    Map<String, dynamic>? inputData,
+    Duration? initialDelay,
+    Constraints? constraints,
+    ExistingPeriodicWorkPolicy? existingWorkPolicy,
+    BackoffPolicy? backoffPolicy,
+    Duration? backoffPolicyDelay,
+    String? tag,
+    ForegroundServiceConfig? foregroundServiceConfig,
+  }) async {}
+
+  @override
+  Future<void> cancelByUniqueName(String uniqueName) async {}
+
+  @override
+  Future<void> cancelAll() async {}
+}

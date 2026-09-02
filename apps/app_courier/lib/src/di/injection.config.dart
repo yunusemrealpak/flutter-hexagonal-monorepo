@@ -9,6 +9,7 @@
 // coverage:ignore-file
 
 // ignore_for_file: no_leading_underscores_for_library_prefixes
+import 'package:background_tasks/background_tasks.dart' as _i1015;
 import 'package:core_ports/core_ports.dart' as _i398;
 import 'package:delivery_api/delivery_api.dart' as _i1041;
 import 'package:delivery_application/delivery_application.dart' as _i718;
@@ -89,6 +90,9 @@ extension GetItInjectableX on _i174.GetIt {
     await gh.lazySingletonAsync<_i398.NetworkStatus>(
       () => courierPorts.network(gh<_i617.CourierPlatform>()),
       preResolve: true,
+    );
+    gh.lazySingleton<_i1015.BackgroundScheduler>(
+      () => courierPorts.scheduler(gh<_i617.CourierPlatform>()),
     );
     gh.lazySingleton<_i143.PeykDatabase>(
       () => courierPorts.database(gh<_i617.CourierPlatform>()),
