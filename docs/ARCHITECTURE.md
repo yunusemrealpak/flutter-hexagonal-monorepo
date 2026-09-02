@@ -222,6 +222,12 @@ It holds `NotificationsFacade` — a foreign `_api`, an edge the table grants �
 
 The distinction is worth the sentence because both look like "the screen needs a permission thing". A decision the product owns is a port and belongs to a feature. A mechanism the platform owns is a callback and belongs to the app. Getting it the other way round is how `core_ports` starts growing methods one screen needed once.
 
+**The proof screen is where the same arrangement had to be built twice, because a device permission can be refused on two different paths.** A courier's camera and a courier's position are both guarded, and the two refusals arrive by routes that have nothing in common. The camera's comes back from a capture the screen itself asked for, through `onCapturePhoto`. The position's comes back from a use case, as a `DeliveryFailure` the geofence produced three layers away. One type could not carry both without the geofence inventing a capture nobody made.
+
+What they share is the way out. `onOpenSettings` is one callback, supplied once by the app, and both paths end at it — which is the argument for §2.4's capability row being about *shape* rather than about a particular screen: two unrelated flows found the same seam without being made to.
+
+The failure they had in common was narrowness. `onCapturePhoto` answered `PhotoEvidence?` and `HttpGeoFence` answered `positionUnavailable` for all five of `location_service`'s cases, so on both paths the one refusal a courier could act on was rendered as the one that looks like bad luck. Widening each is what let the settings button exist at all. The rule that generalises is in §2.4: enumerate what can come back, and ask whether the screen would draw each answer differently.
+
 ### 5.7 One feature, two UIs
 
 `shipments` has `shipments_presentation_courier` and `shipments_presentation_dispatcher`. This is the driving adapter's substitutability made concrete: two screens over one `ShipmentsFacade`, sharing no widget and no controller.

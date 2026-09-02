@@ -378,12 +378,11 @@ Read this list first; the sections after it are the log of what is already close
 
 | | Next | Why this one, and why now |
 |---|---|---|
-| **A** | **The blocked-camera path, end to end** | Two things that only close together: `onCapturePhoto` answers `PhotoEvidence?`, so a blocked camera looks exactly like a courier who changed their mind — and `openSettings()` exists but is wired only into alerts. Widening the callback is what lets `media_capture` and `location_service`'s `…PermissionBlocked` finally do something. |
 | **B** | **Pagination on a port** (backlog item 3) | Unchanged, and still the one decision that cannot be walked back later without touching the gateway, the use case, the controller and the screen at once. |
-| **C** | **Signature capture** | The other half of proof of delivery, and the one the photograph work did not touch: `SignatureCapture` needs a drawing surface `design_system` does not have. A new component, not a wiring job. |
+| **C** | **Signature capture** | The other half of proof of delivery, and the one the photograph work did not touch: `SignatureCapture` needs a drawing surface `design_system` does not have. A new component, not a wiring job. `onCaptureSignature` already has the widened shape waiting for it. |
 | **D** | **A background scheduler** (backlog item 4) | The last device capability the product plausibly needs, and the thing that turns the outbox's remaining race from theoretical into real — see the drain entry below. |
 
-Three items have come off the top of this list: turning alerts on, the drain's three storage defects, and photo evidence. All are in the log below.
+Four items have come off the top of this list: turning alerts on, the drain's three storage defects, photo evidence, and the blocked-permission path. All are in the log below.
 
 After those, the list below in its own order. Two items in it are stated rather than fixed on purpose — `onBackgroundMessage` and the native build gap — and both close with the same step: `flutter create --platforms=android,ios .` inside an app.
 
@@ -392,6 +391,53 @@ After those, the list below in its own order. Two items in it are stated rather 
 #### The log — what has already been closed
 
 Chronological, newest last. Each entry records the things worth not rediscovering.
+
+#### The blocked permission — done, and it was two paths to one button
+
+The two audit rows were one dead end. `PermissionRequester.openSettings`
+existed and only the alerts section called it; `media_capture` and
+`location_service` both produced a `…PermissionBlocked` that reached a courier
+as nothing at all. Neither could close alone — a settings button needs
+somewhere to hang, and nothing on the proof screen could say a permission was
+blocked. The narrative is
+[`docs/research/integration-audit.md`](docs/research/integration-audit.md) §4.4
+and `docs/ARCHITECTURE.md` §5.6; the rule it produced is a new paragraph in
+[`DEPENDENCY_RULES.md` §2.4](docs/DEPENDENCY_RULES.md).
+
+**Both halves were the same defect: a return type too narrow to act on.**
+`onCapturePhoto` answered `PhotoEvidence?`, collapsing a courier who backed
+out, a permission that can be asked again, and a camera switched off in the
+settings into one `null`. `HttpGeoFence` collapsed all five `LocationFailure`s
+into `positionUnavailable` with the reason in a string nothing renders. On both
+paths the one refusal a courier could act on came out looking like the one that
+means bad luck.
+
+Four things worth not rediscovering.
+
+- **Two mechanisms, because they are two flows.** The camera's answer comes
+  back through a callback the screen called; the position's comes back through
+  a use case as controller state, produced three layers away. One type could
+  not carry both without the geofence inventing a capture nobody made. What
+  they share is the *way out* — one `onOpenSettings` callback, supplied once.
+- **`CaptureRefusal` belongs in `delivery_api`, and that is what removes the
+  translation.** `CameraProofSource` produces exactly what the screen consumes,
+  so `app_courier`'s helper became a pass-through with a log line. A type in
+  `delivery_infrastructure` would have needed an app-side mapping with no
+  information in it.
+- **`LocationServicesDisabled` is deliberately still collapsed.** It is also
+  only fixable in settings — the *device's*, not this app's — which is a
+  different platform call than `openSettings` makes. Splitting it out first
+  would have produced a second case with the same dead end.
+- **The notice survives a keystroke and the refusal does not.** `recipientIs`
+  drops `AtTheDoor.refusal` and that is right: a refusal answers the completion
+  being edited. A blocked camera answers nothing being edited, and it carries
+  the settings button with it. Re-run without the carry, the button vanishes on
+  the first letter of the recipient's name.
+
+Open, and named rather than fixed: `RouteScreen` still draws a blocked position
+as an advisory with no settings action. Its collapse is correct for what that
+screen does — a route stays drivable without a fresh fix — so the button buys
+less than it costs there until something on it depends on the position.
 
 #### Photo evidence — done, and the backlog item was the tail of it
 
@@ -631,7 +677,7 @@ Items 1 and 2 of this list are done, above. The rest stand as written; each entr
 
 **8. Push is inert end to end.** — **closed 2026-09-01**, see the log entry above. What follows is the state that prompted it. `NotificationsFacade.openAlertsFor` and `closeAlertsFor` have no callers anywhere, so nothing subscribes a courier to their alert topic and `PushAlertChannel.openFor` — the only code that requests the notification permission — never runs. The deep-link entry merged in PR #19 can only be reached by a notification the device was never registered to receive. **The missing piece is a screen, not a wire**: the port's own doc says *"called from a screen that has already explained why, never on first launch"*, and the app's pattern for every other permission is request-on-use. Alerts have no moment of use, which is exactly why they need one. A notifications toggle in `settings_presentation`, or a priming step in sign-in — a product decision, not a wiring fix.
 
-**9. The rest of the integration audit.** Three rows — the unused `recordAttempt`, the missing `transaction()` and the missing index — are **closed 2026-09-01**; see the log entry above. What remains: `image_picker.getLostData()` unused on the platform that loses photos; Android background location with no foreground-service config; `Position.isMocked` dropped; no `dispose:` on any DI registration; no go_router `errorBuilder` or `observers`; drift `.watch()` unused; `checked: true` off in every `build.yaml`. Each is one row of the table in the audit note, with its evidence. `openAppSettings()` has come off this list halfway: the port exists and the alerts screen uses it, and `media_capture` and `location_service` still produce a `…PermissionBlocked` nothing can act on.
+**9. The rest of the integration audit.** Three rows — the unused `recordAttempt`, the missing `transaction()` and the missing index — are **closed 2026-09-01**; see the log entry above. What remains: `image_picker.getLostData()` unused on the platform that loses photos; Android background location with no foreground-service config; `Position.isMocked` dropped; no `dispose:` on any DI registration; no go_router `errorBuilder` or `observers`; drift `.watch()` unused; `checked: true` off in every `build.yaml`. Each is one row of the table in the audit note, with its evidence. `openAppSettings()` is **closed 2026-09-02** along with both `…PermissionBlocked` producers; see the log entry above.
 
 **10. `onBackgroundMessage` is never set**, and it is in the same category as `codemagic.yaml`: real, and unrunnable here. It needs `apps/*/android`, Firebase initialisation and a native invoker this repository does not build, so a handler written now could not be exercised even by a test.
 
