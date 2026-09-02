@@ -296,6 +296,10 @@ final class DispatcherCatalogue implements StringCatalogue {
         l.messagingFailureMalformed,
     'shipments.dispatcher.title': (l, arguments) => l.shipmentsDispatcherTitle,
     'shipments.dispatcher.empty': (l, arguments) => l.shipmentsDispatcherEmpty,
+    'shipments.dispatcher.loadMore': (l, arguments) =>
+        l.shipmentsDispatcherLoadMore,
+    'shipments.dispatcher.moreFailed': (l, arguments) =>
+        l.shipmentsDispatcherMoreFailed,
     'shipments.dispatcher.bulkAssign': (l, arguments) =>
         l.shipmentsDispatcherBulkAssign(_int(arguments['count'])),
     'shipments.dispatcher.failure.unavailable': (l, arguments) =>

@@ -98,15 +98,28 @@ class _CourierManifestScreenState extends State<CourierManifestScreen> {
           // Not an error. "Nothing assigned to you yet" is an ordinary
           // morning, and a failure view here would have couriers calling the
           // depot before their first parcel.
-          ManifestReady(:final rows) when rows.isEmpty => PeykEmptyView(
-            message: strings.resolve(ShipmentsCourierStrings.empty),
-          ),
-          ManifestReady(:final rows) => ListView.builder(
-            itemCount: rows.length,
-            itemBuilder: (context, index) => _StopTile(
-              row: rows[index],
-              onSelected: widget.onStopSelected,
+          ManifestReady(:final rows, hasMore: false) when rows.isEmpty =>
+            PeykEmptyView(
+              message: strings.resolve(ShipmentsCourierStrings.empty),
             ),
+          final ManifestReady state => ListView.builder(
+            // One extra row when there is more, and it is the affordance
+            // rather than an automatic fetch. Asking for the next page from
+            // `itemBuilder` would start a request during a build, and a list
+            // that does that fires several in one scroll gesture. An app that
+            // wants a round to load as it is scrolled drives `loadMore` from a
+            // scroll listener it owns; the controller's in-flight guard is
+            // what makes that safe either way.
+            itemCount: state.rows.length + (state.hasMore ? 1 : 0),
+            itemBuilder: (context, index) => index == state.rows.length
+                ? _More(
+                    state: state,
+                    onMore: () => unawaited(widget.controller.loadMore()),
+                  )
+                : _StopTile(
+                    row: state.rows[index],
+                    onSelected: widget.onStopSelected,
+                  ),
           ),
           ManifestFailed(:final failure) => PeykFailureView(
             message: strings.resolve(
@@ -116,6 +129,50 @@ class _CourierManifestScreenState extends State<CourierManifestScreen> {
           ),
         },
       ),
+    );
+  }
+}
+
+/// The tail of the list: fetch the next page, or say why the last try did not.
+///
+/// It is one widget rather than three states drawn by the parent because all
+/// three occupy the same slot, and a courier who has just failed to load more
+/// still needs the way to try again in the place they were looking.
+final class _More extends StatelessWidget {
+  const _More({required this.state, required this.onMore});
+
+  final ManifestReady state;
+  final VoidCallback onMore;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = PeykStrings.of(context);
+
+    if (state.loadingMore) return const PeykLoadingView();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (state.moreFailure case final failure?) ...[
+          PeykChip(
+            label: strings.resolve(ShipmentsCourierStrings.moreFailed),
+            intent: PeykIntent.warning,
+          ),
+          const PeykGap.vertical(PeykGapSize.betweenLines),
+          // The failure is named for the log-reading reader of this file: the
+          // chip says the page did not arrive, and `describe` is what an app
+          // would use to say why in a banner it owns.
+          PeykText.caption(
+            strings.resolve(CourierManifestScreen.describe(failure)),
+          ),
+          const PeykGap.vertical(PeykGapSize.betweenLines),
+        ],
+        PeykButton(
+          label: strings.resolve(ShipmentsCourierStrings.loadMore),
+          onPressed: onMore,
+        ),
+      ],
     );
   }
 }

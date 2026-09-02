@@ -13,6 +13,14 @@ import 'result.dart';
 
 /// One page of a collection a port would not send all of.
 ///
+/// **Named `PageOf` rather than `Page` for a reason worth keeping.** Flutter's
+/// `widgets` library exports a `Page`, and every presentation package in this
+/// workspace imports both that and `core_kernel` — so the shorter name would
+/// be ambiguous in fourteen packages and each of them would carry a `hide` or
+/// a prefix. core_kernel takes no Flutter dependency and therefore cannot see
+/// the collision; the innermost ring has to pick names defensively, because it
+/// is the one package that has no way of knowing what it is colliding with.
+///
 /// **Why this is in core_kernel and a `ShipmentSummary` is not.** The test is
 /// whether the type carries domain meaning. *There are more rows, and here is
 /// where to resume* carries none: it is the same statement for a courier's
@@ -26,9 +34,9 @@ import 'result.dart';
 /// **An empty page is not a failure.** A courier with nothing assigned and a
 /// courier whose manifest ran out on the previous page produce the same value,
 /// and nothing went wrong in either case.
-final class Page<T> {
+final class PageOf<T> {
   /// Creates a page over [items], resumable at [next] when there is more.
-  const Page({required this.items, this.next});
+  const PageOf({required this.items, this.next});
 
   /// The rows, in the order the port promised.
   final List<T> items;
@@ -49,11 +57,11 @@ final class Page<T> {
   /// What an adapter reaches for after decoding. The cursor belongs to the
   /// page rather than to the rows, so mapping the rows must not drop it —
   /// which is exactly what a bare `items.map(...)` at a call site would do.
-  Page<R> map<R>(R Function(T item) transform) =>
-      Page<R>(items: [for (final item in items) transform(item)], next: next);
+  PageOf<R> map<R>(R Function(T item) transform) =>
+      PageOf<R>(items: [for (final item in items) transform(item)], next: next);
 
   @override
-  String toString() => 'Page(${items.length} items, next: $next)';
+  String toString() => 'PageOf(${items.length} items, next: $next)';
 }
 
 /// What a caller asks a port for when the collection is too big to send.
@@ -90,7 +98,7 @@ final class PageRequest {
   final PageCursor? after;
 
   /// The request that continues [page], or `null` when there is nothing left.
-  PageRequest? following(Page<Object?> page) =>
+  PageRequest? following(PageOf<Object?> page) =>
       page.next == null ? null : PageRequest(limit: limit, after: page.next);
 
   @override

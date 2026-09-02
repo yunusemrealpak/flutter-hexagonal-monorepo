@@ -63,39 +63,13 @@ class _DispatcherBoardScreenState extends State<DispatcherBoardScreen> {
         listenable: widget.controller,
         builder: (context, _) => switch (widget.controller.state) {
           BoardIdle() || BoardLoading() => const PeykLoadingView(),
-          BoardReady(:final rows) when rows.isEmpty => PeykEmptyView(
-            message: strings.resolve(ShipmentsDispatcherStrings.empty),
-          ),
-          BoardReady(:final rows, :final selected) => Column(
-            children: [
-              // Scenario 6, in one line. The button is not rendered at all
-              // unless the port says the actor may use it. This screen has no
-              // idea that identity has roles.
-              if (widget.controller.canBulkAssign)
-                PeykButton(
-                  label: strings.resolve(
-                    ShipmentsDispatcherStrings.bulkAssign,
-                    arguments: {'count': selected.length},
-                  ),
-                  // Nothing selected is nothing to assign. Disabled rather
-                  // than hidden: a button that comes and goes as rows are
-                  // ticked is a button somebody reaches for and misses.
-                  onPressed: selected.isEmpty ? null : () {},
-                  tone: PeykButtonTone.primary,
-                ),
-              Expanded(
-                child: ListView.builder(
-                  itemCount: rows.length,
-                  itemBuilder: (context, index) => _BoardRow(
-                    row: rows[index],
-                    isSelected: selected.contains(rows[index].id),
-                    onToggle: widget.controller.canAssign
-                        ? () => widget.controller.toggle(rows[index].id)
-                        : null,
-                  ),
-                ),
-              ),
-            ],
+          BoardReady(:final rows, hasMore: false) when rows.isEmpty =>
+            PeykEmptyView(
+              message: strings.resolve(ShipmentsDispatcherStrings.empty),
+            ),
+          final BoardReady state => _Board(
+            state: state,
+            controller: widget.controller,
           ),
           BoardFailed() => PeykFailureView(
             message: strings.resolve(
@@ -105,6 +79,99 @@ class _DispatcherBoardScreenState extends State<DispatcherBoardScreen> {
           ),
         },
       ),
+    );
+  }
+}
+
+/// The board itself: the bulk action, the rows, and the tail.
+///
+/// Extracted from the screen's switch because it needs the whole `BoardReady`
+/// rather than two of its fields, and a case arm that binds five patterns is
+/// one nobody reads.
+final class _Board extends StatelessWidget {
+  const _Board({required this.state, required this.controller});
+
+  final BoardReady state;
+  final DispatcherBoardController controller;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = PeykStrings.of(context);
+    final rows = state.rows;
+
+    return Column(
+      children: [
+        // Scenario 6, in one line. The button is not rendered at all unless
+        // the port says the actor may use it. This screen has no idea that
+        // identity has roles.
+        if (controller.canBulkAssign)
+          PeykButton(
+            label: strings.resolve(
+              ShipmentsDispatcherStrings.bulkAssign,
+              arguments: {'count': state.selected.length},
+            ),
+            // Nothing selected is nothing to assign. Disabled rather than
+            // hidden: a button that comes and goes as rows are ticked is a
+            // button somebody reaches for and misses.
+            onPressed: state.selected.isEmpty ? null : () {},
+            tone: PeykButtonTone.primary,
+          ),
+        Expanded(
+          child: ListView.builder(
+            // The extra tail row when there is more, drawn as an affordance
+            // rather than fetched from `itemBuilder`: asking for a page during
+            // a build fires several requests in one scroll gesture, and the
+            // controller's in-flight guard should not be the only thing
+            // standing between a board and four identical requests.
+            itemCount: rows.length + (state.hasMore ? 1 : 0),
+            itemBuilder: (context, index) => index == rows.length
+                ? _More(
+                    state: state,
+                    onMore: () => unawaited(controller.loadMore()),
+                  )
+                : _BoardRow(
+                    row: rows[index],
+                    isSelected: state.selected.contains(rows[index].id),
+                    onToggle: controller.canAssign
+                        ? () => controller.toggle(rows[index].id)
+                        : null,
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// The tail of the board: fetch the next page, or say why the last try did not.
+final class _More extends StatelessWidget {
+  const _More({required this.state, required this.onMore});
+
+  final BoardReady state;
+  final VoidCallback onMore;
+
+  @override
+  Widget build(BuildContext context) {
+    final strings = PeykStrings.of(context);
+
+    if (state.loadingMore) return const PeykLoadingView();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (state.moreFailure != null) ...[
+          PeykChip(
+            label: strings.resolve(ShipmentsDispatcherStrings.moreFailed),
+            intent: PeykIntent.warning,
+          ),
+          const PeykGap.vertical(PeykGapSize.betweenLines),
+        ],
+        PeykButton(
+          label: strings.resolve(ShipmentsDispatcherStrings.loadMore),
+          onPressed: onMore,
+        ),
+      ],
     );
   }
 }

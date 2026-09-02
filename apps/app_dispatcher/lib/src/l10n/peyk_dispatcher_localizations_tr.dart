@@ -441,6 +441,12 @@ class PeykDispatcherLocalizationsTr extends PeykDispatcherLocalizations {
   String get shipmentsDispatcherEmpty => 'Panoda bir şey yok.';
 
   @override
+  String get shipmentsDispatcherLoadMore => 'Daha fazla gönderi yükle';
+
+  @override
+  String get shipmentsDispatcherMoreFailed => 'Sonraki gönderiler yüklenemedi.';
+
+  @override
   String shipmentsDispatcherBulkAssign(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

@@ -49,6 +49,14 @@
   "@shipmentsCourierTitle": {
     "description": "The sentence behind \"shipments.courier.title\"."
   },
+  "shipmentsCourierLoadMore": "Load more stops",
+  "@shipmentsCourierLoadMore": {
+    "description": "The sentence behind \"shipments.courier.loadMore\". The tail of the stop list, when the manifest has more pages."
+  },
+  "shipmentsCourierMoreFailed": "The next stops did not load.",
+  "@shipmentsCourierMoreFailed": {
+    "description": "The sentence behind \"shipments.courier.moreFailed\". Shown beside the stops that did arrive, never instead of them."
+  },
   "shipmentsCourierEmpty": "Nothing assigned to you yet.",
   "@shipmentsCourierEmpty": {
     "description": "The sentence behind \"shipments.courier.empty\"."

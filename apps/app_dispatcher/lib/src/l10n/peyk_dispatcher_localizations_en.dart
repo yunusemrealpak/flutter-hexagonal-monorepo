@@ -466,6 +466,12 @@ class PeykDispatcherLocalizationsEn extends PeykDispatcherLocalizations {
   String get shipmentsDispatcherEmpty => 'Nothing on the board.';
 
   @override
+  String get shipmentsDispatcherLoadMore => 'Load more parcels';
+
+  @override
+  String get shipmentsDispatcherMoreFailed => 'The next parcels did not load.';
+
+  @override
   String shipmentsDispatcherBulkAssign(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

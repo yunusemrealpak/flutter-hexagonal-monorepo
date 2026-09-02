@@ -11,6 +11,8 @@
   "identityFailureUnavailable": "Sinyal yok. Birazdan tekrar dene.",
   "identityFailureInternal": "Girişte bir sorun oldu. Depoyu ara.",
   "shipmentsCourierTitle": "Duraklarım",
+  "shipmentsCourierLoadMore": "Daha fazla durak yükle",
+  "shipmentsCourierMoreFailed": "Sonraki duraklar yüklenemedi.",
   "shipmentsCourierEmpty": "Sana henüz bir şey atanmadı.",
   "shipmentsCourierFailureUnavailable": "Sinyal yok. Telefondakiler gösteriliyor.",
   "shipmentsCourierFailureNotFound": "Bu gönderi artık operasyonda değil.",

@@ -37,13 +37,13 @@ void main() {
 
   group('Page', () {
     test('a page with no cursor is the last one', () {
-      const page = Page<int>(items: [1, 2, 3]);
+      const page = PageOf<int>(items: [1, 2, 3]);
 
       expect(page.hasMore, isFalse);
     });
 
     test('a page with one has somewhere to resume from', () {
-      const page = Page<int>(items: [1], next: PageCursor('c'));
+      const page = PageOf<int>(items: [1], next: PageCursor('c'));
 
       expect(page.hasMore, isTrue);
     });
@@ -51,7 +51,7 @@ void main() {
     test('maps its rows without losing where it ends', () {
       // What an adapter does after decoding: the cursor belongs to the page,
       // not to the rows, so mapping the rows must not drop it.
-      const page = Page<int>(items: [1, 2], next: PageCursor('c'));
+      const page = PageOf<int>(items: [1, 2], next: PageCursor('c'));
 
       final mapped = page.map((value) => '$value');
 
@@ -63,7 +63,7 @@ void main() {
       // A courier with nothing on their manifest and a courier whose manifest
       // ran out on the previous page produce the same value, and neither went
       // wrong.
-      expect(const Page<int>(items: []).hasMore, isFalse);
+      expect(const PageOf<int>(items: []).hasMore, isFalse);
     });
   });
 

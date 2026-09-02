@@ -49,6 +49,12 @@ class PeykCourierLocalizationsEn extends PeykCourierLocalizations {
   String get shipmentsCourierTitle => 'Your stops';
 
   @override
+  String get shipmentsCourierLoadMore => 'Load more stops';
+
+  @override
+  String get shipmentsCourierMoreFailed => 'The next stops did not load.';
+
+  @override
   String get shipmentsCourierEmpty => 'Nothing assigned to you yet.';
 
   @override

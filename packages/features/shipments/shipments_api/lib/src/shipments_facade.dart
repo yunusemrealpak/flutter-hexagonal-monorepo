@@ -27,10 +27,17 @@ abstract interface class ShipmentsFacade {
   /// Loads one shipment by the number on its label.
   Future<Result<Shipment, ShipmentFailure>> byBarcode(Barcode barcode);
 
-  /// The rows a courier's stop list is drawn from.
-  Future<Result<List<ShipmentSummary>, ShipmentFailure>> manifestFor(
-    ActorId courier,
-  );
+  /// One page of the rows a courier's stop list is drawn from.
+  ///
+  /// The page travels all the way out to the driving port rather than being
+  /// hidden behind it. A facade that answered `List` while its gateway was
+  /// paged would either fetch every page before returning — putting the
+  /// unbounded read back, one layer up — or truncate silently at the first.
+  /// Both are worse than a caller having to say how much it wants.
+  Future<Result<PageOf<ShipmentSummary>, ShipmentFailure>> manifestFor(
+    ActorId courier, {
+    PageRequest page,
+  });
 
   /// Puts a shipment on a courier's manifest.
   Future<Result<Shipment, ShipmentFailure>> assign({

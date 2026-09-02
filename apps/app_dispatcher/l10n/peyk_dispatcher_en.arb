@@ -621,6 +621,14 @@
   "@shipmentsDispatcherEmpty": {
     "description": "The sentence behind \"shipments.dispatcher.empty\"."
   },
+  "shipmentsDispatcherLoadMore": "Load more parcels",
+  "@shipmentsDispatcherLoadMore": {
+    "description": "The sentence behind \"shipments.dispatcher.loadMore\". The tail of the board, when there are more pages."
+  },
+  "shipmentsDispatcherMoreFailed": "The next parcels did not load.",
+  "@shipmentsDispatcherMoreFailed": {
+    "description": "The sentence behind \"shipments.dispatcher.moreFailed\". Shown beside the board, which keeps its rows and its ticks."
+  },
   "shipmentsDispatcherBulkAssign": "{count, plural, =0{Assign} =1{Assign 1 parcel} other{Assign {count} parcels}}",
   "@shipmentsDispatcherBulkAssign": {
     "description": "The sentence behind \"shipments.dispatcher.bulkAssign\".",

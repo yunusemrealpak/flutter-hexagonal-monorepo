@@ -845,6 +845,18 @@ abstract class PeykDispatcherLocalizations {
   /// **'Nothing on the board.'**
   String get shipmentsDispatcherEmpty;
 
+  /// The sentence behind "shipments.dispatcher.loadMore". The tail of the board, when there are more pages.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more parcels'**
+  String get shipmentsDispatcherLoadMore;
+
+  /// The sentence behind "shipments.dispatcher.moreFailed". Shown beside the board, which keeps its rows and its ticks.
+  ///
+  /// In en, this message translates to:
+  /// **'The next parcels did not load.'**
+  String get shipmentsDispatcherMoreFailed;
+
   /// The sentence behind "shipments.dispatcher.bulkAssign".
   ///
   /// In en, this message translates to:

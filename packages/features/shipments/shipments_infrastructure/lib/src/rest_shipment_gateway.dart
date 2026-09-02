@@ -43,14 +43,23 @@ final class RestShipmentGateway implements ShipmentGateway {
   }
 
   @override
-  Future<Result<List<ShipmentSummary>, ShipmentFailure>> manifestFor(
+  Future<Result<PageOf<ShipmentSummary>, ShipmentFailure>> manifestFor(
     String courierId,
+    PageRequest page,
   ) async {
     final response = await transport.send(
       HttpRequest(
         method: HttpMethod.get,
         path: '/manifests',
-        query: {'courier': courierId},
+        query: {
+          'courier': courierId,
+          'limit': '${page.limit}',
+          // Absent rather than empty for the first page. An `after=` with
+          // nothing after it is a different request from no `after` at all,
+          // and which of the two a server treats as "start again" is not this
+          // adapter's guess to make.
+          if (page.after case final cursor?) 'after': cursor.value,
+        },
       ),
     );
 
@@ -108,16 +117,40 @@ final class RestShipmentGateway implements ShipmentGateway {
     return ShipmentMapper.toDomain(ShipmentDto.fromJson(json));
   }
 
-  Result<List<ShipmentSummary>, ShipmentFailure> _decodeManifest(Object? body) {
+  /// Reads a page of manifest rows.
+  ///
+  /// The envelope is `{"rows": [...], "nextCursor": "..."}`. A bare array
+  /// would leave the adapter deriving the cursor itself — the last row's
+  /// identifier, say — and that would make this adapter, rather than the
+  /// service, the thing that decides where a page ends. The service is the
+  /// only side that knows whether there is anything behind the rows it sent.
+  Result<PageOf<ShipmentSummary>, ShipmentFailure> _decodeManifest(
+    Object? body,
+  ) {
     final decoded = body is String ? _tryDecode(body) : body;
-    if (decoded is! List) {
+    final envelope = _asMap(decoded);
+    if (envelope == null) {
       return const Failed(
-        MalformedValue(field: 'body', reason: 'is not a JSON array'),
+        MalformedValue(field: 'body', reason: 'is not a JSON object'),
+      );
+    }
+
+    final entries = envelope['rows'];
+    if (entries is! List) {
+      return const Failed(
+        MalformedValue(field: 'rows', reason: 'is not a JSON array'),
+      );
+    }
+
+    final cursor = envelope['nextCursor'];
+    if (cursor != null && cursor is! String) {
+      return const Failed(
+        MalformedValue(field: 'nextCursor', reason: 'is not a string'),
       );
     }
 
     final rows = <ShipmentSummary>[];
-    for (final entry in decoded) {
+    for (final entry in entries) {
       final json = _asMap(entry);
       if (json == null) {
         return const Failed(
@@ -137,7 +170,12 @@ final class RestShipmentGateway implements ShipmentGateway {
           rows.add(value);
       }
     }
-    return Success(rows);
+    return Success(
+      PageOf(
+        items: rows,
+        next: cursor == null ? null : PageCursor(cursor as String),
+      ),
+    );
   }
 
   Result<ShipmentId, ShipmentFailure> _decodeId(Object? body, Barcode barcode) {

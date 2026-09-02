@@ -20,6 +20,14 @@ abstract interface class ShipmentCache {
   Future<Result<Shipment?, ShipmentFailure>> byId(ShipmentId id);
 
   /// Reads a courier's manifest as this device last saw it.
+  ///
+  /// **Not paged, where `ShipmentGateway.manifestFor` is.** The two are
+  /// bounded by different things: the gateway answers what the operation
+  /// assigned, which is unbounded from this device's point of view, and this
+  /// answers what this device has actually handled, which is one courier's
+  /// working set. Paging it would add a cursor no caller could use — the fall
+  /// back to the cache happens when the network stopped answering, and a
+  /// cursor from the gateway means nothing here.
   Future<Result<List<ShipmentSummary>, ShipmentFailure>> manifestFor(
     String courierId,
   );

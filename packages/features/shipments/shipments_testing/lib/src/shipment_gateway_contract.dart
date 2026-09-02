@@ -181,8 +181,14 @@ void runShipmentGatewayContract(ShipmentGateway Function() createGateway) {
         );
         await save(ShipmentBuilder().withId('unassigned').build());
 
-        final manifest = await gateway.manifestFor(courier.value);
-        final rows = manifest.fold((r) => r, (f) => throw StateError('$f'));
+        final manifest = await gateway.manifestFor(
+          courier.value,
+          const PageRequest(),
+        );
+        final rows = manifest.fold(
+          (p) => p.items,
+          (f) => throw StateError('$f'),
+        );
 
         expect(rows.map((row) => row.id), ['mine']);
       });
@@ -193,10 +199,13 @@ void runShipmentGatewayContract(ShipmentGateway Function() createGateway) {
           // "Nothing assigned to you" is an ordinary morning, not an error. An
           // implementation that failed here would put an error banner on a
           // courier's screen before their first assignment of the day.
-          final manifest = await gateway.manifestFor(courier.value);
+          final manifest = await gateway.manifestFor(
+            courier.value,
+            const PageRequest(),
+          );
 
           expect(
-            manifest.fold((rows) => rows, (f) => throw StateError('$f')),
+            manifest.fold((page) => page.items, (f) => throw StateError('$f')),
             isEmpty,
           );
         },
@@ -212,10 +221,100 @@ void runShipmentGatewayContract(ShipmentGateway Function() createGateway) {
               .build(),
         );
 
-        final manifest = await gateway.manifestFor(courier.value);
-        final rows = manifest.fold((r) => r, (f) => throw StateError('$f'));
+        final manifest = await gateway.manifestFor(
+          courier.value,
+          const PageRequest(),
+        );
+        final rows = manifest.fold(
+          (p) => p.items,
+          (f) => throw StateError('$f'),
+        );
 
         expect(rows.single.status, ShipmentStatus.outForDelivery(courier));
+      });
+
+      test('honours the limit it was asked for', () async {
+        for (var i = 0; i < 5; i++) {
+          await save(
+            ShipmentBuilder()
+                .withId('ship-$i')
+                .withBarcodeBody('3829475610$i')
+                .assignedTo(courier)
+                .build(),
+          );
+        }
+
+        final page = await gateway.manifestFor(
+          courier.value,
+          const PageRequest(limit: 2),
+        );
+
+        expect(
+          page.fold((p) => p.items, (f) => throw StateError('$f')),
+          hasLength(2),
+        );
+      });
+
+      test('a page that ends the manifest carries no cursor', () async {
+        await save(
+          ShipmentBuilder().withId('only').assignedTo(courier).build(),
+        );
+
+        final page = await gateway.manifestFor(
+          courier.value,
+          const PageRequest(limit: 10),
+        );
+
+        // The absent cursor is the only end-of-collection signal there is. An
+        // implementation that always answered one would loop a caller for ever
+        // over a manifest that had already run out.
+        expect(
+          page.fold((p) => p.hasMore, (f) => throw StateError('$f')),
+          isFalse,
+        );
+      });
+
+      test('a courier with nothing gets an empty last page', () async {
+        final page = await gateway.manifestFor(
+          courier.value,
+          const PageRequest(),
+        );
+        final answer = page.fold((p) => p, (f) => throw StateError('$f'));
+
+        expect(answer.items, isEmpty);
+        expect(answer.hasMore, isFalse);
+      });
+
+      test('walks the whole manifest without a repeat or a gap', () async {
+        // The property that makes paging worth having: the pages partition the
+        // manifest. It needs a stable total order behind them — without one, a
+        // row that moves between two requests is either served twice or never,
+        // and a courier is sent to the same door twice or misses a parcel.
+        for (var i = 0; i < 5; i++) {
+          await save(
+            ShipmentBuilder()
+                .withId('ship-$i')
+                .withBarcodeBody('3829475610$i')
+                .assignedTo(courier)
+                .build(),
+          );
+        }
+
+        final seen = <String>[];
+        var request = const PageRequest(limit: 2);
+        for (var guard = 0; guard < 10; guard++) {
+          final page = (await gateway.manifestFor(
+            courier.value,
+            request,
+          )).fold((p) => p, (f) => throw StateError('$f'));
+          seen.addAll(page.items.map((row) => row.id));
+          final next = request.following(page);
+          if (next == null) break;
+          request = next;
+        }
+
+        expect(seen, hasLength(5));
+        expect(seen.toSet(), hasLength(5));
       });
 
       test('drops a shipment from the manifest once it is delivered', () async {
@@ -233,10 +332,13 @@ void runShipmentGatewayContract(ShipmentGateway Function() createGateway) {
               .build(),
         );
 
-        final manifest = await gateway.manifestFor(courier.value);
+        final manifest = await gateway.manifestFor(
+          courier.value,
+          const PageRequest(),
+        );
 
         expect(
-          manifest.fold((rows) => rows, (f) => throw StateError('$f')),
+          manifest.fold((page) => page.items, (f) => throw StateError('$f')),
           isEmpty,
         );
       });
@@ -257,7 +359,10 @@ void runShipmentGatewayContract(ShipmentGateway Function() createGateway) {
 
         expect((await gateway.byId(missing)).isFailure, isTrue);
         expect((await gateway.resolve(stranger)).isFailure, isTrue);
-        expect((await gateway.manifestFor('nobody')).isSuccess, isTrue);
+        expect(
+          (await gateway.manifestFor('nobody', const PageRequest())).isSuccess,
+          isTrue,
+        );
       });
     });
   });

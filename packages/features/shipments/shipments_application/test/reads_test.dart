@@ -91,9 +91,14 @@ void main() {
         ..seed(ShipmentBuilder().withId('mine').assignedTo(courier).build())
         ..seed(ShipmentBuilder().withId('nobody').build());
 
-      final rows = Harness.unwrap(await harness.loadManifest(courier));
+      final page = Harness.unwrap(
+        await harness.loadManifest((
+          courier: courier,
+          page: const PageRequest(),
+        )),
+      );
 
-      expect(rows.map((row) => row.id), ['mine']);
+      expect(page.items.map((row) => row.id), ['mine']);
     });
 
     test(
@@ -104,14 +109,49 @@ void main() {
         );
         harness.gateway.failNextWith(const ShipmentsUnavailable());
 
-        final rows = Harness.unwrap(await harness.loadManifest(courier));
+        final page = Harness.unwrap(
+          await harness.loadManifest(
+            (courier: courier, page: const PageRequest()),
+          ),
+        );
 
-        expect(rows.map((row) => row.id), ['mine']);
+        expect(page.items.map((row) => row.id), ['mine']);
+        // The cache is not paged, so what it answers is the last page there
+        // is. Offering a cursor would invite a caller to ask for a second page
+        // this device has no way to produce.
+        expect(page.hasMore, isFalse);
       },
     );
 
+    test('will not fall back part-way through a walk', () async {
+      // A cursor is opaque to whoever did not produce it, so the gateway's
+      // means nothing to the cache. Falling back here could only start the
+      // cache from the beginning — serving rows the courier has already
+      // scrolled past as if they were new — so the honest answer is the
+      // failure, which the caller already knows how to show.
+      await harness.cache.put(
+        ShipmentBuilder().withId('mine').assignedTo(courier).build(),
+      );
+      harness.gateway.failNextWith(const ShipmentsUnavailable());
+
+      final refused = await harness.loadManifest((
+        courier: courier,
+        page: const PageRequest(after: PageCursor('mine')),
+      ));
+
+      expect(refused.isFailure, isTrue);
+    });
+
     test('an empty manifest is an ordinary morning, not a failure', () async {
-      expect(Harness.unwrap(await harness.loadManifest(courier)), isEmpty);
+      final page = Harness.unwrap(
+        await harness.loadManifest((
+          courier: courier,
+          page: const PageRequest(),
+        )),
+      );
+
+      expect(page.items, isEmpty);
+      expect(page.hasMore, isFalse);
     });
   });
 

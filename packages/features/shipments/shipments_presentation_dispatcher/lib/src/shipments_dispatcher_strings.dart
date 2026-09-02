@@ -11,6 +11,12 @@ abstract final class ShipmentsDispatcherStrings {
   /// The bulk-assign action. Takes a `count` argument.
   static const String bulkAssign = 'shipments.dispatcher.bulkAssign';
 
+  /// The action that fetches the next page of the board.
+  static const String loadMore = 'shipments.dispatcher.loadMore';
+
+  /// Shown when the next page did not arrive and the ones before it did.
+  static const String moreFailed = 'shipments.dispatcher.moreFailed';
+
   /// The board could not be loaded.
   static const String failureUnavailable =
       'shipments.dispatcher.failure.unavailable';
@@ -43,6 +49,8 @@ abstract final class ShipmentsDispatcherStrings {
 
   /// Every key above, for an app's coverage test.
   static const List<String> all = [
+    loadMore,
+    moreFailed,
     title,
     empty,
     bulkAssign,

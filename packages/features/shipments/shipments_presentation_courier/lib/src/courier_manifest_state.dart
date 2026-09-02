@@ -1,3 +1,4 @@
+import 'package:core_kernel/core_kernel.dart';
 import 'package:shipments_api/shipments_api.dart';
 
 /// What the courier's stop list can be showing.
@@ -34,10 +35,58 @@ final class ManifestLoading extends CourierManifestState {
 /// for it would have couriers calling the depot before their first parcel.
 final class ManifestReady extends CourierManifestState {
   /// Creates the state.
-  const ManifestReady(this.rows);
+  const ManifestReady(
+    this.rows, {
+    this.resume,
+    this.loadingMore = false,
+    this.moreFailure,
+  });
 
   /// The stops, in the order the operation sent them.
+  ///
+  /// Every page fetched so far, concatenated. The screen renders what has
+  /// arrived rather than one page at a time — a courier scrolling their round
+  /// is walking one list, and page boundaries are an artefact of how it was
+  /// fetched.
   final List<ShipmentSummary> rows;
+
+  /// What to ask for next, or `null` when the manifest is exhausted.
+  ///
+  /// A whole `PageRequest` rather than a bare cursor, so the limit the caller
+  /// chose travels with it. A controller that rebuilt the request from a
+  /// default would silently change page size half way down a list.
+  final PageRequest? resume;
+
+  /// Whether the next page is in flight.
+  final bool loadingMore;
+
+  /// Why the last attempt at the next page failed, or `null`.
+  ///
+  /// **Beside the rows rather than replacing them.** A failed second page has
+  /// not invalidated the first: dropping to [ManifestFailed] would take a
+  /// courier's whole visible round away because the twenty-first stop did not
+  /// arrive, and that is the mistake this field exists to make impossible.
+  final ShipmentFailure? moreFailure;
+
+  /// Whether asking again would produce anything.
+  bool get hasMore => resume != null;
+
+  /// Returns a copy with the given fields replaced.
+  ///
+  /// [rows] and [resume] are replaced when given and kept otherwise; the two
+  /// transient fields are dropped unless passed, because they describe one
+  /// attempt rather than the list.
+  ManifestReady copyWith({
+    List<ShipmentSummary>? rows,
+    PageRequest? resume,
+    bool loadingMore = false,
+    ShipmentFailure? moreFailure,
+  }) => ManifestReady(
+    rows ?? this.rows,
+    resume: resume ?? this.resume,
+    loadingMore: loadingMore,
+    moreFailure: moreFailure,
+  );
 }
 
 /// The manifest could not be fetched.

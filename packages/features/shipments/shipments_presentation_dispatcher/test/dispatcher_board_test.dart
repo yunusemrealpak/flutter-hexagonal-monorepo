@@ -38,17 +38,29 @@ final class _Session implements SessionReader {
 
 /// A `ShipmentsFacade` that answers the two methods the board uses.
 final class _Facade implements ShipmentsFacade {
-  _Facade(this._rows);
+  _Facade(List<ShipmentSummary> rows)
+    : _answers = [Success(PageOf(items: rows))];
 
-  final List<ShipmentSummary> _rows;
+  /// Answers each page in turn, repeating the last once they run out.
+  _Facade.pages(this._answers);
+
+  final List<Result<PageOf<ShipmentSummary>, ShipmentFailure>> _answers;
 
   /// Every assignment the board asked for.
   final List<(ShipmentId, ActorId)> assignments = [];
 
+  /// How many pages were asked for.
+  int asked = 0;
+
   @override
-  Future<Result<List<ShipmentSummary>, ShipmentFailure>> manifestFor(
-    ActorId courier,
-  ) async => Success(_rows);
+  Future<Result<PageOf<ShipmentSummary>, ShipmentFailure>> manifestFor(
+    ActorId courier, {
+    PageRequest page = const PageRequest(),
+  }) async {
+    final index = asked;
+    asked++;
+    return _answers[index < _answers.length ? index : _answers.length - 1];
+  }
 
   @override
   Future<Result<Shipment, ShipmentFailure>> assign({
@@ -88,6 +100,63 @@ void main() {
         permissions: _Permissions(granted),
         session: _Session(dispatcher),
       );
+
+  ShipmentSummary row(String id) => ShipmentSummary(
+    id: id,
+    barcode: '100000000007',
+    status: const ShipmentStatus.awaitingAssignment(),
+    consigneeName: 'Consignee $id',
+    address: 'Address',
+  );
+
+  group('paging', () {
+    test('a ticked row stays ticked when the next page arrives', () async {
+      // The thing paging costs this screen. A dispatcher assembles a bulk
+      // assignment across pages, and a selection derived from the visible rows
+      // — or dropped by the state that replaces them — would silently unpick
+      // their work every time another twenty arrived.
+      final controller = DispatcherBoardController(
+        shipments: _Facade.pages([
+          Success(PageOf(items: [row('a')], next: const PageCursor('a'))),
+          Success(PageOf(items: [row('b')])),
+        ]),
+        permissions: _Permissions({
+          Permission.assignShipment,
+          Permission.bulkAssignShipments,
+        }),
+        session: _Session(dispatcher),
+      );
+      addTearDown(controller.dispose);
+
+      await controller.load();
+      controller.toggle('a');
+      await controller.loadMore();
+
+      final state = controller.state as BoardReady;
+      expect(state.selected, {'a'});
+      expect(state.rows.map((r) => r.id), ['a', 'b']);
+    });
+
+    test('a page that fails keeps the board and the ticks', () async {
+      final controller = DispatcherBoardController(
+        shipments: _Facade.pages([
+          Success(PageOf(items: [row('a')], next: const PageCursor('a'))),
+          const Failed(ShipmentsUnavailable()),
+        ]),
+        permissions: _Permissions({Permission.assignShipment}),
+        session: _Session(dispatcher),
+      );
+      addTearDown(controller.dispose);
+
+      await controller.load();
+      controller.toggle('a');
+      await controller.loadMore();
+
+      final state = controller.state as BoardReady;
+      expect(state.selected, {'a'});
+      expect(state.moreFailure, isA<ShipmentsUnavailable>());
+    });
+  });
 
   group('scenario 6: the action is offered only when the port allows it', () {
     testWidgets('the bulk-assign action is absent without the permission', (
