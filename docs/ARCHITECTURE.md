@@ -96,7 +96,7 @@ A `_testing` package is created when, and only when, another package's tests con
 
 ## 3. The seven scenarios
 
-These are the specification's own tests of the architecture. Each one is visible in the code, and each is here with the decision it forced. §5.8 is not one of the seven — it was added by the product work that followed the specification, and it is here because it is the clearest example of a decision a port makes once and everything above it lives with.
+These are the specification's own tests of the architecture. Each one is visible in the code, and each is here with the decision it forced. §5.8, §5.9 and §5.10 are not among the seven — they were added by the product work that followed the specification, and they are kept here because each answers a question the seven do not: a decision a port makes once and everything above it lives with (§5.8), a capability with no technology under it (§5.9), and work the app is not running for (§5.10).
 
 ### 5.1 Two features that need each other, and no cycle
 
@@ -326,6 +326,30 @@ Two smaller things the work settled.
 
 **A modal that returns a value is still navigation.** The first draft of `PeykSignaturePanel` pushed and popped its own route, and `arch_check`'s `A6` refused the commit. §2.4 reads as being about destinations, and this was a component asking for a value back — the kind of case a mechanical rule is expected to over-catch. Obeying it produced the better component: one that decides how it is presented cannot also be the same pad in a dispatcher's side panel, and the app was going to own the route either way.
 
+---
+
+### 5.10 Work that happens while the app does not
+
+Every trigger the outbox had needed the process to be alive: a connectivity change, a foreground transition, and the review screen's retry button. A courier who force-quits in a basement sent nothing until they reopened the app. `platform/background_tasks` is the tenth platform package and the answer to that.
+
+**A scheduled task is a name, not a function**, and the shape everything else follows from is imposed rather than chosen. The operating system starts the work in a *second isolate*, long after the scheduling call returned, with a fresh Dart heap: no container, no open database, no widgets. A closure cannot survive the trip. So the contract schedules `String`s a composition root chose, and the app registers the one entry point they arrive at.
+
+That splits the capability across two layers in a way worth noticing:
+
+| | Where | Why it has to be there |
+|---|---|---|
+| *When is a device willing to wake up* | `platform/background_tasks` | only WorkManager and BGTaskScheduler can answer it |
+| *How often is a drain worth it* | `apps/app_courier` | a product decision, and no feature knows what else the device is doing |
+| *What the name means* | `apps/app_courier` | it needs a container, and a container is an app |
+
+**The half this repository can exercise, and the half it says it cannot.** `runBackgroundTask` is an ordinary function over an ordinary container with ordinary tests. What is left is six lines carrying `@pragma('vm:entry-point')` that build a container and hand over — real, consistent, and unrunnable without `apps/*/android/` and `apps/*/ios/`, which the specification excludes. It declares that in the same words `codemagic.yaml` does, and `flutter create --platforms=android,ios .` is the step that closes both it and `onBackgroundMessage`.
+
+**A second drain turns one latent defect into a real one.** `DrainOutbox` decided whether to give up from the attempt count it had read at the top of its pass, and its own doc comment said that was correct *only* while one drain ran at a time. Two drains holding `attempts: 1` each conclude `2 < 3` is within budget while the store has reached 3. `OutboxStore.recordAttempt` therefore answers the count it wrote, `OutboxStore.block` joins it as an intent, and the drain spends the budget against the store's number rather than its own.
+
+The general shape is worth stating on its own: **adding concurrency to a system does not create the race, it makes an existing snapshot-based decision observable.** Every one of the three writes that changed here was already reading a value from before a network round trip.
+
+---
+
 ## 4. Following one request through the packages
 
 A courier taps **Done** on a delivery with a signature and a photograph. Here is every package it touches, in order.
@@ -471,6 +495,6 @@ Three rules resist a checker and stay a review responsibility — cycle *resolut
 
 ## 8. What this repository does not claim
 
-It has no backend, no finished visuals, no complete business logic, and no iOS or Android projects — the specification excludes all four. `codemagic.yaml` and `fastlane/Fastfile` are real and consistent, and they say at the top what has to exist before they can run.
+It has no backend, no finished visuals, no complete business logic, and no iOS or Android projects — the specification excludes all four. `codemagic.yaml`, `fastlane/Fastfile` and `app_courier`'s `courierBackgroundTasks` entry point are real and consistent, and each says in place what has to exist before it can run. That set grows with every device capability, which is the argument for closing it rather than a reason to stop adding them.
 
 The claim it does make is narrower and harder: that every rule above is visible in the code, checked by something, and explained where it was decided.
