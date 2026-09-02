@@ -33,5 +33,17 @@ class PeykSystemLocalizationsEn extends PeykSystemLocalizations {
   }
 
   @override
+  String get clear => 'Clear';
+
+  @override
+  String get done => 'Done';
+
+  @override
+  String get cancel => 'Cancel';
+
+  @override
+  String get signatureArea => 'Signature area. Draw with one finger.';
+
+  @override
   String get selected => 'Selected';
 }
