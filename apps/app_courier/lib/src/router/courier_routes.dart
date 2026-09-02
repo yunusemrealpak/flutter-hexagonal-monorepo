@@ -273,13 +273,24 @@ Future<void> _signOut(GetIt container, ActorId actor) async {
 /// Widening it is what has to happen before that case can offer the settings
 /// page — the same half-open state `openSettings` is in for camera and
 /// location.
-Future<PhotoEvidence?> _photograph(GetIt container, ShipmentId shipment) async {
+/// Takes a photograph of [shipment], or says why there is not one.
+///
+/// A pass-through now, where it used to swallow the refusal into a log line
+/// and answer `null`. That was the defect: `CameraProofSource` already knew
+/// the camera was blocked in the system settings and the screen's callback had
+/// nowhere to put it, so the courier saw a button that did nothing and an app
+/// that said nothing. The log line stays, because a blocked camera on a shift
+/// is worth seeing from the operation's side too.
+Future<Result<PhotoEvidence, CaptureRefusal>> _photograph(
+  GetIt container,
+  ShipmentId shipment,
+) async {
   final taken = await container<CameraProofSource>().photograph(shipment.value);
-  return taken.fold((photo) => photo, (failure) {
+  if (taken case Failed(:final failure) when failure is! CaptureDeclined) {
     container<Logger>().warning(
       'a photograph could not be taken',
-      context: {'shipment': shipment.value, 'failure': '$failure'},
+      context: {'shipment': shipment.value, 'refusal': '$failure'},
     );
-    return null;
-  });
+  }
+  return taken;
 }

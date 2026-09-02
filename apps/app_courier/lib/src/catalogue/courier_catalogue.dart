@@ -173,6 +173,9 @@ final class CourierCatalogue implements StringCatalogue {
     'delivery.failure.positionBlocked': (l, arguments) =>
         l.deliveryFailurePositionBlocked,
     'delivery.openSettings': (l, arguments) => l.deliveryOpenSettings,
+    'delivery.capture.notAllowed': (l, arguments) =>
+        l.deliveryCaptureNotAllowed,
+    'delivery.capture.blocked': (l, arguments) => l.deliveryCaptureBlocked,
     'delivery.failure.proofInsufficient': (l, arguments) =>
         l.deliveryFailureProofInsufficient(_list(arguments['kinds'])),
     'delivery.failure.alreadySettled': (l, arguments) =>

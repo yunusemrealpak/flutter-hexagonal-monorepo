@@ -48,6 +48,7 @@
 library;
 
 export 'src/attempt_outcome.dart';
+export 'src/capture_refusal.dart';
 export 'src/courier_reference.dart';
 export 'src/delivery_attempt.dart';
 export 'src/delivery_attempt_id.dart';

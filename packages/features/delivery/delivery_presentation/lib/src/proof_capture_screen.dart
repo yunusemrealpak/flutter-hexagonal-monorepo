@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:core_kernel/core_kernel.dart';
 import 'package:delivery_api/delivery_api.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
@@ -50,10 +51,18 @@ final class ProofCaptureScreen extends StatefulWidget {
   final DeliveryGrade grade;
 
   /// Opens whatever this app captures signatures with.
-  final Future<SignatureCapture?> Function()? onCaptureSignature;
+  final Future<Result<SignatureCapture, CaptureRefusal>> Function()?
+  onCaptureSignature;
 
   /// Opens whatever this app takes photographs with.
-  final Future<PhotoEvidence?> Function()? onCapturePhoto;
+  ///
+  /// A `Result` rather than a nullable evidence, and the widening is what the
+  /// whole blocked path turns on: answering `null` made a camera switched off
+  /// in the system settings identical to a courier who changed their mind, so
+  /// the one outcome with a way out of it was the one nothing offered a way
+  /// out of. `CaptureRefusal` has a case per thing a courier does next.
+  final Future<Result<PhotoEvidence, CaptureRefusal>> Function()?
+  onCapturePhoto;
 
   /// Opens this device's settings page for the application.
   ///
@@ -102,6 +111,39 @@ final class ProofCaptureScreen extends StatefulWidget {
     DeliveryUnavailable() => DeliveryStrings.failureUnavailable,
     MalformedDeliveryValue() => DeliveryStrings.failureMalformed,
   };
+
+  /// Which string a capture refusal should be shown as, or null for one that
+  /// is shown as nothing.
+  ///
+  /// [CaptureDeclined] is the null. A courier who opened the camera and backed
+  /// out is behaving normally, and a red chip in front of them would be the
+  /// screen reporting an event rather than a problem.
+  @visibleForTesting
+  static String? describeCapture(CaptureRefusal refusal) => switch (refusal) {
+    CaptureDeclined() => null,
+    CaptureNotAllowed() => DeliveryStrings.captureNotAllowed,
+    CaptureBlockedInSettings() => DeliveryStrings.captureBlocked,
+    EvidenceUnusable(:final failure) => describe(failure),
+  };
+
+  /// The arguments [refusal] contributes to its own message.
+  @visibleForTesting
+  static Map<String, Object?> argumentsForCapture(CaptureRefusal refusal) =>
+      switch (refusal) {
+        EvidenceUnusable(:final failure) => argumentsFor(failure),
+        CaptureDeclined() ||
+        CaptureNotAllowed() ||
+        CaptureBlockedInSettings() => const {},
+      };
+
+  /// Whether the way out of [refusal] is the settings page.
+  ///
+  /// Exactly one of the four. Offering it for [CaptureNotAllowed] would send
+  /// somebody the long way round to a prompt the button in front of them
+  /// already shows.
+  @visibleForTesting
+  static bool captureNeedsSettings(CaptureRefusal refusal) =>
+      refusal is CaptureBlockedInSettings;
 
   /// Whether the way out of [failure] is the settings page rather than a
   /// retry.
@@ -197,6 +239,9 @@ class _ProofCaptureScreenState extends State<ProofCaptureScreen> {
             state: state,
             canComplete: widget.controller.canComplete,
             onRecipient: widget.controller.recipientIs,
+            onOpenSettings: widget.onOpenSettings == null
+                ? null
+                : () => unawaited(widget.onOpenSettings!()),
             onSignature: widget.onCaptureSignature == null
                 ? null
                 : () => unawaited(_capture(_Kind.signature)),
@@ -254,11 +299,9 @@ class _ProofCaptureScreenState extends State<ProofCaptureScreen> {
   Future<void> _capture(_Kind kind) async {
     switch (kind) {
       case _Kind.signature:
-        final signature = await widget.onCaptureSignature!();
-        if (signature != null) widget.controller.addSignature(signature);
+        widget.controller.capturedSignature(await widget.onCaptureSignature!());
       case _Kind.photo:
-        final photo = await widget.onCapturePhoto!();
-        if (photo != null) widget.controller.addPhoto(photo);
+        widget.controller.capturedPhoto(await widget.onCapturePhoto!());
     }
   }
 }
@@ -274,6 +317,7 @@ final class _Door extends StatelessWidget {
     required this.onFail,
     this.onSignature,
     this.onPhoto,
+    this.onOpenSettings,
   });
 
   final AtTheDoor state;
@@ -283,12 +327,18 @@ final class _Door extends StatelessWidget {
   final VoidCallback onFail;
   final VoidCallback? onSignature;
   final VoidCallback? onPhoto;
+  final VoidCallback? onOpenSettings;
 
   @override
   Widget build(BuildContext context) {
     final signature = onSignature;
     final photo = onPhoto;
     final refusal = state.refusal;
+    final notice = state.notice;
+    final noticeKey = notice == null
+        ? null
+        : ProofCaptureScreen.describeCapture(notice);
+    final settings = onOpenSettings;
     final strings = PeykStrings.of(context);
 
     return ListView(
@@ -344,6 +394,28 @@ final class _Door extends StatelessWidget {
             label: strings.resolve(DeliveryStrings.addPhoto),
             onPressed: photo,
           ),
+        // What the last capture came back with, and — for the one case only
+        // the system settings can change — the way out of it. Beside the
+        // buttons rather than replacing the screen: a camera that would not
+        // open has not invalidated a signature already on the glass.
+        if (notice != null && noticeKey != null) ...[
+          const PeykGap.vertical(PeykGapSize.betweenLines),
+          PeykChip(
+            label: strings.resolve(
+              noticeKey,
+              arguments: ProofCaptureScreen.argumentsForCapture(notice),
+            ),
+            intent: PeykIntent.warning,
+          ),
+          if (settings != null &&
+              ProofCaptureScreen.captureNeedsSettings(notice)) ...[
+            const PeykGap.vertical(PeykGapSize.betweenLines),
+            PeykButton(
+              label: strings.resolve(DeliveryStrings.openSettings),
+              onPressed: settings,
+            ),
+          ],
+        ],
         const PeykGap.vertical(PeykGapSize.betweenGroups),
         // Scenario 6: the action a courier without the grant never sees. The
         // use case does not check permissions — identity is not one of its

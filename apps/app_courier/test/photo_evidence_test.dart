@@ -3,6 +3,7 @@ library;
 
 import 'package:app_courier/main.dart';
 import 'package:core_kernel/core_kernel.dart';
+import 'package:delivery_api/delivery_api.dart';
 import 'package:delivery_infrastructure/delivery_infrastructure.dart';
 import 'package:delivery_presentation/delivery_presentation.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -96,7 +97,7 @@ void main() {
     // End to end through what this app composed: the fake camera, the real
     // CameraProofSource, the real compressor, and the real key-value store
     // the marker is written into.
-    expect(photo?.byteCount, 32);
+    expect(photo.fold((p) => p.byteCount, (_) => null), 32);
     expect(camera.requestedSettings, hasLength(1));
   });
 
@@ -110,7 +111,32 @@ void main() {
       find.byType(ProofCaptureScreen),
     );
 
-    expect(await screen.onCapturePhoto!(), isNull);
+    // Not a null and not a failure banner: a courier who changed their mind
+    // is the one refusal the screen draws nothing for.
+    expect(
+      (await screen.onCapturePhoto!()).fold((_) => null, (r) => r),
+      isA<CaptureDeclined>(),
+    );
+  });
+
+  testWidgets('a camera blocked in the settings reaches the screen', (
+    tester,
+  ) async {
+    camera.queue(const Failed(CapturePermissionBlocked()));
+
+    await openProof(tester);
+    final screen = tester.widget<ProofCaptureScreen>(
+      find.byType(ProofCaptureScreen),
+    );
+
+    // The end of the path this app is responsible for: the platform's word,
+    // through the adapter, through CameraProofSource, into a refusal the
+    // screen can offer the settings page for. It used to arrive as `null`.
+    expect(
+      (await screen.onCapturePhoto!()).fold((_) => null, (r) => r),
+      isA<CaptureBlockedInSettings>(),
+    );
+    expect(screen.onOpenSettings, isNotNull);
   });
 
   test('the source knows which parcel a lost capture belonged to', () {
