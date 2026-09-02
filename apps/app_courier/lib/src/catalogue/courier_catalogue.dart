@@ -100,6 +100,9 @@ final class CourierCatalogue implements StringCatalogue {
         l.identityFailureUnavailable,
     'identity.failure.internal': (l, arguments) => l.identityFailureInternal,
     'shipments.courier.title': (l, arguments) => l.shipmentsCourierTitle,
+    'shipments.courier.loadMore': (l, arguments) => l.shipmentsCourierLoadMore,
+    'shipments.courier.moreFailed': (l, arguments) =>
+        l.shipmentsCourierMoreFailed,
     'shipments.courier.empty': (l, arguments) => l.shipmentsCourierEmpty,
     'shipments.courier.failure.unavailable': (l, arguments) =>
         l.shipmentsCourierFailureUnavailable,

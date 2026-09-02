@@ -57,13 +57,47 @@ final class DispatcherBoardController extends ChangeNotifier {
 
     _emit(const BoardLoading());
 
-    final board = await _shipments.manifestFor(actor);
+    const first = PageRequest();
+    final board = await _shipments.manifestFor(actor, page: first);
     _emit(
       switch (board) {
-        Success(value: final rows) => BoardReady(rows: rows),
+        Success(value: final page) => BoardReady(
+          rows: page.items,
+          resume: first.following(page),
+        ),
         Failed(:final failure) => BoardFailed(failure),
       },
     );
+  }
+
+  /// Fetches the page after the one on screen, keeping the ticks.
+  ///
+  /// Does nothing when there is nothing left and nothing while a fetch is
+  /// already in flight — the second guard is what stops a scrolled board
+  /// fetching and appending the same page twice.
+  Future<void> loadMore() async {
+    final actor = _session.current?.actor.id;
+    if (actor == null) return;
+    if (_state case final BoardReady state) {
+      final resume = state.resume;
+      if (resume == null || state.loadingMore) return;
+
+      _emit(state.copyWith(loadingMore: true));
+
+      final board = await _shipments.manifestFor(actor, page: resume);
+      _emit(
+        switch (board) {
+          Success(value: final page) => state.copyWith(
+            rows: [...state.rows, ...page.items],
+            resume: resume.following(page),
+          ),
+          // The rows and the ticks both survive. Dropping to `BoardFailed`
+          // would throw away a selection somebody assembled across two pages
+          // because the third did not arrive.
+          Failed(:final failure) => state.copyWith(moreFailure: failure),
+        },
+      );
+    }
   }
 
   /// Ticks or unticks one row.

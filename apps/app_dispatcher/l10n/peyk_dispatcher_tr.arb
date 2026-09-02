@@ -124,6 +124,8 @@
   "messagingFailureMalformed": "Bu mesaj gönderilemez.",
   "shipmentsDispatcherTitle": "Pano",
   "shipmentsDispatcherEmpty": "Panoda bir şey yok.",
+  "shipmentsDispatcherLoadMore": "Daha fazla gönderi yükle",
+  "shipmentsDispatcherMoreFailed": "Sonraki gönderiler yüklenemedi.",
   "shipmentsDispatcherBulkAssign": "{count, plural, =0{Ata} other{{count} gönderi ata}}",
   "shipmentsDispatcherFailureUnavailable": "Pano yüklenemedi.",
   "reportsTitle": "Gün",

@@ -167,6 +167,18 @@ abstract class PeykCourierLocalizations {
   /// **'Your stops'**
   String get shipmentsCourierTitle;
 
+  /// The sentence behind "shipments.courier.loadMore". The tail of the stop list, when the manifest has more pages.
+  ///
+  /// In en, this message translates to:
+  /// **'Load more stops'**
+  String get shipmentsCourierLoadMore;
+
+  /// The sentence behind "shipments.courier.moreFailed". Shown beside the stops that did arrive, never instead of them.
+  ///
+  /// In en, this message translates to:
+  /// **'The next stops did not load.'**
+  String get shipmentsCourierMoreFailed;
+
   /// The sentence behind "shipments.courier.empty".
   ///
   /// In en, this message translates to:

@@ -47,13 +47,49 @@ final class CourierManifestController extends ChangeNotifier {
 
     _emit(const ManifestLoading());
 
-    final manifest = await _shipments.manifestFor(actor);
+    const first = PageRequest();
+    final manifest = await _shipments.manifestFor(actor, page: first);
     _emit(
       switch (manifest) {
-        Success(value: final rows) => ManifestReady(rows),
+        Success(value: final page) => ManifestReady(
+          page.items,
+          resume: first.following(page),
+        ),
         Failed(:final failure) => ManifestFailed(failure),
       },
     );
+  }
+
+  /// Fetches the page after the one on screen.
+  ///
+  /// Does nothing when there is nothing left and nothing while a fetch is
+  /// already in flight. The second guard is the one worth having: a list that
+  /// asks for more when it is scrolled will ask several times in the same
+  /// gesture, and without it the same page is fetched twice and appended
+  /// twice — a courier looking at a round with duplicate stops in it.
+  Future<void> loadMore() async {
+    final actor = _session.current?.actor.id;
+    if (actor == null) return;
+    if (_state case final ManifestReady state) {
+      final resume = state.resume;
+      if (resume == null || state.loadingMore) return;
+
+      _emit(state.copyWith(loadingMore: true));
+
+      final manifest = await _shipments.manifestFor(actor, page: resume);
+      _emit(
+        switch (manifest) {
+          Success(value: final page) => ManifestReady(
+            [...state.rows, ...page.items],
+            resume: resume.following(page),
+          ),
+          // The rows already on screen survive. A courier whose twenty-first
+          // stop did not arrive still has twenty they can drive to, and
+          // dropping to `ManifestFailed` would take those away as well.
+          Failed(:final failure) => state.copyWith(moreFailure: failure),
+        },
+      );
+    }
   }
 
   void _emit(CourierManifestState next) {

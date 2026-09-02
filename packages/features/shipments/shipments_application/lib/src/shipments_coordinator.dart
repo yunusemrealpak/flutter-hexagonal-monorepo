@@ -52,9 +52,10 @@ final class ShipmentsCoordinator implements ShipmentsFacade {
       _resolveBarcode(barcode);
 
   @override
-  Future<Result<List<ShipmentSummary>, ShipmentFailure>> manifestFor(
-    ActorId courier,
-  ) => _loadManifest(courier);
+  Future<Result<PageOf<ShipmentSummary>, ShipmentFailure>> manifestFor(
+    ActorId courier, {
+    PageRequest page = const PageRequest(),
+  }) => _loadManifest((courier: courier, page: page));
 
   @override
   Future<Result<Shipment, ShipmentFailure>> assign({

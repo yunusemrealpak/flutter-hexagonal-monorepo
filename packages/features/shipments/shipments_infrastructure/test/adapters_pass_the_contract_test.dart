@@ -61,27 +61,54 @@ final class _ShipmentsApiTransport implements HttpTransport {
 
     if (request.method == HttpMethod.get && path == '/manifests') {
       final courier = request.query['courier'];
-      final rows = _shipments.values
-          .where(
-            (shipment) =>
-                (shipment['status'] as Map<String, dynamic>?)?['courier'] ==
-                courier,
-          )
-          .map(
-            (shipment) => {
-              'id': shipment['id'],
-              'barcode': shipment['barcode'],
-              'status': shipment['status'],
-              'consigneeName':
-                  (shipment['consignee'] as Map<String, dynamic>?)?['name'],
-              'address':
-                  ((shipment['consignee'] as Map<String, dynamic>?)?['address']
-                      as Map<String, dynamic>?)?['formatted'],
-            },
-          )
-          .toList();
+      // Sorted, because the port requires the pages to be served over a stable
+      // total order and a `Map`'s iteration order is only stable until a row
+      // is re-saved. A service that did not would hand a courier the same stop
+      // twice and never hand them another.
+      final all =
+          _shipments.values
+              .where(
+                (shipment) =>
+                    (shipment['status'] as Map<String, dynamic>?)?['courier'] ==
+                    courier,
+              )
+              .map(
+                (shipment) => {
+                  'id': shipment['id'],
+                  'barcode': shipment['barcode'],
+                  'status': shipment['status'],
+                  'consigneeName':
+                      (shipment['consignee'] as Map<String, dynamic>?)?['name'],
+                  'address':
+                      ((shipment['consignee']
+                              as Map<String, dynamic>?)?['address']
+                          as Map<String, dynamic>?)?['formatted'],
+                },
+              )
+              .toList()
+            ..sort(
+              (a, b) => (a['id']! as String).compareTo(b['id']! as String),
+            );
+
+      final limit = int.tryParse(request.query['limit'] ?? '') ?? 50;
+      final after = request.query['after'];
+      final start = after == null
+          ? 0
+          : all.indexWhere((row) => row['id'] == after) + 1;
+      final rows = all.skip(start).take(limit).toList();
+      final served = start + rows.length;
+
       return Success(
-        HttpResponse(statusCode: 200, body: jsonEncode(rows)),
+        HttpResponse(
+          statusCode: 200,
+          body: jsonEncode({
+            'rows': rows,
+            // The service decides where a page ends, not the adapter. An
+            // adapter that derived this from the last row would be guessing at
+            // whether there is anything behind it.
+            'nextCursor': served < all.length ? rows.last['id'] : null,
+          }),
+        ),
       );
     }
 

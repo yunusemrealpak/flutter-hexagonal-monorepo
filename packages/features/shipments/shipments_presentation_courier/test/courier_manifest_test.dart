@@ -1,6 +1,8 @@
 @Tags(['widget'])
 library;
 
+import 'dart:async';
+
 import 'package:core_kernel/core_kernel.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
@@ -23,19 +25,33 @@ final class _Session implements SessionReader {
 
 /// A `ShipmentsFacade` that answers `manifestFor` with whatever it was given.
 final class _Facade implements ShipmentsFacade {
-  _Facade(this._answer);
+  _Facade(Result<PageOf<ShipmentSummary>, ShipmentFailure> answer)
+    : _answers = [answer];
 
-  final Result<List<ShipmentSummary>, ShipmentFailure> _answer;
+  /// Answers each page in turn, repeating the last one once they run out.
+  _Facade.pages(this._answers);
+
+  final List<Result<PageOf<ShipmentSummary>, ShipmentFailure>> _answers;
 
   /// How many times the manifest was asked for.
   int asked = 0;
 
+  /// The page requests it was handed, oldest first.
+  final List<PageRequest> requests = [];
+
+  /// Completed by the test to hold a fetch open, when there is one.
+  Completer<void>? gate;
+
   @override
-  Future<Result<List<ShipmentSummary>, ShipmentFailure>> manifestFor(
-    ActorId courier,
-  ) async {
+  Future<Result<PageOf<ShipmentSummary>, ShipmentFailure>> manifestFor(
+    ActorId courier, {
+    PageRequest page = const PageRequest(),
+  }) async {
+    final index = asked;
     asked++;
-    return _answer;
+    requests.add(page);
+    if (gate case final gate?) await gate.future;
+    return _answers[index < _answers.length ? index : _answers.length - 1];
   }
 
   /// Every other method of the port, which this test does not use.
@@ -70,9 +86,149 @@ void main() {
     ),
   );
 
+  ShipmentSummary row(String id) => ShipmentSummary(
+    id: id,
+    barcode: '100000000007',
+    status: ShipmentStatus.outForDelivery(courier.actor.id),
+    consigneeName: 'Consignee $id',
+    address: 'Bagdat Cd. 100',
+  );
+
+  CourierManifestController over(_Facade facade) {
+    final controller = CourierManifestController(
+      shipments: facade,
+      session: _Session(courier),
+    );
+    addTearDown(controller.dispose);
+    return controller;
+  }
+
+  group('paging', () {
+    test('asks for the page the last one said to resume from', () async {
+      final facade = _Facade.pages([
+        Success(PageOf(items: [row('a')], next: const PageCursor('a'))),
+        Success(PageOf(items: [row('b')])),
+      ]);
+      final controller = over(facade);
+
+      await controller.load();
+      await controller.loadMore();
+
+      expect(facade.requests.map((r) => r.after?.value), [null, 'a']);
+    });
+
+    test('appends the next page rather than replacing the list', () async {
+      // The bug this is here for is a real one: a controller that emits the
+      // page it just received leaves a courier looking at stops twenty-one to
+      // forty with no way back to the first twenty.
+      final facade = _Facade.pages([
+        Success(PageOf(items: [row('a')], next: const PageCursor('a'))),
+        Success(PageOf(items: [row('b')])),
+      ]);
+      final controller = over(facade);
+
+      await controller.load();
+      await controller.loadMore();
+
+      final state = controller.state as ManifestReady;
+      expect(state.rows.map((r) => r.id), ['a', 'b']);
+      expect(state.hasMore, isFalse);
+    });
+
+    test('a page that fails keeps the rows already on screen', () async {
+      final facade = _Facade.pages([
+        Success(PageOf(items: [row('a')], next: const PageCursor('a'))),
+        const Failed(ShipmentsUnavailable()),
+      ]);
+      final controller = over(facade);
+
+      await controller.load();
+      await controller.loadMore();
+
+      // Dropping to `ManifestFailed` would take a courier's whole visible
+      // round away because the twenty-first stop did not arrive.
+      final state = controller.state as ManifestReady;
+      expect(state.rows.map((r) => r.id), ['a']);
+      expect(state.moreFailure, isA<ShipmentsUnavailable>());
+      expect(state.hasMore, isTrue, reason: 'the page can be retried');
+    });
+
+    test('asks for nothing once the manifest has run out', () async {
+      final facade = _Facade(Success(PageOf(items: [row('a')])));
+      final controller = over(facade);
+
+      await controller.load();
+      await controller.loadMore();
+
+      expect(facade.asked, 1);
+    });
+
+    test('will not fetch the same page twice in one gesture', () async {
+      // A list that asks for more when it is scrolled asks several times in
+      // the same swipe. Without the in-flight guard the second request is
+      // issued from the same state as the first, the same page comes back
+      // twice, and it is appended twice — duplicate stops on a round.
+      final facade = _Facade.pages([
+        Success(PageOf(items: [row('a')], next: const PageCursor('a'))),
+        Success(PageOf(items: [row('b')])),
+      ]);
+      final controller = over(facade);
+      await controller.load();
+
+      facade.gate = Completer<void>();
+      final first = controller.loadMore();
+      final second = controller.loadMore();
+      facade.gate!.complete();
+      await Future.wait([first, second]);
+
+      expect(facade.asked, 2, reason: 'one first page and one second');
+      expect((controller.state as ManifestReady).rows.map((r) => r.id), [
+        'a',
+        'b',
+      ]);
+    });
+
+    test('loading again starts the walk from the beginning', () async {
+      final facade = _Facade.pages([
+        Success(PageOf(items: [row('a')], next: const PageCursor('a'))),
+        Success(PageOf(items: [row('b')])),
+        Success(PageOf(items: [row('a')])),
+      ]);
+      final controller = over(facade);
+      await controller.load();
+      await controller.loadMore();
+
+      await controller.load();
+
+      expect(facade.requests.last.after, isNull);
+      expect((controller.state as ManifestReady).rows.map((r) => r.id), ['a']);
+    });
+  });
+
+  testWidgets('offers the next page when there is one', (tester) async {
+    final controller = over(
+      _Facade.pages([
+        Success(PageOf(items: [row('a')], next: const PageCursor('a'))),
+        Success(PageOf(items: [row('b')])),
+      ]),
+    );
+
+    await tester.pumpWidget(screen(controller));
+    await tester.pumpAndSettle();
+    expect(find.text(ShipmentsCourierStrings.loadMore), findsOneWidget);
+
+    await tester.tap(find.text(ShipmentsCourierStrings.loadMore));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Consignee b'), findsOneWidget);
+    // The affordance goes when the manifest runs out. A list that keeps
+    // offering it teaches a courier that the button does nothing.
+    expect(find.text(ShipmentsCourierStrings.loadMore), findsNothing);
+  });
+
   testWidgets('renders the stops the facade returned', (tester) async {
     final controller = CourierManifestController(
-      shipments: _Facade(Success(rows())),
+      shipments: _Facade(Success(PageOf(items: rows()))),
       session: _Session(courier),
     );
     addTearDown(controller.dispose);
@@ -97,7 +253,7 @@ void main() {
     // Showing an error here would have couriers calling the depot before
     // their first parcel of the day.
     final controller = CourierManifestController(
-      shipments: _Facade(const Success([])),
+      shipments: _Facade(const Success(PageOf(items: []))),
       session: _Session(courier),
     );
     addTearDown(controller.dispose);
@@ -112,7 +268,7 @@ void main() {
     testWidgets('reports the row, not a destination', (tester) async {
       final chosen = <ShipmentSummary>[];
       final controller = CourierManifestController(
-        shipments: _Facade(Success(rows())),
+        shipments: _Facade(Success(PageOf(items: rows()))),
         session: _Session(courier),
       );
       addTearDown(controller.dispose);
@@ -129,7 +285,7 @@ void main() {
 
     testWidgets('a list with nowhere to go does not respond', (tester) async {
       final controller = CourierManifestController(
-        shipments: _Facade(Success(rows())),
+        shipments: _Facade(Success(PageOf(items: rows()))),
         session: _Session(courier),
       );
       addTearDown(controller.dispose);
@@ -164,7 +320,7 @@ void main() {
     // A screen behind a session guard should never reach this, and asking for
     // "nobody's manifest" would be a request the operation has to answer with
     // an error the user cannot act on.
-    final facade = _Facade(Success(rows()));
+    final facade = _Facade(Success(PageOf(items: rows())));
     final controller = CourierManifestController(
       shipments: facade,
       session: _Session(null),

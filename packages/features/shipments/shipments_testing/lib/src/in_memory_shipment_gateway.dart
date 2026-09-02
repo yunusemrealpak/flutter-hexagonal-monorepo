@@ -45,17 +45,36 @@ final class InMemoryShipmentGateway implements ShipmentGateway {
   }
 
   @override
-  Future<Result<List<ShipmentSummary>, ShipmentFailure>> manifestFor(
+  Future<Result<PageOf<ShipmentSummary>, ShipmentFailure>> manifestFor(
     String courierId,
+    PageRequest page,
   ) async {
     final failure = _takeFailure();
     if (failure != null) return Failed(failure);
 
-    final rows = _byId.values
-        .where((shipment) => shipment.status.courier?.value == courierId)
-        .map(_summarise)
-        .toList();
-    return Success(rows);
+    // Sorted by identifier, because the port requires a stable total order and
+    // a `Map`'s insertion order is only stable until somebody re-saves a row.
+    // The cursor is the last identifier served — this fake's business, and
+    // opaque to every caller.
+    final all =
+        _byId.values
+            .where((shipment) => shipment.status.courier?.value == courierId)
+            .map(_summarise)
+            .toList()
+          ..sort((a, b) => a.id.compareTo(b.id));
+
+    final start = page.after == null
+        ? 0
+        : all.indexWhere((row) => row.id == page.after!.value) + 1;
+    final rows = all.skip(start).take(page.limit).toList();
+    final served = start + rows.length;
+
+    return Success(
+      PageOf(
+        items: rows,
+        next: served < all.length ? PageCursor(rows.last.id) : null,
+      ),
+    );
   }
 
   @override

@@ -47,6 +47,12 @@ class PeykCourierLocalizationsTr extends PeykCourierLocalizations {
   String get shipmentsCourierTitle => 'Duraklarım';
 
   @override
+  String get shipmentsCourierLoadMore => 'Daha fazla durak yükle';
+
+  @override
+  String get shipmentsCourierMoreFailed => 'Sonraki duraklar yüklenemedi.';
+
+  @override
   String get shipmentsCourierEmpty => 'Sana henüz bir şey atanmadı.';
 
   @override

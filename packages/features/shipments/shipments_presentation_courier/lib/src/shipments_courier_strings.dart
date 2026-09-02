@@ -26,6 +26,12 @@ abstract final class ShipmentsCourierStrings {
   /// Anything else shipments can fail with.
   static const String failureOther = 'shipments.courier.failure.other';
 
+  /// The action that fetches the next page of stops.
+  static const String loadMore = 'shipments.courier.loadMore';
+
+  /// Shown when the next page did not arrive and the ones before it did.
+  static const String moreFailed = 'shipments.courier.moreFailed';
+
   /// The key for one shipment status.
   ///
   /// Shared with the dispatcher package by spelling, not by import: a
@@ -63,6 +69,8 @@ abstract final class ShipmentsCourierStrings {
   static const List<String> all = [
     title,
     empty,
+    loadMore,
+    moreFailed,
     failureUnavailable,
     failureNotFound,
     failureOther,

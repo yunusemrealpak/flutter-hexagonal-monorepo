@@ -18,9 +18,28 @@ abstract interface class ShipmentGateway {
   /// Fetches one shipment.
   Future<Result<Shipment, ShipmentFailure>> byId(ShipmentId id);
 
-  /// Fetches the rows of a courier's manifest.
-  Future<Result<List<ShipmentSummary>, ShipmentFailure>> manifestFor(
+  /// Fetches one page of a courier's manifest.
+  ///
+  /// **Paged rather than whole, and that is a contract decision rather than an
+  /// optimisation.** A depot round is eleven hundred stops on a bad day; a
+  /// port that answers `List` promises to hold all of them in memory, to
+  /// serialise all of them over a van's connection, and to give a caller no
+  /// way to ask for less. Walking that back later means changing this port,
+  /// the use case, the controller and the screen at once, which is why it is
+  /// decided here instead.
+  ///
+  /// **An implementation must serve the pages over a stable total order.**
+  /// Without one, a row that moves between two requests is either served twice
+  /// or not at all — a courier sent to the same door twice, or a parcel that
+  /// never appears on their list. The order itself is the implementation's
+  /// choice; that it does not change under paging is not.
+  ///
+  /// The cursor on the returned page is opaque and belongs to whoever produced
+  /// it. Handing one implementation's cursor to another is meaningless, which
+  /// is why `LoadManifest` will not fall back to the cache mid-sequence.
+  Future<Result<PageOf<ShipmentSummary>, ShipmentFailure>> manifestFor(
     String courierId,
+    PageRequest page,
   );
 
   /// Publishes a shipment's new state.
