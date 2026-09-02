@@ -18,7 +18,7 @@ without shipping in anybody's product build.
 | | |
 |---|---|
 | Packages | 75 |
-| Runtime edges | 416 |
+| Runtime edges | 417 |
 | Dev-dependency edges | 60 |
 | Cycles | none |
 
@@ -357,7 +357,7 @@ graph LR
 | `design_tokens` | design_tokens | — |
 | `delivery_api` | feature_api | `core_kernel`, `identity_api`, `shipments_api` |
 | `delivery_application` | feature_application | `core_kernel`, `core_ports`, `delivery_api`, `identity_api`, `shipments_api`, `sync_api` |
-| `delivery_infrastructure` | feature_infrastructure | `core_kernel`, `core_ports`, `delivery_api`, `http_dio`, `location_service` |
+| `delivery_infrastructure` | feature_infrastructure | `core_kernel`, `core_ports`, `delivery_api`, `http_dio`, `location_service`, `media_capture` |
 | `delivery_presentation` | feature_presentation | `core_kernel`, `core_navigation`, `delivery_api`, `design_system`, `identity_api`, `shipments_api` |
 | `delivery_testing` | feature_testing | `core_kernel`, `core_ports`, `core_testing`, `delivery_api`, `identity_api`, `shipments_api` |
 | `documents_api` | feature_api | `core_kernel`, `shipments_api` |
@@ -800,6 +800,7 @@ digraph peyk {
   "delivery_infrastructure" -> "delivery_api";
   "delivery_infrastructure" -> "http_dio";
   "delivery_infrastructure" -> "location_service";
+  "delivery_infrastructure" -> "media_capture";
   "delivery_presentation" -> "core_kernel";
   "delivery_presentation" -> "core_navigation";
   "delivery_presentation" -> "delivery_api";

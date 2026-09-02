@@ -8,6 +8,7 @@ import 'package:identity_application/identity_application.dart';
 import 'package:identity_infrastructure/identity_infrastructure.dart';
 import 'package:injectable/injectable.dart';
 import 'package:location_service/location_service.dart';
+import 'package:media_capture/media_capture.dart';
 import 'package:payments_api/payments_api.dart';
 import 'package:payments_application/payments_application.dart';
 import 'package:payments_infrastructure/payments_infrastructure.dart';
@@ -21,7 +22,6 @@ import 'package:storage_drift/storage_drift.dart';
 import 'package:sync_api/sync_api.dart';
 import 'package:sync_application/sync_application.dart';
 import 'package:sync_infrastructure/sync_infrastructure.dart';
-
 import 'courier_platform.dart';
 
 /// The six full-split features, on the adapters a phone in a van needs.
@@ -417,6 +417,37 @@ abstract class CourierFeatures {
   /// Getting a photograph under the size a queued write can carry.
   @lazySingleton
   MediaCompressorPort get compressor => const BudgetMediaCompressor();
+
+  /// The camera, through its platform interface.
+  ///
+  /// The interface rather than the plugin's singleton, for the reason every
+  /// adapter in `platform/*` gives: it is what lets this app's whole graph
+  /// stand up in a test with no device.
+  @lazySingleton
+  MediaCapture cameraCapture(
+    CourierPlatform platform,
+    PermissionRequester permissions,
+    Clock clock,
+  ) => ImagePickerMediaCapture(platform.camera, permissions, clock);
+
+  /// A photograph of a parcel, become evidence of that parcel.
+  ///
+  /// The recovery of an interrupted capture lives inside it rather than in the
+  /// router, and that is the point: a router that called `MediaCapture`
+  /// directly would have the camera and none of the bookkeeping that says
+  /// which parcel a recovered photograph belongs to.
+  @lazySingleton
+  CameraProofSource cameraProof(
+    MediaCapture capture,
+    MediaCompressorPort compressor,
+    KeyValueStore store,
+    Logger logger,
+  ) => CameraProofSource(
+    capture: capture,
+    compressor: compressor,
+    store: store,
+    logger: logger,
+  );
 
   /// The operation's attempts.
   @lazySingleton

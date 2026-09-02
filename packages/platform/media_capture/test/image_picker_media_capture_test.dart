@@ -1,11 +1,12 @@
 @Tags(['unit'])
 library;
 
-import 'dart:typed_data';
+import 'dart:io';
 
 import 'package:core_kernel/core_kernel.dart';
 import 'package:core_ports/core_ports.dart';
 import 'package:core_testing/core_testing.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
 import 'package:media_capture/media_capture.dart';
@@ -18,6 +19,29 @@ final class FakeImagePickerPlatform extends ImagePickerPlatform
   Object? throwOnCapture;
   ImagePickerOptions? lastOptions;
   ImageSource? lastSource;
+
+  /// What `getLostData` answers, or null for a launch that lost nothing.
+  LostDataResponse? lostData;
+
+  /// What `getLostData` throws, for the platforms that do not implement it.
+  Object? throwOnLostData;
+
+  /// How many times the lost data was asked for.
+  int lostDataReads = 0;
+
+  @override
+  Future<LostDataResponse> getLostData() async {
+    lostDataReads++;
+    final error = throwOnLostData;
+    if (error != null) {
+      // Typed as Object so the fake can reproduce anything a platform channel
+      // is capable of throwing, including the UnimplementedError every
+      // non-Android implementation of this method raises.
+      // ignore: only_throw_errors
+      throw error;
+    }
+    return lostData ?? LostDataResponse.empty();
+  }
 
   @override
   Future<XFile?> getImageFromSource({
@@ -192,6 +216,86 @@ void main() {
         (result as Failed<CapturedMedia, CaptureFailure>).failure,
         isA<CaptureUnavailable>(),
       );
+    });
+  });
+
+  group('recoverLostCapture', () {
+    test('describes the file the platform kept for us', () async {
+      platform.lostData = LostDataResponse(
+        file: _file(path: '/tmp/lost.jpg'),
+        type: RetrieveType.image,
+      );
+
+      final media = await capture.recoverLostCapture();
+
+      // Android can kill the app while the camera activity is in front. The
+      // photograph exists; this call is the only way back to it, and this
+      // product's payload is proof-of-delivery photographs.
+      expect(media?.path, '/tmp/lost.jpg');
+      expect(media?.byteSize, 2048);
+      expect(media?.capturedAt, clock.now());
+    });
+
+    test('answers null when nothing was lost', () async {
+      expect(await capture.recoverLostCapture(), isNull);
+    });
+
+    test('answers null when the lost capture is itself an error', () async {
+      platform.lostData = LostDataResponse(
+        exception: PlatformException(code: 'camera_error'),
+        type: RetrieveType.image,
+      );
+
+      // There is nothing to hand back either way, and a caller cannot act on
+      // the difference: it opens the camera again.
+      expect(await capture.recoverLostCapture(), isNull);
+    });
+
+    test('answers null on a platform that does not implement it', () async {
+      platform.throwOnLostData = UnimplementedError();
+
+      // getLostData is Android's. Everywhere else "nothing was lost" is the
+      // truth, and a failure here would be one every caller had to handle and
+      // none could act on.
+      expect(await capture.recoverLostCapture(), isNull);
+    });
+  });
+
+  group('bytesOf', () {
+    test('reads the file the capture named', () async {
+      final directory = await Directory.systemTemp.createTemp('media_capture');
+      addTearDown(() => directory.delete(recursive: true));
+      final file = File('${directory.path}/proof.jpg');
+      await file.writeAsBytes(List<int>.filled(64, 3));
+
+      final result = await capture.bytesOf(
+        CapturedMedia(
+          path: file.path,
+          mimeType: 'image/jpeg',
+          byteSize: 64,
+          capturedAt: clock.now(),
+        ),
+      );
+
+      expect(
+        (result as Success<List<int>, CaptureFailure>).value,
+        hasLength(64),
+      );
+    });
+
+    test('reports a file the operating system has already reclaimed', () async {
+      final result = await capture.bytesOf(
+        CapturedMedia(
+          path: '/tmp/gone-${clock.now().microsecondsSinceEpoch}.jpg',
+          mimeType: 'image/jpeg',
+          byteSize: 64,
+          capturedAt: clock.now(),
+        ),
+      );
+
+      // CapturedMedia's own doc says the path is temporary. A caller that got
+      // an exception here would be one that crashed at a door.
+      expect(result, isA<Failed<List<int>, CaptureFailure>>());
     });
   });
 }

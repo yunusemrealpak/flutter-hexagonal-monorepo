@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:core_kernel/core_kernel.dart';
 import 'package:core_ports/core_ports.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
@@ -62,6 +64,48 @@ final class ImagePickerMediaCapture implements MediaCapture {
         ),
       );
     } on Object catch (error) {
+      return Failed(CaptureUnavailable(detail: error.toString()));
+    }
+  }
+
+  @override
+  Future<CapturedMedia?> recoverLostCapture() async {
+    try {
+      final lost = await _platform.getLostData();
+      final file = lost.file;
+      // `lost.exception` is the other shape this can take: the capture was
+      // interrupted *and* failed. There is nothing to hand back either way and
+      // no caller can act on the difference, so both are "nothing was lost".
+      if (file == null) {
+        return null;
+      }
+      return CapturedMedia(
+        path: file.path,
+        mimeType: file.mimeType ?? _fallbackMimeType,
+        byteSize: await file.length(),
+        // The platform does not say when the shutter went and the entry it
+        // kept has no timestamp, so this is the instant it came back — later
+        // than the truth by however long the application was dead. Stamping it
+        // from the clock is still better than leaving it unset: a courier's
+        // evidence has to carry a time, and this one is at least real.
+        capturedAt: _clock.now(),
+      );
+    } on Object {
+      // getLostData is Android's. Everywhere else "nothing was lost" is the
+      // truth rather than a fault, and a failure here would be one every
+      // caller had to handle and none could act on.
+      return null;
+    }
+  }
+
+  @override
+  Future<Result<List<int>, CaptureFailure>> bytesOf(CapturedMedia media) async {
+    try {
+      return Success(await File(media.path).readAsBytes());
+    } on Object catch (error) {
+      // CapturedMedia.path is documented as temporary. A file the operating
+      // system reclaimed between the capture and the read is a case a courier
+      // has to be shown, not an exception thrown at a door.
       return Failed(CaptureUnavailable(detail: error.toString()));
     }
   }

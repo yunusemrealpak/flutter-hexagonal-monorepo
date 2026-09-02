@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:core_kernel/core_kernel.dart';
 import 'package:core_ports/core_ports.dart';
 import 'package:delivery_api/delivery_api.dart';
+import 'package:delivery_infrastructure/delivery_infrastructure.dart';
 import 'package:delivery_presentation/delivery_presentation.dart';
 import 'package:design_system/design_system.dart';
 import 'package:documents_api/documents_api.dart';
@@ -121,6 +122,11 @@ PeykRouter buildCourierRouter(GetIt container) {
             permissions: permissions,
             session: sessions,
           ),
+          // The callback `ProofCaptureScreen` has taken since phase 7, and had
+          // no supplier until now. §2.4's capability row: the screen may not
+          // see `platform/*`, so the app hands over the capture and the button
+          // is drawn only because it did.
+          onCapturePhoto: () => _photograph(container, shipment),
           onSettled: (attempt) => _follow(context, flow.afterProof(attempt)),
         ),
       ),
@@ -251,4 +257,23 @@ Widget _parsed<T, F>(Result<T, F> parsed, Widget Function(T) onValue) =>
 Future<void> _signOut(GetIt container, ActorId actor) async {
   await container<NotificationsFacade>().closeAlertsFor(actor);
   await container<IdentityFacade>().signOut();
+}
+
+/// Photographs [shipment], answering null when there is nothing to attach.
+///
+/// The failure is logged rather than shown, and that is a gap this signature
+/// cannot close: `onCapturePhoto` answers `PhotoEvidence?`, so a camera blocked
+/// in the system settings looks exactly like a courier who changed their mind.
+/// Widening it is what has to happen before that case can offer the settings
+/// page — the same half-open state `openSettings` is in for camera and
+/// location.
+Future<PhotoEvidence?> _photograph(GetIt container, ShipmentId shipment) async {
+  final taken = await container<CameraProofSource>().photograph(shipment.value);
+  return taken.fold((photo) => photo, (failure) {
+    container<Logger>().warning(
+      'a photograph could not be taken',
+      context: {'shipment': shipment.value, 'failure': '$failure'},
+    );
+    return null;
+  });
 }

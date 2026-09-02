@@ -40,6 +40,7 @@
 library;
 
 export 'src/budget_media_compressor.dart';
+export 'src/camera_proof_source.dart';
 export 'src/delivery_dto.dart';
 export 'src/delivery_mapper.dart';
 export 'src/http_geo_fence.dart';
