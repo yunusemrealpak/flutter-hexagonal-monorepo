@@ -96,7 +96,7 @@ A `_testing` package is created when, and only when, another package's tests con
 
 ## 3. The seven scenarios
 
-These are the specification's own tests of the architecture. Each one is visible in the code, and each is here with the decision it forced.
+These are the specification's own tests of the architecture. Each one is visible in the code, and each is here with the decision it forced. §5.8 is not one of the seven — it was added by the product work that followed the specification, and it is here because it is the clearest example of a decision a port makes once and everything above it lives with.
 
 ### 5.1 Two features that need each other, and no cycle
 
@@ -289,6 +289,20 @@ Every arrow was a mechanism this repository already had and nothing entered from
 One distinction had to be added to the platform contract to make it correct. **Receipt is not intent**: `messages()` is a push arriving while the app runs, `openings()` is somebody pressing it. Acting on the first would take a courier off a half-drawn signature for something they have not read. See [`docs/research/push-entry.md`](research/push-entry.md).
 
 ---
+
+### 5.8 A collection that does not fit
+
+`ShipmentsFacade.manifestFor` answered `List<ShipmentSummary>` until 2026-09-02, in a product whose own comments describe eleven hundred stops on a depot round. An unbounded collection crossing a port is not a performance detail: it is a promise that every row fits in memory, fits down a van's connection, and that a caller has no way to ask for less. Nothing enforces it and nothing can, which is why it survives until the day it does not.
+
+**The reason it is worth a scenario is what it costs to change.** The page had to be added to `ShipmentGateway`, to `ShipmentsFacade`, to `LoadManifest`, to two controllers, to two state types and to two screens, in one commit, because none of those compile without the others. That is the shape of every decision made at a port: cheap on the day the port is written, and a cross-cutting change on every day after.
+
+Three consequences the layering forces, and each is a rule rather than a preference:
+
+**The page travels all the way out.** A facade answering `List` over a paged gateway can only fetch every page before returning — the unbounded read again, one layer up — or truncate at the first and not say so. Hiding a page behind a driving port hides it from the only caller who knows how much it wants.
+
+**The cursor stops at the source that made it.** `PageCursor` is opaque, so the gateway's cursor is meaningless to the cache. `LoadManifest` falls back to the cache for the *first* page and refuses for any later one: restarting the cache from the top would serve rows a courier has already scrolled past as if they were new. A port with two adapters and a caller that switches between them cannot carry a cursor across the switch.
+
+**A page that fails must not take the pages that succeeded with it.** The failure sits beside the rows in `ManifestReady` and `BoardReady` rather than replacing the state. A courier whose twenty-first stop did not arrive still has twenty they can drive to, and a dispatcher who assembled a selection across two pages still has it when the third fails. This is the same shape as `AtTheDoor.refusal` and for the same reason: a partial failure that discards the successful part is a worse answer than the partial one.
 
 ## 4. Following one request through the packages
 

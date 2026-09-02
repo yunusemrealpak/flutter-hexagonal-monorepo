@@ -112,6 +112,24 @@ Nothing in the product asks for "an HTTP request" or "a GPS fix". `shipments` as
 
 A technology contract lives in the same package as its adapter, together with the fake that stands in for it. A fake belongs with the contract it imitates — which is why `FakeHttpTransport` ships from `http_dio` and not from `core_testing`, while `InMemorySecureStore` ships from `core_testing`, because `SecureStore` is declared in `core_ports`.
 
+### 2.2.1 What `core_kernel` is allowed to hold
+
+`core_kernel` is the one package everything may depend on, so a type added here is a type added everywhere and rule 15 of §2 of CLAUDE.md forbids adding one that is not strictly needed. The test that decides it is **whether the type carries domain meaning**.
+
+| | Belongs in `core_kernel` | Belongs to the feature |
+|---|---|---|
+| Says | an operation can fail; a collection has more behind it | what failed; what the rows are |
+| Example | `Result`, `Failure`, `PageOf`, `PageRequest`, `PageCursor` | `ShipmentFailure`, `ShipmentSummary` |
+| Test | the same sentence for every feature | one feature's word |
+
+"Several features would find this convenient" is *not* the test, and is how a `common` package starts. `PageOf` passes because *there are more rows and here is where to resume* is the same statement for a courier's manifest, a shipment's delivery history and a dispatcher's board — a copy per feature would be identical code in fourteen `_api` packages with fourteen chances to disagree about what an absent cursor means. `ShipmentSummary` fails it outright.
+
+**Two things a type in here has to do that a type in a feature does not.**
+
+*Pick its name defensively.* `PageOf` is not called `Page` because Flutter's `widgets` library exports a `Page`, and every presentation package imports both. `core_kernel` takes no Flutter dependency and so cannot see the collision it is causing; the innermost ring is the one package with no way of knowing what it is colliding with, and the cost of getting it wrong is a `hide` in fourteen packages.
+
+*Own its own failure story.* A validating factory returning a `Result` needs a `Failure` to return, and `core_kernel` has no concrete one. That is a signal rather than an obstacle: a type here should be one whose invalid states are programming errors rather than user input. `PageRequest` clamps its limit for exactly that reason — there is no screen that could render "limit must be positive" and no person who could correct it.
+
 ### 2.3 How wide a driving port is
 
 Section 2.2 says where a contract is declared. This says how much of a feature one contract may cover, and it is the question phase 8 answered.
@@ -294,6 +312,8 @@ Three constitutional rules resist a checker and stay a review responsibility. Th
 - **Rule 1.2.6, cycle resolution.** `arch_check` detects a cycle, but it cannot tell you that the right fix is mutual `_api` dependencies rather than a new `shared` package. Creating `shared` makes the graph green and the architecture worse.
 - **Rule 1.2.10, DTO/entity separation.** The checker can prove a DTO is not declared in `_api`. It cannot prove that a mapper in `_infrastructure` actually maps rather than passing a DTO-shaped entity through.
 - **Rule 4 of §2.1, adapter scope.** Whether an adapter has quietly taken on a use case's job is a judgement about intent, not about imports.
+- **§2.2.1, what belongs in `core_kernel`.** A checker can count the types in it. It cannot tell you that `PageOf` carries no domain meaning and `ShipmentSummary` does — and the failure mode is not a violation but a slow one: a `core_kernel` that has quietly become the `shared` package §2.1 forbids, one convenient type at a time.
+- **Paging's ordering requirement.** `ShipmentGateway.manifestFor` promises its pages are served over a stable total order, and nothing can check that a server keeps the promise. It is the assumption every cursor rests on: without it a row that moves between two requests is served twice or never, which reaches a courier as the same door twice or a parcel that never appears.
 - **§2.3, driving-port width.** A checker can see that `app_dispatcher` does not register `RouteFollowing`. It cannot tell you that `resequence` and `recalculateOnDeviation` belong to different audiences in the first place — that is a reading of the product, and getting it wrong produces a graph that is green and a desk that answers a courier's question with the desk's coordinates.
 
 ---
