@@ -16,6 +16,7 @@ library;
 export 'src/domain_event.dart';
 export 'src/entity.dart';
 export 'src/failure.dart';
+export 'src/page.dart';
 export 'src/result.dart';
 export 'src/use_case.dart';
 export 'src/value_object.dart';
