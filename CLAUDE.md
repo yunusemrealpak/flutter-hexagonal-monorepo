@@ -227,6 +227,7 @@ Doing it by hand — or checking the scaffolder's output — means verifying all
 3. The root `pubspec.yaml` `workspace:` list includes the new path.
 4. A barrel exists at `lib/<package_name>.dart`, and it is the only file directly under `lib/`.
 5. Implementation lives under `lib/src/`; the barrel exports only the public surface.
+5.1. **An `_api` package groups its sources by kind**: `entities/` (`extends Entity<Id>`), `values/` (everything defined by its value), `events/` (`extends DomainEvent`), `failures/` (`extends Failure`) and `ports/driving` / `ports/driven` — driving when `_application` implements the interface, driven when `_infrastructure` or `platform/*` does. The folders exist for that last split: it is the distinction the architecture is named after, and flat it is invisible. An interface is not automatically a port (`SyncCommand` is a value), and the other package roles stay flat — they hold one kind of thing each. `docs/ARCHITECTURE.md` §2 carries the table and the reasoning; the scaffolder writes the layout and `tooling/scaffold`'s generator test asserts it.
 6. If the package uses code generation, `build.yaml` enables only the builders it needs and disables the rest explicitly. A package with no generated files has no `build_runner` dependency and no `build.yaml`, so no builder ever runs there — that is the cheapest configuration, not a missing one.
 7. A `README.md` states the package's role, its allowed dependencies, and what must never live in it.
 8. A `test/` directory exists, even if it starts with a single smoke test.
@@ -843,6 +844,49 @@ on Node 24 — `checkout@v5`, `upload-artifact@v6`, `download-artifact@v7`,
 `cache@v5`. The first major and not the newest, deliberately: the newest bring
 ESM, direct uploads and hash-mismatch failures, none of which this repository
 asked for. The bump answers the deprecation warning and imports nothing else.
+
+#### The `_api` layout, and the state management that stays — done
+
+Not a plan item; asked directly. Two questions, two different answers, and the
+difference between them is worth keeping.
+
+**`_api` packages are grouped by kind now**: `entities/`, `values/`, `events/`,
+`failures/`, `ports/driving`, `ports/driven`. Twelve packages, ~180 files. The
+narrative is `docs/ARCHITECTURE.md` §2; the check-list entry is §7.5.1 above;
+`DEPENDENCY_RULES.md` §8 records that no checker enforces it.
+
+- **The driving/driven split is the reason, not tidiness.** Flat,
+  `delivery_gateway.dart` sat between `delivery_grade.dart` and
+  `delivery_failure.dart` with nothing to say that the first is an adapter's
+  obligation. That distinction is the diagram this architecture is named
+  after, and the directory listing is the cheapest place to draw it.
+- **Classify from the code, not the name or the doc comment.** The first pass
+  read doc comments for the words "driven port" and mis-filed four files —
+  `proof_reference.dart` says "driven port" while *describing* one. The
+  mechanical test is the base type, plus, for interfaces, which package
+  implements it: `_application` → driving, `_infrastructure`/`platform` →
+  driven.
+- **An interface is not automatically a port.** `SyncCommand` is an
+  `abstract interface class` implemented in `_application`, which every
+  mechanical rule reads as driving. Its own doc says *"They are values, not
+  adapters"* — and it is right, so it is the one override in the script.
+- **Only `_api` was grouped.** An `_application` package holds use cases and a
+  `_infrastructure` package holds adapters; folders there would be one folder.
+  `_api` earns it by holding five kinds of thing.
+- **The scaffolder had to move in the same change.** A convention that lives
+  only in a document is a convention the next `dart run scaffold` breaks. The
+  seed writes `failures/` and `ports/driven`, and a generator test asserts the
+  layout *and* the relative import across it — re-run with the template's
+  import reverted, it fails.
+
+**BLoC was considered and declined.** The spec's test pyramid says *"Bloc ve
+widget testi"*, so this is a deliberate reading rather than an oversight, and
+the argument is in `docs/ARCHITECTURE.md` §2: every `_presentation` package
+has **zero third-party dependencies** — not even `go_router`, which lives in
+`apps/*` — so `flutter_bloc` would be the first, in the layer kept cleanest.
+The pattern is already Cubit's: sealed state, one emitter, ports through the
+constructor. If it is ever adopted it should be `Cubit` and not `Bloc`; the
+states do not change and no event classes appear.
 
 #### What is worth taking next
 
