@@ -89,6 +89,38 @@ void main() {
       expect(port, contains("import '../../failures/billing_failure.dart';"));
     });
 
+    // The same rule one layer out. An _application package holds use cases,
+    // coordinators and commands, and an _infrastructure package holds adapters
+    // beside the DTOs they translate — invariant 1.2.10 is what the dto/ and
+    // mappers/ split makes visible. A seed that wrote them flat would teach the
+    // flat layout to every feature scaffolded after this one.
+    test('the _application and _infrastructure seeds are laid out too', () {
+      generate();
+      const feature = 'packages/features/billing';
+      expect(
+        workspace.exists(
+          '$feature/billing_application/lib/src/use_cases/load_billing.dart',
+        ),
+        isTrue,
+      );
+      expect(
+        workspace.exists(
+          '$feature/billing_infrastructure/lib/src/dto/billing_dto.dart',
+        ),
+        isTrue,
+      );
+      const adapter =
+          '$feature/billing_infrastructure/lib/src/adapters/'
+          'remote_billing_repository.dart';
+      expect(workspace.exists(adapter), isTrue);
+      // The adapter reaches its DTO across two folders, so the seed has to get
+      // the relative import right or the package does not compile.
+      expect(
+        workspace.read(adapter),
+        contains("import '../dto/billing_dto.dart';"),
+      );
+    });
+
     test('nothing but the barrel sits directly under lib/', () {
       generate();
       final strays = workspace

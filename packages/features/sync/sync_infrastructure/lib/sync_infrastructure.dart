@@ -25,9 +25,9 @@
 /// reads.
 library;
 
-export 'src/drift_outbox_store.dart';
-export 'src/http_clock_skew.dart';
-export 'src/http_command_transport.dart';
-export 'src/outbox_row_mapper.dart';
-export 'src/sync_envelope_dto.dart';
-export 'src/sync_envelope_mapper.dart';
+export 'src/adapters/drift_outbox_store.dart';
+export 'src/adapters/http_clock_skew.dart';
+export 'src/adapters/http_command_transport.dart';
+export 'src/dto/sync_envelope_dto.dart';
+export 'src/mappers/outbox_row_mapper.dart';
+export 'src/mappers/sync_envelope_mapper.dart';

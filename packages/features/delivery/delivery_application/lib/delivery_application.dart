@@ -40,13 +40,13 @@
 /// the signal a use case is missing.
 library;
 
-export 'src/attempt_reads.dart';
-export 'src/complete_delivery_command.dart';
-export 'src/complete_with_proof.dart';
-export 'src/delivery_channel.dart';
-export 'src/delivery_execution_coordinator.dart';
-export 'src/delivery_history_coordinator.dart';
-export 'src/delivery_settlement_coordinator.dart';
-export 'src/fail_delivery_command.dart';
-export 'src/fail_with_reason.dart';
-export 'src/start_attempt.dart';
+export 'src/commands/complete_delivery_command.dart';
+export 'src/commands/fail_delivery_command.dart';
+export 'src/coordinators/delivery_execution_coordinator.dart';
+export 'src/coordinators/delivery_history_coordinator.dart';
+export 'src/coordinators/delivery_settlement_coordinator.dart';
+export 'src/lifecycle/delivery_channel.dart';
+export 'src/use_cases/attempt_reads.dart';
+export 'src/use_cases/complete_with_proof.dart';
+export 'src/use_cases/fail_with_reason.dart';
+export 'src/use_cases/start_attempt.dart';

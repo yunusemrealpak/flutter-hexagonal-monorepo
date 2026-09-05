@@ -39,11 +39,11 @@
 /// rules live — is untouched by it.
 library;
 
-export 'src/budget_media_compressor.dart';
-export 'src/camera_proof_source.dart';
-export 'src/delivery_dto.dart';
-export 'src/delivery_mapper.dart';
-export 'src/http_geo_fence.dart';
-export 'src/local_encrypted_proof_store.dart';
-export 'src/remote_proof_store.dart';
-export 'src/rest_delivery_gateway.dart';
+export 'src/adapters/budget_media_compressor.dart';
+export 'src/adapters/camera_proof_source.dart';
+export 'src/adapters/http_geo_fence.dart';
+export 'src/adapters/local_encrypted_proof_store.dart';
+export 'src/adapters/remote_proof_store.dart';
+export 'src/adapters/rest_delivery_gateway.dart';
+export 'src/dto/delivery_dto.dart';
+export 'src/mappers/delivery_mapper.dart';

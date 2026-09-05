@@ -39,10 +39,10 @@
 /// camera and a position, and paid for them.
 library;
 
-export 'src/device_backed_payments_gateway.dart';
-export 'src/key_value_cash_drawer.dart';
-export 'src/key_value_receipt_printer.dart';
-export 'src/key_value_settlement_store.dart';
-export 'src/payments_dto.dart';
-export 'src/payments_mapper.dart';
-export 'src/rest_payments_gateway.dart';
+export 'src/adapters/device_backed_payments_gateway.dart';
+export 'src/adapters/key_value_cash_drawer.dart';
+export 'src/adapters/key_value_receipt_printer.dart';
+export 'src/adapters/key_value_settlement_store.dart';
+export 'src/adapters/rest_payments_gateway.dart';
+export 'src/dto/payments_dto.dart';
+export 'src/mappers/payments_mapper.dart';

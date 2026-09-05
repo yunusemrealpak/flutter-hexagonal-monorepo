@@ -31,10 +31,10 @@
 /// the operation no longer recognises.
 library;
 
-export 'src/bearer_authorization.dart';
-export 'src/device_bound_credential_gateway.dart';
-export 'src/installation_device_registry.dart';
-export 'src/secure_session_store.dart';
-export 'src/session_dto.dart';
-export 'src/session_mapper.dart';
-export 'src/sso_credential_gateway.dart';
+export 'src/adapters/bearer_authorization.dart';
+export 'src/adapters/device_bound_credential_gateway.dart';
+export 'src/adapters/installation_device_registry.dart';
+export 'src/adapters/secure_session_store.dart';
+export 'src/adapters/sso_credential_gateway.dart';
+export 'src/dto/session_dto.dart';
+export 'src/mappers/session_mapper.dart';

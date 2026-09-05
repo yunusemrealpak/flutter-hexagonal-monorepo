@@ -146,10 +146,12 @@ Running codegen across the whole workspace is not acceptable. Use the melos scri
 | Script | Scope | When |
 |---|---|---|
 | `dart run melos run gen` | changed packages and their dependents | everyday work, before every commit |
-| `dart run melos run gen:all` | the entire workspace | nightly, and after a large refactor |
+| `dart run melos run gen:all` | the entire workspace | nightly, and after a large refactor — see the warning below |
 | `dart run melos run l10n` | every package with an `l10n.yaml` | after touching an `.arb` file |
 | `dart run melos run gen:check` | `gen` + `l10n` + `git diff --exit-code` | CI staleness gate |
 | `dart run melos run gen:watch` | one package | while working on that package |
+
+**After a change that moves source files, run `dart run build_runner clean` in the affected packages before generating.** build_runner's cache records the paths its outputs were written to, so a moved source leaves a declared output on disk that the next build treats as conflicting. `--delete-conflicting-outputs` has been removed from build_runner and is now ignored with a warning, so nothing resolves that automatically: the build acquires `.dart_tool/build/lock/build_runner.workspace.lock`, prints a builder line or two, and then hangs at zero per cent CPU indefinitely. It does not fail and it does not time out, which is why it reads as a slow machine rather than a stale cache. `clean` then `build` takes seventeen seconds.
 
 `flutter gen-l10n` is the one generator in §4.1 that build_runner does not drive, so it does not travel with `gen`. It has its own script, and `gen:check` runs both — a stale `.arb` has to fail the same gate a stale `.g.dart` does. Its output is written into `lib/src/` and committed, not left in the synthetic package Flutter defaults to: a generated file that exists only inside `.dart_tool` cannot be reviewed in a pull request, and cannot be seen by the affected-test selection derived from `git diff` (§4.3).
 
@@ -227,7 +229,11 @@ Doing it by hand — or checking the scaffolder's output — means verifying all
 3. The root `pubspec.yaml` `workspace:` list includes the new path.
 4. A barrel exists at `lib/<package_name>.dart`, and it is the only file directly under `lib/`.
 5. Implementation lives under `lib/src/`; the barrel exports only the public surface.
-5.1. **An `_api` package groups its sources by kind**: `entities/` (`extends Entity<Id>`), `values/` (everything defined by its value), `events/` (`extends DomainEvent`), `failures/` (`extends Failure`) and `ports/driving` / `ports/driven` — driving when `_application` implements the interface, driven when `_infrastructure` or `platform/*` does. The folders exist for that last split: it is the distinction the architecture is named after, and flat it is invisible. An interface is not automatically a port (`SyncCommand` is a value), and the other package roles stay flat — they hold one kind of thing each. `docs/ARCHITECTURE.md` §2 carries the table and the reasoning; the scaffolder writes the layout and `tooling/scaffold`'s generator test asserts it.
+5.1. **An `_api` package groups its sources by kind**: `entities/` (`extends Entity<Id>`), `values/` (everything defined by its value), `events/` (`extends DomainEvent`), `failures/` (`extends Failure`) and `ports/driving` / `ports/driven` — driving when `_application` implements the interface, driven when `_infrastructure` or `platform/*` does. The folders exist for that last split: it is the distinction the architecture is named after, and flat it is invisible. An interface is not automatically a port (`SyncCommand` is a value).
+
+5.2. **`_application` and `_infrastructure` group their sources too.** `use_cases/` (`implements UseCase<I, O>`), `coordinators/` (implements one of its own `_api`'s driving ports), `commands/` (`implements SyncCommand`), `values/` (a `sealed` input), `lifecycle/` (the composition root builds, holds and disposes it) and `internal/` (the barrel does not export it); on the other side `adapters/` (implements a port), `dto/` (`@JsonSerializable`) and `mappers/` (`abstract final class`). The `dto` / `mappers` split is invariant 1.2.10 made visible. **`_presentation` and `_testing` stay flat** — five files, one of each kind, and a `_testing` package's names are already its taxonomy.
+
+5.3. **The criterion for a folder anywhere else: the file name cannot carry the distinction.** It passes cleanly in `_api` and only marginally in the two roles above, which were grouped anyway and deliberately. Apply the test, not the precedent. `docs/ARCHITECTURE.md` §2 carries the tables, the reasoning and the case against; the scaffolder writes every layout and `tooling/scaffold`'s generator tests assert them.
 6. If the package uses code generation, `build.yaml` enables only the builders it needs and disables the rest explicitly. A package with no generated files has no `build_runner` dependency and no `build.yaml`, so no builder ever runs there — that is the cheapest configuration, not a missing one.
 7. A `README.md` states the package's role, its allowed dependencies, and what must never live in it.
 8. A `test/` directory exists, even if it starts with a single smoke test.
@@ -371,7 +377,7 @@ Also closed, because both were gaps the code had already documented: `IdentityFa
 
 `main` is protected and green, and nothing from the specification is outstanding — its acceptance criteria all hold and every phase is tagged `phase-00` … `phase-08`. What follows is ordinary product work under the same constitution.
 
-**Merged so far, newest first:** PR #30 (`35c3fb2`) the background scheduler, PR #29 (`c68b645`) signature capture, PR #28 (`6aeb6d7`) the paginated manifest, PR #27 (`677765b`) the blocked-permission path — the four are tagged **`v0.2.0`** on `main`. A product milestone rather than a `phase-09`: the specification defines eight phases and stops, so a ninth would name something that does not exist. `release.yml` triggers only on `app_*-v*`, so the milestone tag starts no build. PR #26 (`886305d`) photo evidence, PR #25 the outbox drain's storage defects, PR #24 turning alerts on, PR #23 the handoff, PR #22 (`9319aba`) the integration audit, PR #21 (`7157dbd`) the authorised transport, PR #20 (`529b92b`) the gap list, PR #19 (`99b4556`) entry from a notification, PR #18 (`decc87a`) the tabbed shell, PR #16 (`ccee0a6`) navigation and the first three flows.
+**Merged so far, newest first:** PR #32 (`a4cef00`) the `_api` layout and the state-management decision, PR #31 (`9ccc031`) the bucketing input nothing was reading, PR #30 (`35c3fb2`) the background scheduler, PR #29 (`c68b645`) signature capture, PR #28 (`6aeb6d7`) the paginated manifest, PR #27 (`677765b`) the blocked-permission path — the four are tagged **`v0.2.0`** on `main`. A product milestone rather than a `phase-09`: the specification defines eight phases and stops, so a ninth would name something that does not exist. `release.yml` triggers only on `app_*-v*`, so the milestone tag starts no build. PR #26 (`886305d`) photo evidence, PR #25 the outbox drain's storage defects, PR #24 turning alerts on, PR #23 the handoff, PR #22 (`9319aba`) the integration audit, PR #21 (`7157dbd`) the authorised transport, PR #20 (`529b92b`) the gap list, PR #19 (`99b4556`) entry from a notification, PR #18 (`decc87a`) the tabbed shell, PR #16 (`ccee0a6`) navigation and the first three flows.
 
 #### The plan, in the order it should be taken
 
@@ -887,6 +893,46 @@ has **zero third-party dependencies** — not even `go_router`, which lives in
 The pattern is already Cubit's: sealed state, one emitter, ports through the
 constructor. If it is ever adopted it should be `Cubit` and not `Bloc`; the
 states do not change and no event classes appear.
+
+#### The layout, one ring out — done
+
+The same treatment applied to `_application` and `_infrastructure`: eighty-four
+files, twelve packages. `use_cases/` `coordinators/` `commands/` `values/`
+`lifecycle/` `internal/` on one side, `adapters/` `dto/` `mappers/` on the
+other. The tables are `docs/ARCHITECTURE.md` §2; the check-list entries are
+§7.5.2 and §7.5.3 above.
+
+- **The criterion this produced matters more than the change.** *A folder earns
+  its place when the file name cannot carry the distinction.* In `_api` it
+  passes outright — `delivery_gateway.dart` and `delivery_execution.dart` sit
+  beside each other and only the contents say which way the arrow points. Here
+  it is marginal: `*_dto.dart`, `*_mapper.dart`, `*_coordinator.dart` and
+  `*_command.dart` already say it, several folders hold one file, and
+  `identity_application` is a package with one file in one folder. It was
+  adopted anyway and deliberately, for readability. The case against is written
+  down beside the layout on purpose — **apply the criterion, not the
+  precedent.**
+- **Two folder names needed defining because nothing else names them.**
+  `lifecycle/` is the thing the composition root *starts* rather than calls —
+  `DeliveryChannel`, `RouteChannel`, `CollectionReconciler`, each of whose doc
+  comments already claimed exactly that property. `internal/` is the one source
+  the barrel does not export, and `SettlementUpdates`' own comment says why.
+- **The `_application` tail is what a classifier cannot see.** Nineteen files
+  answer `implements UseCase<I, O>`, ten a driving port, three `SyncCommand` —
+  and then five answer nothing, each a different kind. A grouping is only as
+  clean as its residue, and the residue is where the thinking is.
+- **`melos run gen:all` hung for eight hours and it was not the machine.**
+  Moving a source leaves build_runner's cache holding a declared output at the
+  old path, which the next build reads as conflicting.
+  `--delete-conflicting-outputs` has been removed from build_runner and is
+  ignored with a warning, so nothing resolves it: the build takes the workspace
+  lock, prints a builder line, and sits at zero per cent CPU forever. It never
+  fails and never times out, so it reads as a slow machine — two runs and a
+  process sample were spent before the cache was suspected. `clean` then
+  `build` is seventeen seconds. §4.4 now says so.
+- **The three `injection.config.dart` files moved again**, for the same reason
+  as last time: `injectable` numbers its imports from the URIs it resolved.
+  Rule 19 puts them in the commit with their sources.
 
 #### What is worth taking next
 

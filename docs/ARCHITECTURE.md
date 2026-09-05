@@ -122,7 +122,41 @@ The test for which folder is mechanical, and deliberately so — it reads the co
 
 One type refuses the mechanical answer, and it is instructive: `SyncCommand` is an `abstract interface class` implemented in `_application`, which reads as a driving port. Its own doc comment says otherwise — *"They are values, not adapters: nothing about them touches the outside world"* — and it lives in `values/`. **An interface is not automatically a port.** A port is a boundary something on the other side answers; `SyncCommand` is a shape a feature's own value satisfies.
 
-**The other package roles stay flat**, and that is a calibration rather than an oversight. An `_application` package holds use cases and coordinators; an `_infrastructure` package holds adapters, DTOs and mappers. Folders there would be one folder with everything in it, or three folders of two files. `_api` earns the split because it holds five genuinely different kinds of thing and is the largest package in every feature — `delivery_api` alone has 26 sources.
+### What `_application` and `_infrastructure` look like inside
+
+The same treatment, one ring out. An earlier version of this section claimed the other roles hold one kind of thing each; counting the files showed that is true of `_presentation` and false of the two below.
+
+```
+delivery_application/lib/src/       delivery_infrastructure/lib/src/
+  use_cases/     implements UseCase<I, O>    adapters/   implements a port
+  coordinators/  implements a driving port   dto/        @JsonSerializable
+  commands/      implements SyncCommand      mappers/    abstract final class
+  values/        a sealed input type
+  lifecycle/     the app builds and disposes it
+  internal/      the barrel does not export it
+```
+
+The tests are mechanical again, and again they read the code rather than the name:
+
+| Folder | Test |
+|---|---|
+| `use_cases/` | `implements UseCase<I, O>` — one product intention, bound by an app |
+| `coordinators/` | implements an interface declared under its own `_api`'s `ports/driving` |
+| `commands/` | `implements SyncCommand` — a value the outbox carries |
+| `values/` | `sealed class` — an input a use case takes, named by nothing outside the feature |
+| `lifecycle/` | none of the above; the composition root constructs it, holds it and disposes it |
+| `internal/` | `abstract final class` the barrel does not export |
+| `adapters/` | the class implements a port from `_api`, `core_ports` or `platform/*` |
+| `dto/` | the file declares `@JsonSerializable` |
+| `mappers/` | `abstract final class` — a namespace of translations, never an instance |
+
+`dto/` and `mappers/` beside `adapters/` are **invariant 1.2.10 made visible**: a DTO never appears in a signature the domain can see, and the translation between the two has a place of its own rather than being wherever the adapter that needed it first happened to put it. `use_cases/` beside `coordinators/` is §2.3 made visible: a coordinator answers a whole audience's interface, a use case answers one question.
+
+Two of these folders are worth defining because nothing else in the workspace names them. **`lifecycle/`** holds `DeliveryChannel`, `RouteChannel` and `CollectionReconciler` — things that are *started* rather than called, which is the property their own doc comments already claimed: *"the composition root subscribes it when the container comes up and disposes it when the container goes down."* **`internal/`** holds `SettlementUpdates`, the one source in these packages the barrel does not export, and its doc comment says why: *"nothing calls it from outside this package, and giving it a `UseCase` signature would put it in the barrel as if an app might bind it."*
+
+**The case against this layout was real and is worth recording.** In `_api` the file name genuinely could not carry the distinction: `delivery_gateway.dart` and `delivery_execution.dart` sit beside each other and nothing but the contents says which way the arrow points. Here the names already carry most of it — `*_dto.dart`, `*_mapper.dart`, `*_coordinator.dart`, `*_command.dart` — and several of the folders hold exactly one file, `identity_application` being a package with one file in one folder. So the general criterion this repository now uses is: **a folder earns its place when the file name cannot carry the distinction.** That test passes in `_api` and is marginal here; the layout was adopted anyway, deliberately, because a reader scanning a package sees its shape before reading a single name and the shape survives a rename. Recording the weaker case is the point — the next person to propose folders somewhere else should apply the criterion, not the precedent.
+
+**`_presentation` and `_testing` stay flat.** A presentation package holds one controller, one state, one screen, its routes and its strings — five files, one of each kind, so a folder per kind is five folders holding one file each with nothing left over. A `_testing` package's names are its whole taxonomy: `fake_*`, `*_contract`, `*_fixtures`.
 
 ### There is no BLoC here, and that is a decision
 
