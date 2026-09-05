@@ -19,10 +19,10 @@
 /// same reasons.
 library;
 
-export 'src/message.dart';
-export 'src/message_id.dart';
-export 'src/message_store.dart';
-export 'src/message_transport.dart';
-export 'src/messaging_facade.dart';
-export 'src/messaging_failure.dart';
-export 'src/thread_id.dart';
+export 'src/entities/message.dart';
+export 'src/failures/messaging_failure.dart';
+export 'src/ports/driven/message_store.dart';
+export 'src/ports/driven/message_transport.dart';
+export 'src/ports/driving/messaging_facade.dart';
+export 'src/values/message_id.dart';
+export 'src/values/thread_id.dart';

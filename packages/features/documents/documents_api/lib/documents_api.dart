@@ -20,10 +20,10 @@
 /// live in this feature.
 library;
 
-export 'src/document.dart';
-export 'src/document_archive.dart';
-export 'src/document_id.dart';
-export 'src/document_kind.dart';
-export 'src/document_renderer.dart';
-export 'src/documents_facade.dart';
-export 'src/documents_failure.dart';
+export 'src/entities/document.dart';
+export 'src/failures/documents_failure.dart';
+export 'src/ports/driven/document_archive.dart';
+export 'src/ports/driven/document_renderer.dart';
+export 'src/ports/driving/documents_facade.dart';
+export 'src/values/document_id.dart';
+export 'src/values/document_kind.dart';

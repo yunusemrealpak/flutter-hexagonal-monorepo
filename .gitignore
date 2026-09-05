@@ -26,7 +26,12 @@ doc/api/
 coverage/
 .cache/
 test/.test_coverage.dart
-**/failures/
+# Flutter writes a failed golden's actual/diff images here. Anchored to a test
+# directory on purpose: `**/failures/` also matched `lib/src/failures/`, which
+# is where every _api package now declares its sealed failure types, and an
+# ignore rule that silently swallows source is worse than one that misses an
+# artefact.
+**/test/failures/
 junit/
 *.lcov
 

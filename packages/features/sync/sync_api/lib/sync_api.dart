@@ -27,16 +27,16 @@
 /// `ClockSkewPort`, answered by `sync_infrastructure`.
 library;
 
-export 'src/clock_skew_port.dart';
-export 'src/command_transport_port.dart';
-export 'src/conflict_policy.dart';
-export 'src/outbox_entry.dart';
-export 'src/outbox_entry_id.dart';
-export 'src/outbox_store.dart';
-export 'src/retry_schedule.dart';
-export 'src/sync_command.dart';
-export 'src/sync_cursor.dart';
-export 'src/sync_envelope.dart';
-export 'src/sync_facade.dart';
-export 'src/sync_failure.dart';
-export 'src/sync_status.dart';
+export 'src/entities/outbox_entry.dart';
+export 'src/failures/sync_failure.dart';
+export 'src/ports/driven/clock_skew_port.dart';
+export 'src/ports/driven/command_transport_port.dart';
+export 'src/ports/driven/outbox_store.dart';
+export 'src/ports/driving/sync_facade.dart';
+export 'src/values/conflict_policy.dart';
+export 'src/values/outbox_entry_id.dart';
+export 'src/values/retry_schedule.dart';
+export 'src/values/sync_command.dart';
+export 'src/values/sync_cursor.dart';
+export 'src/values/sync_envelope.dart';
+export 'src/values/sync_status.dart';

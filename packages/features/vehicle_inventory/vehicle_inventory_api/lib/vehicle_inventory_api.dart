@@ -19,10 +19,10 @@
 /// app's composition root is free to implement it over that facade.
 library;
 
-export 'src/load_count.dart';
-export 'src/load_count_id.dart';
-export 'src/load_count_store.dart';
-export 'src/load_direction.dart';
-export 'src/manifest_source.dart';
-export 'src/vehicle_inventory_facade.dart';
-export 'src/vehicle_inventory_failure.dart';
+export 'src/entities/load_count.dart';
+export 'src/failures/vehicle_inventory_failure.dart';
+export 'src/ports/driven/load_count_store.dart';
+export 'src/ports/driven/manifest_source.dart';
+export 'src/ports/driving/vehicle_inventory_facade.dart';
+export 'src/values/load_count_id.dart';
+export 'src/values/load_direction.dart';

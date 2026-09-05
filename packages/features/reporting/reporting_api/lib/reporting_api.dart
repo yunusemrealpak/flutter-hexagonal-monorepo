@@ -21,9 +21,9 @@
 /// summed across a fleet without knowing where every courier was standing.
 library;
 
-export 'src/operation_tally.dart';
-export 'src/reporting_day.dart';
-export 'src/reporting_facade.dart';
-export 'src/reporting_failure.dart';
-export 'src/shipment_outcome.dart';
-export 'src/tally_store.dart';
+export 'src/entities/operation_tally.dart';
+export 'src/failures/reporting_failure.dart';
+export 'src/ports/driven/tally_store.dart';
+export 'src/ports/driving/reporting_facade.dart';
+export 'src/values/reporting_day.dart';
+export 'src/values/shipment_outcome.dart';
