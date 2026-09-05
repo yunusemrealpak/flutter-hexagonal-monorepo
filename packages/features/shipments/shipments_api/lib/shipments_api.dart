@@ -23,20 +23,20 @@
 /// completed without either feature depending on the other.
 library;
 
-export 'src/address_point.dart';
-export 'src/barcode.dart';
-export 'src/barcode_resolver_port.dart';
-export 'src/consignee.dart';
-export 'src/courier_reference.dart';
-export 'src/shipment.dart';
-export 'src/shipment_cache.dart';
-export 'src/shipment_delivered.dart';
-export 'src/shipment_failed.dart';
-export 'src/shipment_failure.dart';
-export 'src/shipment_gateway.dart';
-export 'src/shipment_id.dart';
-export 'src/shipment_returned.dart';
-export 'src/shipment_status.dart';
-export 'src/shipment_summary.dart';
-export 'src/shipments_facade.dart';
-export 'src/status_transition.dart';
+export 'src/entities/shipment.dart';
+export 'src/events/shipment_delivered.dart';
+export 'src/events/shipment_failed.dart';
+export 'src/events/shipment_returned.dart';
+export 'src/failures/shipment_failure.dart';
+export 'src/ports/driven/barcode_resolver_port.dart';
+export 'src/ports/driven/shipment_cache.dart';
+export 'src/ports/driven/shipment_gateway.dart';
+export 'src/ports/driving/shipments_facade.dart';
+export 'src/values/address_point.dart';
+export 'src/values/barcode.dart';
+export 'src/values/consignee.dart';
+export 'src/values/courier_reference.dart';
+export 'src/values/shipment_id.dart';
+export 'src/values/shipment_status.dart';
+export 'src/values/shipment_summary.dart';
+export 'src/values/status_transition.dart';

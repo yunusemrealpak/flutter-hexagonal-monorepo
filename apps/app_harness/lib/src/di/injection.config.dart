@@ -148,15 +148,22 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i503.FakeMessageTransport>(),
       ),
     );
+    gh.lazySingleton<_i717.Resequence>(
+      () => harnessRouting.resequence(gh<_i178.RouteCache>()),
+    );
+    gh.lazySingleton<_i717.NextStop>(
+      () => harnessRouting.nextStop(gh<_i178.RouteCache>()),
+    );
+    gh.lazySingleton<_i717.CurrentPlan>(
+      () => harnessRouting.currentPlan(gh<_i178.RouteCache>()),
+    );
     gh.lazySingleton<_i243.PaymentsGateway>(
       () => harnessPayments.gateway(gh<_i908.FakePaymentsGateway>()),
     );
-    gh.lazySingleton<_i901.CollectionReconciler>(
-      () => harnessPayments.reconciler(
-        gh<_i398.DomainEventBus>(),
-        gh<_i243.PaymentsGateway>(),
-        gh<_i243.SettlementStore>(),
-        gh<_i398.Logger>(),
+    gh.lazySingleton<_i178.RouteSupervision>(
+      () => harnessRouting.routeSupervision(
+        gh<_i717.Resequence>(),
+        gh<_i717.RouteChannel>(),
       ),
     );
     gh.lazySingleton<_i1041.GeoFencePort>(
@@ -168,38 +175,11 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i202.OutboxStore>(
       () => harnessSync.outbox(gh<_i84.InMemoryOutboxStore>()),
     );
-    gh.lazySingleton<_i502.EnqueueCommand>(
-      () => harnessSync.enqueue(
-        gh<_i202.OutboxStore>(),
-        gh<_i398.Clock>(),
-        gh<_i398.IdGenerator>(),
-        gh<_i398.Logger>(),
-      ),
-    );
-    gh.lazySingleton<_i718.StartAttempt>(
-      () => harnessDelivery.start(
-        gh<_i1041.GeoFencePort>(),
-        gh<_i398.Clock>(),
-        gh<_i398.IdGenerator>(),
-      ),
-    );
-    gh.lazySingleton<_i901.RefundCollection>(
-      () => harnessPayments.refund(
-        gh<_i243.PaymentsGateway>(),
-        gh<_i243.CashDrawerPort>(),
-        gh<_i243.SettlementStore>(),
-        gh<_i398.Clock>(),
-        gh<_i398.Logger>(),
-      ),
-    );
     gh.lazySingleton<_i62.HttpTransport>(
       () => harnessPorts.transport(gh<_i62.FakeHttpTransport>()),
     );
     gh.lazySingleton<_i280.MessageStore>(
       () => harnessLightFeatures.messages(gh<_i503.InMemoryMessageStore>()),
-    );
-    gh.lazySingleton<_i111.ReadThread>(
-      () => harnessLightFeatures.readThread(gh<_i280.MessageStore>()),
     );
     gh.lazySingleton<_i722.PreferencesStore>(
       () => harnessLightFeatures.preferences(gh<_i398.KeyValueStore>()),
@@ -222,6 +202,15 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i513.TallyStore>(
       () => harnessLightFeatures.tallies(gh<_i398.KeyValueStore>()),
     );
+    gh.lazySingleton<_i901.RefundCollection>(
+      () => harnessPayments.refund(
+        gh<_i243.PaymentsGateway>(),
+        gh<_i243.CashDrawerPort>(),
+        gh<_i243.SettlementStore>(),
+        gh<_i398.Clock>(),
+        gh<_i398.Logger>(),
+      ),
+    );
     gh.lazySingleton<_i202.CommandTransportPort>(
       () => harnessSync.commandTransport(gh<_i84.FakeCommandTransport>()),
     );
@@ -231,72 +220,26 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i502.LoadReviewQueue>(
       () => harnessSync.reviewQueue(gh<_i202.OutboxStore>()),
     );
-    gh.lazySingleton<_i111.MarkThreadRead>(
-      () => harnessLightFeatures.markThread(
-        gh<_i280.MessageStore>(),
-        gh<_i280.MessageTransport>(),
+    gh.lazySingleton<_i902.IdentityCoordinator>(
+      () => harnessIdentity.coordinator(
+        gh<_i966.CredentialGateway>(),
+        gh<_i966.SessionStore>(),
+        gh<_i966.DeviceRegistry>(),
         gh<_i398.Clock>(),
+        gh<_i398.Logger>(),
       ),
     );
-    gh.lazySingleton<_i717.Resequence>(
-      () => harnessRouting.resequence(gh<_i178.RouteCache>()),
-    );
-    gh.lazySingleton<_i717.NextStop>(
-      () => harnessRouting.nextStop(gh<_i178.RouteCache>()),
-    );
-    gh.lazySingleton<_i717.CurrentPlan>(
-      () => harnessRouting.currentPlan(gh<_i178.RouteCache>()),
+    gh.lazySingleton<_i718.StartAttempt>(
+      () => harnessDelivery.start(
+        gh<_i1041.GeoFencePort>(),
+        gh<_i398.Clock>(),
+        gh<_i398.IdGenerator>(),
+      ),
     );
     gh.lazySingleton<_i1041.DeliveryExecution>(
       () => harnessDelivery.execution(
         gh<_i718.StartAttempt>(),
         gh<_i718.DeliveryChannel>(),
-      ),
-    );
-    gh.lazySingleton<_i1041.DeliveryGateway>(
-      () => harnessDelivery.gateway(gh<_i876.FakeDeliveryGateway>()),
-    );
-    gh.lazySingleton<_i490.ShipmentGateway>(
-      () => harnessShipments.gateway(gh<_i450.InMemoryShipmentGateway>()),
-    );
-    gh.lazySingleton<_i1041.ProofStorePort>(
-      () => harnessDelivery.proofs(gh<_i876.FakeProofStore>()),
-    );
-    gh.lazySingleton<_i178.LocationStreamPort>(
-      () => harnessRouting.location(gh<_i711.FakeLocationStream>()),
-    );
-    gh.lazySingleton<_i502.ResolveBlockedEntry>(
-      () => harnessSync.resolveBlocked(
-        gh<_i202.OutboxStore>(),
-        gh<_i398.Logger>(),
-      ),
-    );
-    gh.lazySingleton<_i901.PaymentStatusOf>(
-      () => harnessPayments.statusOf(gh<_i243.PaymentsGateway>()),
-    );
-    gh.lazySingleton<_i719.ResolveIncident>(
-      () => harnessLightFeatures.resolveIncident(
-        gh<_i499.IncidentLog>(),
-        gh<_i398.Clock>(),
-      ),
-    );
-    gh.lazySingleton<_i286.ReadInbox>(
-      () => harnessLightFeatures.readInbox(gh<_i60.InboxStore>()),
-    );
-    gh.lazySingleton<_i247.PushMessagingClient>(
-      () => harnessLightFeatures.push(gh<_i247.FakePushMessagingClient>()),
-    );
-    gh.lazySingleton<_i302.RecordOutcome>(
-      () => harnessLightFeatures.recordOutcome(gh<_i513.TallyStore>()),
-    );
-    gh.lazySingleton<_i302.ReadRange>(
-      () => harnessLightFeatures.readRange(gh<_i513.TallyStore>()),
-    );
-    gh.lazySingleton<_i257.CloseCount>(
-      () => harnessLightFeatures.closeCount(
-        gh<_i79.LoadCountStore>(),
-        gh<_i398.Clock>(),
-        gh<_i398.Logger>(),
       ),
     );
     gh.lazySingleton<_i901.CloseDailySettlement>(
@@ -308,6 +251,105 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i286.MarkAlertRead>(
       () => harnessLightFeatures.markAlert(
         gh<_i60.InboxStore>(),
+        gh<_i398.Clock>(),
+      ),
+    );
+    gh.lazySingleton<_i901.CollectionReconciler>(
+      () => harnessPayments.reconciler(
+        gh<_i398.DomainEventBus>(),
+        gh<_i243.PaymentsGateway>(),
+        gh<_i243.SettlementStore>(),
+        gh<_i398.Logger>(),
+      ),
+    );
+    gh.lazySingleton<_i1041.DeliveryGateway>(
+      () => harnessDelivery.gateway(gh<_i876.FakeDeliveryGateway>()),
+    );
+    gh.lazySingleton<_i286.RecordArrivingAlert>(
+      () => harnessLightFeatures.recordAlert(
+        gh<_i60.InboxStore>(),
+        gh<_i398.Clock>(),
+        gh<_i398.IdGenerator>(),
+      ),
+    );
+    gh.lazySingleton<_i286.ReadInbox>(
+      () => harnessLightFeatures.readInbox(gh<_i60.InboxStore>()),
+    );
+    gh.lazySingleton<_i490.ShipmentGateway>(
+      () => harnessShipments.gateway(gh<_i450.InMemoryShipmentGateway>()),
+    );
+    gh.lazySingleton<_i717.PlanRoute>(
+      () => harnessRouting.plan(
+        gh<_i178.RouteOptimizerPort>(),
+        gh<_i178.TrafficDataPort>(),
+        gh<_i178.RouteCache>(),
+        gh<_i398.Clock>(),
+        gh<_i398.IdGenerator>(),
+        gh<_i398.Logger>(),
+      ),
+    );
+    gh.lazySingleton<_i719.ListOpenIncidents>(
+      () => harnessLightFeatures.listIncidents(gh<_i499.IncidentLog>()),
+    );
+    gh.lazySingleton<_i1041.ProofStorePort>(
+      () => harnessDelivery.proofs(gh<_i876.FakeProofStore>()),
+    );
+    gh.lazySingleton<_i966.IdentityFacade>(
+      () => harnessIdentity.identity(gh<_i902.IdentityCoordinator>()),
+    );
+    gh.lazySingleton<_i966.SessionReader>(
+      () => harnessIdentity.sessionReader(gh<_i902.IdentityCoordinator>()),
+    );
+    gh.lazySingleton<_i966.PermissionChecker>(
+      () => harnessIdentity.permissionChecker(gh<_i902.IdentityCoordinator>()),
+    );
+    gh.lazySingleton<_i178.LocationStreamPort>(
+      () => harnessRouting.location(gh<_i711.FakeLocationStream>()),
+    );
+    gh.lazySingleton<_i502.EnqueueCommand>(
+      () => harnessSync.enqueue(
+        gh<_i202.OutboxStore>(),
+        gh<_i398.Clock>(),
+        gh<_i398.IdGenerator>(),
+        gh<_i398.Logger>(),
+      ),
+    );
+    gh.lazySingleton<_i502.ResolveBlockedEntry>(
+      () => harnessSync.resolveBlocked(
+        gh<_i202.OutboxStore>(),
+        gh<_i398.Logger>(),
+      ),
+    );
+    gh.lazySingleton<_i247.PushMessagingClient>(
+      () => harnessLightFeatures.push(gh<_i247.FakePushMessagingClient>()),
+    );
+    gh.lazySingleton<_i302.RecordOutcome>(
+      () => harnessLightFeatures.recordOutcome(gh<_i513.TallyStore>()),
+    );
+    gh.lazySingleton<_i302.ReadRange>(
+      () => harnessLightFeatures.readRange(gh<_i513.TallyStore>()),
+    );
+    gh.lazySingleton<_i502.ReadSyncStatus>(
+      () => harnessSync.status(
+        gh<_i202.OutboxStore>(),
+        gh<_i398.NetworkStatus>(),
+        gh<_i398.Clock>(),
+      ),
+    );
+    gh.lazySingleton<_i901.PaymentStatusOf>(
+      () => harnessPayments.statusOf(gh<_i243.PaymentsGateway>()),
+    );
+    gh.lazySingleton<_i257.CloseCount>(
+      () => harnessLightFeatures.closeCount(
+        gh<_i79.LoadCountStore>(),
+        gh<_i398.Clock>(),
+        gh<_i398.Logger>(),
+      ),
+    );
+    gh.lazySingleton<_i111.MarkThreadRead>(
+      () => harnessLightFeatures.markThread(
+        gh<_i280.MessageStore>(),
+        gh<_i280.MessageTransport>(),
         gh<_i398.Clock>(),
       ),
     );
@@ -330,23 +372,12 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i398.Logger>(),
       ),
     );
+    gh.lazySingleton<_i718.AttemptReads>(
+      () => harnessDelivery.reads(gh<_i1041.DeliveryGateway>()),
+    );
     gh.lazySingleton<_i780.LoadPreferences>(
       () => harnessLightFeatures.loadPreferences(
         gh<_i722.PreferencesStore>(),
-        gh<_i398.Logger>(),
-      ),
-    );
-    gh.lazySingleton<_i286.RecordArrivingAlert>(
-      () => harnessLightFeatures.recordAlert(
-        gh<_i60.InboxStore>(),
-        gh<_i398.Clock>(),
-        gh<_i398.IdGenerator>(),
-      ),
-    );
-    gh.lazySingleton<_i719.EscalateOverdue>(
-      () => harnessLightFeatures.escalate(
-        gh<_i499.IncidentLog>(),
-        gh<_i398.Clock>(),
         gh<_i398.Logger>(),
       ),
     );
@@ -357,49 +388,16 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i398.IdGenerator>(),
       ),
     );
-    gh.lazySingleton<_i257.RecordScan>(
-      () => harnessLightFeatures.recordScan(gh<_i79.LoadCountStore>()),
-    );
-    gh.lazySingleton<_i257.FindOpenCount>(
-      () => harnessLightFeatures.findCount(gh<_i79.LoadCountStore>()),
-    );
-    gh.lazySingleton<_i178.RouteSupervision>(
-      () => harnessRouting.routeSupervision(
-        gh<_i717.Resequence>(),
-        gh<_i717.RouteChannel>(),
-      ),
-    );
-    gh.lazySingleton<_i502.ReadSyncStatus>(
-      () => harnessSync.status(
-        gh<_i202.OutboxStore>(),
-        gh<_i398.NetworkStatus>(),
-        gh<_i398.Clock>(),
-      ),
-    );
-    gh.lazySingleton<_i902.IdentityCoordinator>(
-      () => harnessIdentity.coordinator(
-        gh<_i966.CredentialGateway>(),
-        gh<_i966.SessionStore>(),
-        gh<_i966.DeviceRegistry>(),
-        gh<_i398.Clock>(),
-        gh<_i398.Logger>(),
-      ),
-    );
-    gh.lazySingleton<_i717.PlanRoute>(
-      () => harnessRouting.plan(
-        gh<_i178.RouteOptimizerPort>(),
-        gh<_i178.TrafficDataPort>(),
-        gh<_i178.RouteCache>(),
+    gh.lazySingleton<_i111.SendMessage>(
+      () => harnessLightFeatures.sendMessage(
+        gh<_i280.MessageStore>(),
+        gh<_i111.DeliverMessage>(),
         gh<_i398.Clock>(),
         gh<_i398.IdGenerator>(),
-        gh<_i398.Logger>(),
       ),
     );
-    gh.lazySingleton<_i286.ReadAlertState>(
-      () => harnessLightFeatures.readAlertState(
-        gh<_i60.AlertRegistry>(),
-        gh<_i398.PermissionRequester>(),
-      ),
+    gh.lazySingleton<_i111.ReadThread>(
+      () => harnessLightFeatures.readThread(gh<_i280.MessageStore>()),
     );
     gh.lazySingleton<_i719.ShipmentFailureWatcher>(
       () => harnessLightFeatures.incidentWatcher(
@@ -409,44 +407,18 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i398.Logger>(),
       ),
     );
+    gh.lazySingleton<_i719.EscalateOverdue>(
+      () => harnessLightFeatures.escalate(
+        gh<_i499.IncidentLog>(),
+        gh<_i398.Clock>(),
+        gh<_i398.Logger>(),
+      ),
+    );
     gh.lazySingleton<_i475.DocumentRenderer>(
       () => harnessLightFeatures.renderer(
         gh<_i62.HttpTransport>(),
         gh<_i398.Clock>(),
       ),
-    );
-    gh.lazySingleton<_i257.HttpManifestSource>(
-      () => harnessLightFeatures.httpManifests(gh<_i62.HttpTransport>()),
-    );
-    gh.lazySingleton<_i513.ReportingFacade>(
-      () => harnessLightFeatures.reporting(
-        gh<_i513.TallyStore>(),
-        gh<_i302.ReadRange>(),
-      ),
-    );
-    gh.lazySingleton<_i719.ListOpenIncidents>(
-      () => harnessLightFeatures.listIncidents(gh<_i499.IncidentLog>()),
-    );
-    gh.lazySingleton<_i111.SendMessage>(
-      () => harnessLightFeatures.sendMessage(
-        gh<_i280.MessageStore>(),
-        gh<_i111.DeliverMessage>(),
-        gh<_i398.Clock>(),
-        gh<_i398.IdGenerator>(),
-      ),
-    );
-    gh.lazySingleton<_i60.AlertChannel>(
-      () => harnessLightFeatures.alerts(gh<_i247.PushMessagingClient>()),
-    );
-    gh.lazySingleton<_i178.RoutePlanning>(
-      () => harnessRouting.routePlanning(
-        gh<_i717.PlanRoute>(),
-        gh<_i717.CurrentPlan>(),
-        gh<_i717.RouteChannel>(),
-      ),
-    );
-    gh.lazySingleton<_i718.AttemptReads>(
-      () => harnessDelivery.reads(gh<_i1041.DeliveryGateway>()),
     );
     gh.lazySingleton<_i502.DrainOutbox>(
       () => harnessSync.drain(
@@ -460,10 +432,41 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i502.ReadSyncStatus>(),
       ),
     );
-    gh.lazySingleton<_i952.ResolveBarcode>(
-      () => harnessShipments.resolve(
-        gh<_i490.BarcodeResolverPort>(),
-        gh<_i952.FindShipment>(),
+    gh.lazySingleton<_i257.HttpManifestSource>(
+      () => harnessLightFeatures.httpManifests(gh<_i62.HttpTransport>()),
+    );
+    gh.lazySingleton<_i286.ReadAlertState>(
+      () => harnessLightFeatures.readAlertState(
+        gh<_i60.AlertRegistry>(),
+        gh<_i398.PermissionRequester>(),
+      ),
+    );
+    gh.lazySingleton<_i719.ResolveIncident>(
+      () => harnessLightFeatures.resolveIncident(
+        gh<_i499.IncidentLog>(),
+        gh<_i398.Clock>(),
+      ),
+    );
+    gh.lazySingleton<_i257.RecordScan>(
+      () => harnessLightFeatures.recordScan(gh<_i79.LoadCountStore>()),
+    );
+    gh.lazySingleton<_i257.FindOpenCount>(
+      () => harnessLightFeatures.findCount(gh<_i79.LoadCountStore>()),
+    );
+    gh.lazySingleton<_i60.AlertChannel>(
+      () => harnessLightFeatures.alerts(gh<_i247.PushMessagingClient>()),
+    );
+    gh.lazySingleton<_i513.ReportingFacade>(
+      () => harnessLightFeatures.reporting(
+        gh<_i513.TallyStore>(),
+        gh<_i302.ReadRange>(),
+      ),
+    );
+    gh.lazySingleton<_i178.RoutePlanning>(
+      () => harnessRouting.routePlanning(
+        gh<_i717.PlanRoute>(),
+        gh<_i717.CurrentPlan>(),
+        gh<_i717.RouteChannel>(),
       ),
     );
     gh.lazySingleton<_i302.ShipmentOutcomeWatcher>(
@@ -481,22 +484,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i398.Logger>(),
       ),
     );
-    gh.lazySingleton<_i966.IdentityFacade>(
-      () => harnessIdentity.identity(gh<_i902.IdentityCoordinator>()),
-    );
-    gh.lazySingleton<_i966.SessionReader>(
-      () => harnessIdentity.sessionReader(gh<_i902.IdentityCoordinator>()),
-    );
-    gh.lazySingleton<_i966.PermissionChecker>(
-      () => harnessIdentity.permissionChecker(gh<_i902.IdentityCoordinator>()),
-    );
-    gh.lazySingleton<_i1046.ObtainDocument>(
-      () => harnessLightFeatures.obtain(
-        gh<_i475.DocumentArchive>(),
-        gh<_i475.DocumentRenderer>(),
-        gh<_i398.Logger>(),
-      ),
-    );
     gh.lazySingleton<_i79.ManifestSource>(
       () => harnessLightFeatures.manifests(
         gh<_i257.HttpManifestSource>(),
@@ -507,6 +494,19 @@ extension GetItInjectableX on _i174.GetIt {
       () => harnessLightFeatures.applyPreference(
         gh<_i780.LoadPreferences>(),
         gh<_i722.PreferencesStore>(),
+      ),
+    );
+    gh.lazySingleton<_i952.ResolveBarcode>(
+      () => harnessShipments.resolve(
+        gh<_i490.BarcodeResolverPort>(),
+        gh<_i952.FindShipment>(),
+      ),
+    );
+    gh.lazySingleton<_i1046.ObtainDocument>(
+      () => harnessLightFeatures.obtain(
+        gh<_i475.DocumentArchive>(),
+        gh<_i475.DocumentRenderer>(),
+        gh<_i398.Logger>(),
       ),
     );
     gh.lazySingleton<_i111.DrainQueue>(
@@ -536,6 +536,30 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i79.LoadCountStore>(),
         gh<_i398.Clock>(),
         gh<_i398.IdGenerator>(),
+      ),
+    );
+    gh.lazySingleton<_i286.OpenAlerts>(
+      () => harnessLightFeatures.openAlerts(
+        gh<_i60.AlertChannel>(),
+        gh<_i60.AlertRegistry>(),
+      ),
+    );
+    gh.lazySingleton<_i286.CloseAlerts>(
+      () => harnessLightFeatures.closeAlerts(
+        gh<_i60.AlertChannel>(),
+        gh<_i60.AlertRegistry>(),
+      ),
+    );
+    gh.lazySingleton<_i60.NotificationsFacade>(
+      () => harnessLightFeatures.notifications(
+        gh<_i286.ReadInbox>(),
+        gh<_i286.MarkAlertRead>(),
+        gh<_i286.RecordArrivingAlert>(),
+        gh<_i286.OpenAlerts>(),
+        gh<_i286.CloseAlerts>(),
+        gh<_i286.ReadAlertState>(),
+        gh<_i60.AlertChannel>(),
+        gh<_i398.Logger>(),
       ),
     );
     gh.singleton<_i600.HarnessWatchers>(
@@ -568,30 +592,6 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i257.FindOpenCount>(),
       ),
     );
-    gh.lazySingleton<_i286.OpenAlerts>(
-      () => harnessLightFeatures.openAlerts(
-        gh<_i60.AlertChannel>(),
-        gh<_i60.AlertRegistry>(),
-      ),
-    );
-    gh.lazySingleton<_i286.CloseAlerts>(
-      () => harnessLightFeatures.closeAlerts(
-        gh<_i60.AlertChannel>(),
-        gh<_i60.AlertRegistry>(),
-      ),
-    );
-    gh.lazySingleton<_i901.CollectOnDelivery>(
-      () => harnessPayments.collect(
-        gh<_i243.PaymentsGateway>(),
-        gh<_i243.CashDrawerPort>(),
-        gh<_i243.ReceiptPrinterPort>(),
-        gh<_i243.SettlementStore>(),
-        gh<_i202.SyncFacade>(),
-        gh<_i398.Clock>(),
-        gh<_i398.IdGenerator>(),
-        gh<_i398.Logger>(),
-      ),
-    );
     gh.lazySingleton<_i280.MessagingFacade>(
       () => harnessLightFeatures.messaging(
         gh<_i111.ReadThread>(),
@@ -603,27 +603,6 @@ extension GetItInjectableX on _i174.GetIt {
     gh.lazySingleton<_i475.DocumentsFacade>(
       () => harnessLightFeatures.documents(gh<_i1046.ObtainDocument>()),
     );
-    gh.lazySingleton<_i718.FailWithReason>(
-      () => harnessDelivery.fail(gh<_i202.SyncFacade>(), gh<_i398.Clock>()),
-    );
-    gh.lazySingleton<_i722.SettingsFacade>(
-      () => harnessLightFeatures.settings(
-        gh<_i780.LoadPreferences>(),
-        gh<_i780.ApplyPreferenceChange>(),
-      ),
-    );
-    gh.lazySingleton<_i60.NotificationsFacade>(
-      () => harnessLightFeatures.notifications(
-        gh<_i286.ReadInbox>(),
-        gh<_i286.MarkAlertRead>(),
-        gh<_i286.RecordArrivingAlert>(),
-        gh<_i286.OpenAlerts>(),
-        gh<_i286.CloseAlerts>(),
-        gh<_i286.ReadAlertState>(),
-        gh<_i60.AlertChannel>(),
-        gh<_i398.Logger>(),
-      ),
-    );
     gh.lazySingleton<_i718.CompleteWithProof>(
       () => harnessDelivery.complete(
         gh<_i1041.ProofStorePort>(),
@@ -631,6 +610,27 @@ extension GetItInjectableX on _i174.GetIt {
         gh<_i202.SyncFacade>(),
         gh<_i398.DomainEventBus>(),
         gh<_i398.Clock>(),
+      ),
+    );
+    gh.lazySingleton<_i722.SettingsFacade>(
+      () => harnessLightFeatures.settings(
+        gh<_i780.LoadPreferences>(),
+        gh<_i780.ApplyPreferenceChange>(),
+      ),
+    );
+    gh.lazySingleton<_i718.FailWithReason>(
+      () => harnessDelivery.fail(gh<_i202.SyncFacade>(), gh<_i398.Clock>()),
+    );
+    gh.lazySingleton<_i901.CollectOnDelivery>(
+      () => harnessPayments.collect(
+        gh<_i243.PaymentsGateway>(),
+        gh<_i243.CashDrawerPort>(),
+        gh<_i243.ReceiptPrinterPort>(),
+        gh<_i243.SettlementStore>(),
+        gh<_i202.SyncFacade>(),
+        gh<_i398.Clock>(),
+        gh<_i398.IdGenerator>(),
+        gh<_i398.Logger>(),
       ),
     );
     gh.lazySingleton<_i901.PaymentsCoordinator>(

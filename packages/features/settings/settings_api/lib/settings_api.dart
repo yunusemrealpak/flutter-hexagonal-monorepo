@@ -17,10 +17,10 @@
 /// package with no generated files is supposed to have no builder at all.
 library;
 
-export 'src/language_tag.dart';
-export 'src/preferences_store.dart';
-export 'src/settings_facade.dart';
-export 'src/settings_failure.dart';
-export 'src/sync_policy.dart';
-export 'src/theme_preference.dart';
-export 'src/user_preferences.dart';
+export 'src/failures/settings_failure.dart';
+export 'src/ports/driven/preferences_store.dart';
+export 'src/ports/driving/settings_facade.dart';
+export 'src/values/language_tag.dart';
+export 'src/values/sync_policy.dart';
+export 'src/values/theme_preference.dart';
+export 'src/values/user_preferences.dart';

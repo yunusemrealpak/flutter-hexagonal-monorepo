@@ -24,13 +24,13 @@
 /// sides of the line `docs/DEPENDENCY_RULES.md` §2.2 draws.
 library;
 
-export 'src/alert_channel.dart';
-export 'src/alert_registry.dart';
-export 'src/alert_state.dart';
-export 'src/arriving_alert.dart';
-export 'src/inbox_entry.dart';
-export 'src/inbox_store.dart';
-export 'src/notification_id.dart';
-export 'src/notification_kind.dart';
-export 'src/notifications_facade.dart';
-export 'src/notifications_failure.dart';
+export 'src/entities/inbox_entry.dart';
+export 'src/failures/notifications_failure.dart';
+export 'src/ports/driven/alert_channel.dart';
+export 'src/ports/driven/alert_registry.dart';
+export 'src/ports/driven/inbox_store.dart';
+export 'src/ports/driving/notifications_facade.dart';
+export 'src/values/alert_state.dart';
+export 'src/values/arriving_alert.dart';
+export 'src/values/notification_id.dart';
+export 'src/values/notification_kind.dart';

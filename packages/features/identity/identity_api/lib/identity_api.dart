@@ -26,20 +26,20 @@
 /// network layer's conversation with identity is two sentences long.
 library;
 
-export 'src/access_token.dart';
-export 'src/actor.dart';
-export 'src/actor_id.dart';
-export 'src/credential_gateway.dart';
-export 'src/credentials.dart';
-export 'src/device_binding.dart';
-export 'src/device_registry.dart';
-export 'src/identity_facade.dart';
-export 'src/identity_failure.dart';
-export 'src/permission.dart';
-export 'src/permission_checker.dart';
-export 'src/permission_set.dart';
-export 'src/role.dart';
-export 'src/session.dart';
-export 'src/session_reader.dart';
-export 'src/session_store.dart';
-export 'src/session_tokens.dart';
+export 'src/entities/actor.dart';
+export 'src/failures/identity_failure.dart';
+export 'src/ports/driven/credential_gateway.dart';
+export 'src/ports/driven/device_registry.dart';
+export 'src/ports/driven/session_store.dart';
+export 'src/ports/driving/identity_facade.dart';
+export 'src/ports/driving/permission_checker.dart';
+export 'src/ports/driving/session_reader.dart';
+export 'src/ports/driving/session_tokens.dart';
+export 'src/values/access_token.dart';
+export 'src/values/actor_id.dart';
+export 'src/values/credentials.dart';
+export 'src/values/device_binding.dart';
+export 'src/values/permission.dart';
+export 'src/values/permission_set.dart';
+export 'src/values/role.dart';
+export 'src/values/session.dart';

@@ -248,11 +248,22 @@ String _imports({
   return '$lines\n\n$locals';
 }
 
+/// The `_api` seed, laid out in the folders section 7 of CLAUDE.md defines.
+///
+/// `entities/`, `values/`, `events/`, `failures/` and `ports/{driving,driven}`
+/// — a contract package is where the hexagon's two kinds of port are actually
+/// declared, so the split that matters most is the one the filesystem shows.
+/// The seed writes only the two folders it has files for; the rest arrive with
+/// the feature's first entity and value.
+///
+/// The other roles stay flat, and that is a calibration rather than an
+/// oversight: an `_application` package holds use cases and nothing else, so a
+/// folder per kind would be one folder.
 Map<String, String> _apiSources(Naming naming) {
   final feature = naming.feature;
   final type = naming.featurePascal;
   return {
-    'lib/src/${feature}_failure.dart':
+    'lib/src/failures/${feature}_failure.dart':
         '''
 import 'package:core_kernel/core_kernel.dart';
 
@@ -290,11 +301,11 @@ final class ${type}Unavailable extends ${type}Failure {
   String toString() => '${type}Unavailable()';
 }
 ''',
-    'lib/src/${feature}_repository.dart':
+    'lib/src/ports/driven/${feature}_repository.dart':
         '''
 import 'package:core_kernel/core_kernel.dart';
 
-import '${feature}_failure.dart';
+import '../../failures/${feature}_failure.dart';
 
 /// What $feature needs from the outside world, in the product's words.
 ///

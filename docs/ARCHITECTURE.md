@@ -92,6 +92,50 @@ The six that took it — `identity`, `shipments`, `routing`, `delivery`, `paymen
 
 A `_testing` package is created when, and only when, another package's tests consume its fakes. Seven features have one; the other six would have shipped an empty package to be consistent with a rule nobody wrote.
 
+### What an `_api` package looks like inside
+
+A contract package is the one place where the hexagon's two kinds of port are both declared, so the folders say which is which:
+
+```
+delivery_api/lib/src/
+  entities/            a type with an identity and a life cycle — extends Entity<Id>
+  values/              everything defined by its value — value objects, enums, sealed unions
+  events/              extends DomainEvent
+  failures/            extends Failure, sealed
+  ports/
+    driving/           what an audience asks of this feature; implemented in _application
+    driven/            what this feature asks of the world; implemented in _infrastructure
+```
+
+**The driving/driven split is the whole reason to have folders here at all.** Flat, `delivery_gateway.dart` sits between `delivery_grade.dart` and `delivery_failure.dart` and nothing on screen says that the first is an adapter's obligation, the second a value and the third a contract's failure story. The distinction between a port the application implements and a port the infrastructure implements is the diagram every explanation of this architecture opens with, and it costs nothing to make it the directory listing as well.
+
+The test for which folder is mechanical, and deliberately so — it reads the code rather than the name:
+
+| Folder | Test |
+|---|---|
+| `entities/` | `extends Entity<Id>` |
+| `events/` | `extends DomainEvent` |
+| `failures/` | `extends Failure` |
+| `ports/driving` | `abstract interface class`, implemented in `_application` |
+| `ports/driven` | `abstract interface class`, implemented in `_infrastructure` or `platform/*` |
+| `values/` | everything else |
+
+One type refuses the mechanical answer, and it is instructive: `SyncCommand` is an `abstract interface class` implemented in `_application`, which reads as a driving port. Its own doc comment says otherwise — *"They are values, not adapters: nothing about them touches the outside world"* — and it lives in `values/`. **An interface is not automatically a port.** A port is a boundary something on the other side answers; `SyncCommand` is a shape a feature's own value satisfies.
+
+**The other package roles stay flat**, and that is a calibration rather than an oversight. An `_application` package holds use cases and coordinators; an `_infrastructure` package holds adapters, DTOs and mappers. Folders there would be one folder with everything in it, or three folders of two files. `_api` earns the split because it holds five genuinely different kinds of thing and is the largest package in every feature — `delivery_api` alone has 26 sources.
+
+### There is no BLoC here, and that is a decision
+
+The `_presentation` packages drive their screens with a hand-written controller over a sealed state type: `ProofCaptureState` has five cases, `ProofCaptureController` extends `ChangeNotifier`, holds four ports and emits states. That is Cubit's semantics with none of Cubit's package.
+
+The specification's test pyramid says *"Bloc ve widget testi (`_presentation`): yüzde 15"*, so the word appears in the task this repository is built from. It is read as the name of a layer's tests rather than as a mandated library, for one reason that outweighs the vocabulary argument:
+
+**Every `_presentation` package in this workspace has zero third-party dependencies.** Not a state management package, and not `go_router` either — the router lives in `apps/*` and a presentation package publishes `RouteDefinition` values instead. `flutter_bloc` would be the first third-party runtime dependency in the layer, in exactly the layer that was kept clean of the far more obvious candidate. `arch_check` permits it (`feature_presentation` carries `allow_third_party: true`), which is what makes this a decision rather than a rule: nothing stops it but the argument.
+
+What the decision costs is real and worth naming: no `bloc_test`, no DevTools timeline of state transitions, no event objects as an audit trail, and a reader who knows Bloc has to learn what "Controller" means here. What it buys is that the layer's dependency list is its contracts, `design_system` and Flutter — so a screen can be moved to another app, or a second app can render the same feature differently, without a state-management migration in between.
+
+The shape is what matters and the shape is already there. **If this were adopted, `Cubit` and not `Bloc`**: the sealed states stay identical, `_emit` becomes `emit`, and no event classes appear — a 1:1 conversion. Events would add roughly sixty classes to describe transitions that method names already describe.
+
 ---
 
 ## 3. The seven scenarios

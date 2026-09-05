@@ -18,11 +18,11 @@
 /// screen has to be able to state it.
 library;
 
-export 'src/escalation_policy.dart';
-export 'src/incident.dart';
-export 'src/incident_category.dart';
-export 'src/incident_id.dart';
-export 'src/incident_log.dart';
-export 'src/incident_severity.dart';
-export 'src/incidents_facade.dart';
-export 'src/incidents_failure.dart';
+export 'src/entities/incident.dart';
+export 'src/failures/incidents_failure.dart';
+export 'src/ports/driven/incident_log.dart';
+export 'src/ports/driving/incidents_facade.dart';
+export 'src/values/escalation_policy.dart';
+export 'src/values/incident_category.dart';
+export 'src/values/incident_id.dart';
+export 'src/values/incident_severity.dart';

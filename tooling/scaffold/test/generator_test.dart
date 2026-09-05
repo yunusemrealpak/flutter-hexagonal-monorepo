@@ -45,7 +45,10 @@ void main() {
       expect(workspace.exists('$api/README.md'), isTrue);
       expect(workspace.exists('$api/dart_test.yaml'), isTrue);
       expect(workspace.exists('$api/lib/billing_api.dart'), isTrue);
-      expect(workspace.exists('$api/lib/src/billing_failure.dart'), isTrue);
+      expect(
+        workspace.exists('$api/lib/src/failures/billing_failure.dart'),
+        isTrue,
+      );
       expect(workspace.exists('$api/test/billing_api_test.dart'), isTrue);
     });
 
@@ -54,9 +57,36 @@ void main() {
       final barrel = workspace.read(
         'packages/features/billing/billing_api/lib/billing_api.dart',
       );
-      expect(barrel, contains("export 'src/billing_failure.dart';"));
-      expect(barrel, contains("export 'src/billing_repository.dart';"));
+      expect(barrel, contains("export 'src/failures/billing_failure.dart';"));
+      expect(
+        barrel,
+        contains("export 'src/ports/driven/billing_repository.dart';"),
+      );
       expect(barrel.split('export ').length - 1, 2);
+    });
+
+    // The layout, not just the files. A contract package is where the
+    // hexagon's two kinds of port are declared, and section 7 of CLAUDE.md
+    // says the filesystem shows that split. A seed that wrote its port next
+    // to its failure would teach the flat layout to every feature scaffolded
+    // after it, which is how a convention that lives only in a document dies.
+    test('the _api seed is laid out in folders by kind', () {
+      generate();
+      const api = 'packages/features/billing/billing_api';
+      expect(
+        workspace.exists('$api/lib/src/ports/driven/billing_repository.dart'),
+        isTrue,
+      );
+      expect(
+        workspace.exists('$api/lib/src/failures/billing_failure.dart'),
+        isTrue,
+      );
+      // A port reaches its failure across two folders, so the seed has to get
+      // the relative import right or the package does not compile.
+      final port = workspace.read(
+        '$api/lib/src/ports/driven/billing_repository.dart',
+      );
+      expect(port, contains("import '../../failures/billing_failure.dart';"));
     });
 
     test('nothing but the barrel sits directly under lib/', () {
