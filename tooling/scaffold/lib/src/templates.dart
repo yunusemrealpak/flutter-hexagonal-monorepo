@@ -256,9 +256,11 @@ String _imports({
 /// The seed writes only the two folders it has files for; the rest arrive with
 /// the feature's first entity and value.
 ///
-/// The other roles stay flat, and that is a calibration rather than an
-/// oversight: an `_application` package holds use cases and nothing else, so a
-/// folder per kind would be one folder.
+/// `_application` and `_infrastructure` are grouped too, by their own seeds
+/// below. `_presentation` and `_testing` stay flat, and that is a calibration
+/// rather than an oversight: a presentation package holds one controller, one
+/// state, one screen and its routes, so a folder per kind would be four
+/// folders holding one file each.
 Map<String, String> _apiSources(Naming naming) {
   final feature = naming.feature;
   final type = naming.featurePascal;
@@ -324,11 +326,18 @@ abstract interface class ${type}Repository {
   };
 }
 
+/// The `_application` seed, in the folders section 7 of CLAUDE.md defines.
+///
+/// `use_cases/`, `coordinators/`, `commands/`, `values/`, `lifecycle/` and
+/// `internal/`. The seed writes the first of those and nothing else: a feature
+/// earns a coordinator when it has a driving port to answer, and a command
+/// when something it does has to survive being offline. Writing empty folders
+/// would teach that every feature needs all six.
 Map<String, String> _applicationSources(Naming naming) {
   final feature = naming.feature;
   final type = naming.featurePascal;
   return {
-    'lib/src/load_$feature.dart':
+    'lib/src/use_cases/load_$feature.dart':
         '''
 ${_imports(packages: ['${feature}_api/${feature}_api.dart', 'core_kernel/core_kernel.dart'])}
 
@@ -358,11 +367,19 @@ final class Load$type
   };
 }
 
+/// The `_infrastructure` seed, in the folders section 7 of CLAUDE.md defines.
+///
+/// `adapters/`, `dto/` and `mappers/`. The split is invariant 1.2.10 made
+/// visible: a DTO never appears in a signature the domain can see, and the
+/// translation between the two has a place of its own. The seed writes an
+/// adapter and a DTO; `mappers/` arrives when the mapping outgrows the
+/// `toDomain` method below, which is the point at which it stops being an
+/// implementation detail of one DTO.
 Map<String, String> _infrastructureSources(Naming naming) {
   final feature = naming.feature;
   final type = naming.featurePascal;
   return {
-    'lib/src/${feature}_dto.dart':
+    'lib/src/dto/${feature}_dto.dart':
         '''
 /// The wire shape of a $feature record.
 ///
@@ -393,9 +410,9 @@ final class ${type}Dto {
   String toDomain() => id;
 }
 ''',
-    'lib/src/remote_${feature}_repository.dart':
+    'lib/src/adapters/remote_${feature}_repository.dart':
         '''
-${_imports(packages: ['${feature}_api/${feature}_api.dart', 'core_kernel/core_kernel.dart'], relative: ['${feature}_dto.dart'])}
+${_imports(packages: ['${feature}_api/${feature}_api.dart', 'core_kernel/core_kernel.dart'], relative: ['../dto/${feature}_dto.dart'])}
 
 /// Answers the $feature contract from a remote system.
 ///

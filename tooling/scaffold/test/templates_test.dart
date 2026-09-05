@@ -36,7 +36,7 @@ void main() {
         final source = filesOf(
           feature,
           '${feature}_application',
-        )['lib/src/load_$feature.dart']!;
+        )['lib/src/use_cases/load_$feature.dart']!;
         final imports = source
             .split('\n')
             .where((line) => line.startsWith("import 'package:"))
