@@ -16,9 +16,9 @@
 /// its own, that is the signal a use case is missing.
 library;
 
-export 'src/advance_shipment.dart';
-export 'src/find_shipment.dart';
-export 'src/load_manifest.dart';
-export 'src/resolve_barcode.dart';
-export 'src/shipment_move.dart';
-export 'src/shipments_coordinator.dart';
+export 'src/coordinators/shipments_coordinator.dart';
+export 'src/use_cases/advance_shipment.dart';
+export 'src/use_cases/find_shipment.dart';
+export 'src/use_cases/load_manifest.dart';
+export 'src/use_cases/resolve_barcode.dart';
+export 'src/values/shipment_move.dart';

@@ -24,9 +24,9 @@
 /// a `TypeError` is a decision rather than a shape.
 library;
 
-export 'src/key_value_shipment_cache.dart';
-export 'src/manifest_barcode_resolver.dart';
-export 'src/remote_barcode_resolver.dart';
-export 'src/rest_shipment_gateway.dart';
-export 'src/shipment_dto.dart';
-export 'src/shipment_mapper.dart';
+export 'src/adapters/key_value_shipment_cache.dart';
+export 'src/adapters/manifest_barcode_resolver.dart';
+export 'src/adapters/remote_barcode_resolver.dart';
+export 'src/adapters/rest_shipment_gateway.dart';
+export 'src/dto/shipment_dto.dart';
+export 'src/mappers/shipment_mapper.dart';

@@ -24,8 +24,8 @@
 /// that is the signal a use case is missing.
 library;
 
-export 'src/drain_outbox.dart';
-export 'src/enqueue_command.dart';
-export 'src/read_sync_status.dart';
-export 'src/review_queue.dart';
-export 'src/sync_coordinator.dart';
+export 'src/coordinators/sync_coordinator.dart';
+export 'src/use_cases/drain_outbox.dart';
+export 'src/use_cases/enqueue_command.dart';
+export 'src/use_cases/read_sync_status.dart';
+export 'src/use_cases/review_queue.dart';

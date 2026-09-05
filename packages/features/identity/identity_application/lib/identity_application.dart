@@ -16,4 +16,4 @@
 /// the keychain is full, sign out locally even when the server cannot be told.
 library;
 
-export 'src/identity_coordinator.dart';
+export 'src/coordinators/identity_coordinator.dart';

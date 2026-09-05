@@ -30,10 +30,10 @@
 /// rules live — is untouched by it.
 library;
 
-export 'src/device_location_stream.dart';
-export 'src/key_value_route_cache.dart';
-export 'src/local_heuristic_optimizer.dart';
-export 'src/remote_solver_optimizer.dart';
-export 'src/rest_traffic_data.dart';
-export 'src/route_dto.dart';
-export 'src/route_mapper.dart';
+export 'src/adapters/device_location_stream.dart';
+export 'src/adapters/key_value_route_cache.dart';
+export 'src/adapters/local_heuristic_optimizer.dart';
+export 'src/adapters/remote_solver_optimizer.dart';
+export 'src/adapters/rest_traffic_data.dart';
+export 'src/dto/route_dto.dart';
+export 'src/mappers/route_mapper.dart';

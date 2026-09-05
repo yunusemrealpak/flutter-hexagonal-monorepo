@@ -34,10 +34,10 @@
 /// owed and cannot take money, because the type it holds has no method for it.
 library;
 
-export 'src/close_daily_settlement.dart';
-export 'src/collect_on_delivery.dart';
-export 'src/collect_payment_command.dart';
-export 'src/collection_reconciler.dart';
-export 'src/payment_status_of.dart';
-export 'src/payments_coordinator.dart';
-export 'src/refund_collection.dart';
+export 'src/commands/collect_payment_command.dart';
+export 'src/coordinators/payments_coordinator.dart';
+export 'src/lifecycle/collection_reconciler.dart';
+export 'src/use_cases/close_daily_settlement.dart';
+export 'src/use_cases/collect_on_delivery.dart';
+export 'src/use_cases/payment_status_of.dart';
+export 'src/use_cases/refund_collection.dart';

@@ -37,10 +37,10 @@
 /// the signal a use case is missing.
 library;
 
-export 'src/plan_route.dart';
-export 'src/recalculate_on_deviation.dart';
-export 'src/route_channel.dart';
-export 'src/route_following_coordinator.dart';
-export 'src/route_planning_coordinator.dart';
-export 'src/route_reads.dart';
-export 'src/route_supervision_coordinator.dart';
+export 'src/coordinators/route_following_coordinator.dart';
+export 'src/coordinators/route_planning_coordinator.dart';
+export 'src/coordinators/route_supervision_coordinator.dart';
+export 'src/lifecycle/route_channel.dart';
+export 'src/use_cases/plan_route.dart';
+export 'src/use_cases/recalculate_on_deviation.dart';
+export 'src/use_cases/route_reads.dart';
