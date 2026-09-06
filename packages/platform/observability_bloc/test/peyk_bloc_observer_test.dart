@@ -1,3 +1,6 @@
+@Tags(['unit'])
+library;
+
 import 'dart:async';
 
 import 'package:bloc/bloc.dart';
