@@ -1,5 +1,7 @@
+import 'package:bloc/bloc.dart';
 import 'package:core_ports/core_ports.dart';
 import 'package:flutter/widgets.dart';
+import 'package:observability_bloc/observability_bloc.dart';
 import 'package:sync_api/sync_api.dart';
 
 import 'src/di/injection.dart';
@@ -24,6 +26,14 @@ export 'src/sync/sync_orchestrator.dart';
 /// feature that did not compose.
 void main() {
   final container = configureHarness();
+  // Every bloc in the process reports here, and nothing else does: `Bloc
+  // .observer` is a static setter, which is a global by any other name, so it
+  // is set once in a composition root the way §1.2.7 puts every other global
+  // in the app layer. What it buys is `onError` — a handler that throws is
+  // caught by bloc, so without an observer the state simply stops changing
+  // and no evidence of it exists anywhere in the process.
+  Bloc.observer = PeykBlocObserver(logger: container<Logger>());
+
   // Nothing enqueues through this and nothing waits for it: it decides when
   // a queue that already holds the work is worth attempting. Started before
   // the first frame so that an app reopened on the street sends what was

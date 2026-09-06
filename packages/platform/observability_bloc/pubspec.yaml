@@ -1,0 +1,21 @@
+name: observability_bloc
+description: >-
+  The bloc observer that turns state-machine activity into records on the
+  Logger port.
+publish_to: none
+version: 0.1.0
+resolution: workspace
+
+environment:
+  sdk: ^3.12.0
+
+# `bloc` and not `flutter_bloc`: an observer sees blocs, not widgets, and this
+# package takes no Flutter dependency at all. `core_ports` is the row section 2
+# of docs/DEPENDENCY_RULES.md gives a platform package — the Logger port is
+# what this adapter writes to.
+dependencies:
+  bloc: ^9.0.1
+  core_ports: ^0.1.0
+
+dev_dependencies:
+  test: ^1.25.0
