@@ -103,11 +103,12 @@ PeykRouter buildDispatcherRouter(GetIt container) {
           ),
         ),
       ),
-      'reports.board': (context, _) => ReportScreen(
-        controller: ReportController(
+      'reports.board': (context, _) => BlocProvider(
+        create: (_) => ReportBloc(
           reporting: container<ReportingFacade>(),
           permissions: permissions,
         ),
+        child: const ReportScreen(),
       ),
       'sync.review': (context, _) => ReviewQueueScreen(
         controller: ReviewQueueController(sync: container<SyncFacade>()),

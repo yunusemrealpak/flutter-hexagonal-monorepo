@@ -1,11 +1,11 @@
-import 'dart:async';
-
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:reporting_api/reporting_api.dart';
 
 import '../reporting_strings.dart';
-import 'report_controller.dart';
+import 'report_bloc.dart';
+import 'report_event.dart';
 import 'report_state.dart';
 
 /// Where a dispatcher watches the day.
@@ -14,12 +14,11 @@ import 'report_state.dart';
 /// — deliberately, because the first chart in a design system is the decision
 /// that shapes every chart after it, and this repository has no data to shape
 /// it around. Rows and rates are what the numbers actually support.
+/// The bloc arrives through the widget tree: whoever mounts this screen puts a
+/// [ReportBloc] above it with `BlocProvider`.
 final class ReportScreen extends StatelessWidget {
-  /// Creates the screen over [controller].
-  const ReportScreen({required this.controller, super.key});
-
-  /// What drives it.
-  final ReportController controller;
+  /// Creates the screen.
+  const ReportScreen({super.key});
 
   /// Which string a failure should be shown as.
   ///
@@ -61,9 +60,10 @@ final class ReportScreen extends StatelessWidget {
     return PeykScreen(
       title: strings.resolve(ReportingStrings.title),
       scrollable: true,
-      body: ListenableBuilder(
-        listenable: controller,
-        builder: (context, _) => switch (controller.state) {
+      // No `buildWhen`: `ReportReady` follows `ReportReady` whenever an app
+      // asks for a second range, and that is the emission the board exists for.
+      body: BlocBuilder<ReportBloc, ReportState>(
+        builder: (context, state) => switch (state) {
           ReportIdle() || ReportLoading() => const PeykLoadingView(),
           // Not a failure. A courier opening a dispatcher's report has not hit
           // an error, they have hit a screen that is not theirs — and a retry
@@ -103,7 +103,8 @@ final class ReportScreen extends StatelessWidget {
           ),
           ReportFailed(:final failure) => PeykFailureView(
             message: strings.resolve(ReportScreen.describe(failure)),
-            onRetry: () => unawaited(controller.retry()),
+            onRetry: () =>
+                context.read<ReportBloc>().add(const ReportRetried()),
           ),
         },
       ),

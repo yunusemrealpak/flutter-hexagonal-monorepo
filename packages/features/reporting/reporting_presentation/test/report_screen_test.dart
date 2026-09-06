@@ -4,6 +4,7 @@ library;
 import 'package:core_kernel/core_kernel.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:reporting_api/reporting_api.dart';
@@ -80,23 +81,34 @@ OperationTally _day({
   return tally;
 }
 
-Widget _wrap(Widget child) => PeykTheme.wrap(child: child);
-
 void main() {
   late _Reporting reporting;
 
   setUp(() => reporting = _Reporting());
 
-  ReportController controller({
+  ReportBloc build({
     Set<Permission> granted = const {Permission.viewReports},
-  }) {
-    final built = ReportController(
-      reporting: reporting,
-      permissions: _Permissions(granted),
-    );
-    addTearDown(built.dispose);
-    return built;
-  }
+  }) => ReportBloc(
+    reporting: reporting,
+    permissions: _Permissions(granted),
+  );
+
+  /// The tree the screen needs, with the bloc **owned by the provider**.
+  ///
+  /// A widget test must never close a bloc itself: `Bloc.close()` completes on
+  /// microtasks scheduled inside the fake-async zone, so awaiting it from the
+  /// body or from `addTearDown` hangs with no failure and no timeout.
+  Widget screen({
+    required ReportingDay from,
+    required ReportingDay to,
+    Set<Permission> granted = const {Permission.viewReports},
+  }) => PeykTheme.wrap(
+    child: BlocProvider<ReportBloc>(
+      create: (_) =>
+          build(granted: granted)..add(RangeRequested(from: from, to: to)),
+      child: const ReportScreen(),
+    ),
+  );
 
   testWidgets('a dispatcher sees the totals and a rate per day', (
     tester,
@@ -105,12 +117,9 @@ void main() {
       _day(on: DateTime.utc(2026, 3, 3), delivered: 3, failed: 1),
       _day(on: DateTime.utc(2026, 3, 4), delivered: 1, failed: 1),
     ];
-    final subject = controller();
 
-    await tester.pumpWidget(_wrap(ReportScreen(controller: subject)));
-    await subject.load(
-      from: ReportingDay.of(DateTime.utc(2026, 3, 3)),
-      to: _today,
+    await tester.pumpWidget(
+      screen(from: ReportingDay.of(DateTime.utc(2026, 3, 3)), to: _today),
     );
     await tester.pumpAndSettle();
 
@@ -137,10 +146,9 @@ void main() {
   testWidgets('an actor without the permission is told, and nothing is read', (
     tester,
   ) async {
-    final subject = controller(granted: const {});
-
-    await tester.pumpWidget(_wrap(ReportScreen(controller: subject)));
-    await subject.load(from: _today, to: _today);
+    await tester.pumpWidget(
+      screen(from: _today, to: _today, granted: const {}),
+    );
     await tester.pumpAndSettle();
 
     expect(find.text(ReportingStrings.forbidden), findsOneWidget);
@@ -154,10 +162,8 @@ void main() {
       from: '2026-03-06',
       to: '2026-03-02',
     );
-    final subject = controller();
 
-    await tester.pumpWidget(_wrap(ReportScreen(controller: subject)));
-    await subject.load(from: _today, to: _today);
+    await tester.pumpWidget(screen(from: _today, to: _today));
     await tester.pumpAndSettle();
 
     expect(
@@ -167,12 +173,39 @@ void main() {
   });
 
   test('an empty range reads as zero rather than as forbidden', () async {
-    final subject = controller();
+    final bloc = build();
+    addTearDown(bloc.close);
 
-    await subject.load(from: _today, to: _today);
+    bloc.add(RangeRequested(from: _today, to: _today));
+    await bloc.stream.firstWhere((state) => state is ReportReady);
 
-    expect(subject.state, isA<ReportReady>());
-    expect((subject.state as ReportReady).total, 0);
+    expect((bloc.state as ReportReady).total, 0);
+  });
+
+  // The retry carries no range, because the screen never had one. Nothing has
+  // been read yet here, so there is nothing to remember and nothing happens —
+  // guessing a range would be worse than doing nothing.
+  test('a retry before any range has been asked for reads nothing', () async {
+    final bloc = build();
+    addTearDown(bloc.close);
+
+    bloc.add(const ReportRetried());
+    await Future<void>.delayed(Duration.zero);
+
+    expect(reporting.reads, 0);
+    expect(bloc.state, isA<ReportIdle>());
+  });
+
+  test('a retry reads the range the bloc remembered', () async {
+    final bloc = build();
+    addTearDown(bloc.close);
+    bloc.add(RangeRequested(from: _today, to: _today));
+    await bloc.stream.firstWhere((state) => state is ReportReady);
+
+    bloc.add(const ReportRetried());
+    await bloc.stream.firstWhere((state) => state is ReportReady);
+
+    expect(reporting.reads, 2);
   });
 
   test('a rate is rendered in whole points', () {
