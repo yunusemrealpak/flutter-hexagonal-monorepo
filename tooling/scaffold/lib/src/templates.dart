@@ -42,9 +42,18 @@ String _pubspec(PackagePlan package, {required bool codegen}) {
   // orderings that break it are not the obvious ones: an SDK dependency on
   // `flutter` sorts before a feature named `vehicle_inventory` and after one
   // named `billing`, so appending it is right about half the time.
+  // Workspace packages are all at 0.1.0; the hosted ones a role genuinely
+  // needs carry their own constraint. The list stays a whitelist either way —
+  // section 2 of DEPENDENCY_RULES.md is about which *workspace* edges are
+  // allowed, and a hosted package a presentation layer cannot do without is
+  // still an entry somebody has to justify in review.
   final dependencies = <String, String>{
     for (final dependency in package.dependencies)
-      dependency: '  $dependency: ^0.1.0',
+      dependency: switch (dependency) {
+        'bloc_concurrency' => '  bloc_concurrency: ^0.3.0',
+        'flutter_bloc' => '  flutter_bloc: ^9.1.1',
+        _ => '  $dependency: ^0.1.0',
+      },
     if (package.usesFlutter) 'flutter': '  flutter:\n    sdk: flutter',
   };
 
@@ -452,12 +461,118 @@ final class Remote${type}Repository implements ${type}Repository {
 /// this layer by kind and `settings_presentation`'s two units — the screen and
 /// the alerts section — end up interleaved in a `bloc/` folder with nothing but
 /// a name prefix to say which state belongs to which.
+/// The `_presentation` seed: a Bloc triad and the screen that renders it.
+///
+/// Four files rather than one widget, because the shape is the lesson. A
+/// screen that held its own state would be the thing this workspace spent a
+/// conversion removing, and a seed is what the next feature copies.
+///
+/// The bloc takes no port, and that is deliberate rather than unfinished: the
+/// `_api` seed writes a driven port and no driving one, because a feature
+/// earns a facade when it has something to drive. The constructor is where
+/// one arrives the day it does.
 Map<String, String> _presentationSources(PackagePlan package, Naming naming) {
   final type = naming.pascal;
+  final snake = naming.snake;
   final sources = <String, String>{
-    'lib/src/${naming.snake}/${naming.snake}_screen.dart':
+    'lib/src/$snake/${snake}_event.dart':
         '''
-import 'package:flutter/widgets.dart';
+/// What can happen to the $type screen.
+///
+/// Sealed, so that a transformer registered against a base event covers every
+/// case that will ever extend it — and so that adding one stops the bloc
+/// compiling until somebody decides which policy it runs under.
+sealed class ${type}Event {
+  /// Const so that an event can be built in a const context.
+  const ${type}Event();
+}
+
+/// Read whatever this screen shows.
+final class ${type}Requested extends ${type}Event {
+  /// Creates the event.
+  const ${type}Requested();
+}
+''',
+    'lib/src/$snake/${snake}_state.dart':
+        '''
+/// What the $type screen can be showing.
+///
+/// Sealed and hand-written. Cases rather than one class with `isLoading`, a
+/// value and a failure on it: the flat shape lets a widget be handed a loading
+/// state that also carries a failure, and the day two of those are set at once
+/// nobody can say what should be on screen.
+sealed class ${type}State {
+  /// Const so that a state can be built in a const context.
+  const ${type}State();
+}
+
+/// Nothing has been asked for yet.
+final class ${type}Idle extends ${type}State {
+  /// Creates the state.
+  const ${type}Idle();
+}
+
+/// There is something to draw.
+final class ${type}Ready extends ${type}State {
+  /// Creates the state.
+  const ${type}Ready(this.label);
+
+  /// What the screen shows. A resolved string, because turning a domain value
+  /// into words happens at the widget where the locale is known.
+  final String label;
+}
+''',
+    'lib/src/$snake/${snake}_bloc.dart':
+        """
+${_imports(
+          packages: [
+            'bloc_concurrency/bloc_concurrency.dart',
+            'flutter_bloc/flutter_bloc.dart',
+          ],
+          relative: ['${snake}_event.dart', '${snake}_state.dart'],
+        )}
+
+/// Drives the $type screen.
+///
+/// **Every registration names a transformer, and the choice is the design.**
+/// `restartable()` is for a read: a newer one makes an older one worthless, so
+/// the first is cancelled rather than allowed to answer last. A write that a
+/// second tap would repeat takes `droppable()` — two taps on *pay* are one
+/// person asking once. Two different things that must both happen, in order,
+/// take `sequential()`.
+///
+/// A transformer governs one `on` registration and does not span two, so
+/// events that must share a policy share a sealed intermediate type and one
+/// registration.
+///
+/// Ports arrive through the constructor when this feature has a driving one to
+/// take. A bloc that reached for a service locator would be the global §1.2.7
+/// keeps in the app layer.
+final class ${type}Bloc extends Bloc<${type}Event, ${type}State> {
+  /// Creates the bloc.
+  ${type}Bloc() : super(const ${type}Idle()) {
+    on<${type}Requested>(_onRequested, transformer: restartable());
+  }
+
+  Future<void> _onRequested(
+    ${type}Requested event,
+    Emitter<${type}State> emit,
+  ) async => emit(const ${type}Ready('$snake'));
+}
+""",
+    'lib/src/$snake/${snake}_screen.dart':
+        """
+${_imports(
+          packages: [
+            'flutter/widgets.dart',
+            'flutter_bloc/flutter_bloc.dart',
+          ],
+          relative: [
+            '${snake}_bloc.dart',
+            '${snake}_event.dart',
+            '${snake}_state.dart',
+          ],
+        )}
 
 /// The $type screen.
 ///
@@ -465,19 +580,51 @@ import 'package:flutter/widgets.dart';
 /// `_application` or `_infrastructure`: it knows the vocabulary, not the use
 /// cases and not the adapters. An app's composition root supplies whatever
 /// this screen needs to call.
-final class ${type}Screen extends StatelessWidget {
-  /// Creates the screen.
+///
+/// **It takes nothing and reads its bloc from the tree.** A screen that
+/// constructed its own could not be given a different one by a test, a shell
+/// or a second route, and an app could not decide the bloc's lifetime — which
+/// is the decision that says whether a badge outlives a route.
+final class ${type}Screen extends StatefulWidget {
+  /// Creates the screen. Its bloc comes from the tree above it.
   const ${type}Screen({super.key});
 
   @override
-  Widget build(BuildContext context) => const SizedBox.shrink();
+  State<${type}Screen> createState() => _${type}ScreenState();
 }
-''',
+
+class _${type}ScreenState extends State<${type}Screen> {
+  @override
+  void initState() {
+    super.initState();
+    context.read<${type}Bloc>().add(const ${type}Requested());
+  }
+
+  @override
+  Widget build(BuildContext context) =>
+      BlocBuilder<${type}Bloc, ${type}State>(
+        // Add a `buildWhen` when a case can meaningfully follow itself, and
+        // compare the payload by identity when it does: an immutable value is
+        // a different object when it is a different value, and the same object
+        // cannot have changed. A `BlocSelector` goes where one part of the
+        // screen redraws far more often than the rest. Neither belongs here
+        // yet — a control that can never prevent a rebuild is one everybody
+        // has to read and re-check.
+        builder: (context, state) => switch (state) {
+          ${type}Idle() => const SizedBox.shrink(),
+          ${type}Ready(:final label) => Text(
+            label,
+            textDirection: TextDirection.ltr,
+          ),
+        },
+      );
+}
+""",
   };
 
   if (package.dependencies.contains('core_navigation')) {
-    sources['lib/src/${naming.snake}_routes.dart'] =
-        '''
+    sources['lib/src/${snake}_routes.dart'] =
+        """
 import 'package:core_navigation/core_navigation.dart';
 
 /// The destinations this package offers.
@@ -491,14 +638,14 @@ final class ${type}Routes implements RouteModule {
   const ${type}Routes();
 
   @override
-  String get moduleName => '${naming.snake}';
+  String get moduleName => '$snake';
 
   @override
   List<RouteDefinition> get routes => const [
-    RouteDefinition(name: '${naming.snake}.home', path: '/${naming.snake}'),
+    RouteDefinition(name: '$snake.home', path: '/$snake'),
   ];
 }
-''';
+""";
   }
   return sources;
 }
@@ -555,9 +702,14 @@ final class Fake${type}Repository implements ${type}Repository {
 String _test(PackagePlan package, Naming naming) {
   final feature = naming.feature;
   final type = naming.featurePascal;
-  final harness = package.usesFlutter
-      ? "import 'package:flutter_test/flutter_test.dart';"
-      : "import 'package:test/test.dart';";
+  final harness = switch (package.role) {
+    PackageRole.presentation =>
+      "import 'package:flutter_bloc/flutter_bloc.dart';\n"
+          "import 'package:flutter_test/flutter_test.dart';",
+    _ when package.usesFlutter =>
+      "import 'package:flutter_test/flutter_test.dart';",
+    _ => "import 'package:test/test.dart';",
+  };
 
   final body = switch (package.role) {
     PackageRole.api =>
@@ -625,11 +777,41 @@ String _test(PackagePlan package, Naming naming) {
 ''',
     PackageRole.presentation =>
       '''
+  group('${naming.pascal}Bloc', () {
+    test('starts idle and asks for nothing', () {
+      final bloc = ${naming.pascal}Bloc();
+      addTearDown(bloc.close);
+
+      expect(bloc.state, isA<${naming.pascal}Idle>());
+    });
+
+    test('answers what it was asked for', () async {
+      final bloc = ${naming.pascal}Bloc();
+      addTearDown(bloc.close);
+
+      bloc.add(const ${naming.pascal}Requested());
+      await pumpEventQueue();
+
+      expect(bloc.state, isA<${naming.pascal}Ready>());
+    });
+  });
+
   group('${naming.pascal}Screen', () {
-    testWidgets('builds', (tester) async {
-      await tester.pumpWidget(const ${naming.pascal}Screen());
+    // The bloc is owned by the provider, and in a widget test it has to be:
+    // `Bloc.close()` completes on microtasks scheduled inside the fake-async
+    // zone, so awaiting it from a tear-down hangs with no failure and no
+    // timeout. Only a plain `test` may close one itself.
+    testWidgets('draws what its bloc holds', (tester) async {
+      await tester.pumpWidget(
+        BlocProvider(
+          create: (_) => ${naming.pascal}Bloc(),
+          child: const ${naming.pascal}Screen(),
+        ),
+      );
+      await tester.pumpAndSettle();
 
       expect(find.byType(${naming.pascal}Screen), findsOneWidget);
+      expect(find.text('${naming.snake}'), findsOneWidget);
     });
   });
 ''',

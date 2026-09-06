@@ -130,12 +130,18 @@ void main() {
       ]);
     });
 
-    test('_presentation: own _api, navigation and the design system', () {
+    test('_presentation: own _api, navigation, design system and bloc', () {
+      // The one role whose row permits third-party packages, and the two it
+      // takes are the ones the conversion settled on: a screen in this
+      // workspace is a `BlocBuilder` over a bloc whose every registration
+      // names a transformer.
       expect(dependenciesOf(full, 'billing_presentation'), [
         'billing_api',
+        'bloc_concurrency',
         'core_kernel',
         'core_navigation',
         'design_system',
+        'flutter_bloc',
       ]);
     });
 
@@ -181,9 +187,13 @@ void main() {
         FeatureSplit.full,
         existing: const {'core_kernel', 'core_ports'},
       );
+      // The hosted two stay: `ifPresent` is about workspace packages that a
+      // later phase adds, and pub can resolve `flutter_bloc` on day one.
       expect(dependenciesOf(plan, 'billing_presentation'), [
         'billing_api',
+        'bloc_concurrency',
         'core_kernel',
+        'flutter_bloc',
       ]);
     });
   });

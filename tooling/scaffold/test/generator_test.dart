@@ -136,6 +136,55 @@ void main() {
       expect(workspace.exists('$package/billing_routes.dart'), isTrue);
     });
 
+    // The triad, and it is the seed rather than a document that keeps it. A
+    // convention that lives only in ARCHITECTURE.md is one the next
+    // `dart run scaffold` breaks, and the file a new feature copies is the
+    // one that decides what every screen after it looks like.
+    test('the _presentation seed is a Bloc, an event and a state', () {
+      generate();
+      const screen =
+          'packages/features/billing/billing_presentation/lib/src'
+          '/billing';
+      expect(workspace.exists('$screen/billing_bloc.dart'), isTrue);
+      expect(workspace.exists('$screen/billing_event.dart'), isTrue);
+      expect(workspace.exists('$screen/billing_state.dart'), isTrue);
+
+      // Every registration names a transformer. A seeded `on` with none would
+      // teach the default — concurrent, which is the policy nothing in this
+      // workspace wanted.
+      final bloc = workspace.read('$screen/billing_bloc.dart');
+      expect(bloc, contains('transformer: restartable()'));
+      expect(
+        bloc,
+        contains("import 'package:bloc_concurrency/bloc_concurrency.dart';"),
+      );
+      // The bloc reaches its event and state across one folder, so the seed
+      // has to get the relative imports right or the package does not compile.
+      expect(bloc, contains("import 'billing_event.dart';"));
+
+      // And the screen takes its bloc from the tree rather than building one,
+      // which is what lets an app decide the lifetime.
+      final screenSource = workspace.read('$screen/billing_screen.dart');
+      expect(screenSource, contains('const BillingScreen({super.key})'));
+      expect(screenSource, contains('context.read<BillingBloc>()'));
+    });
+
+    test('the _presentation pubspec carries the two hosted packages', () {
+      generate();
+      final pubspec = workspace.read(
+        'packages/features/billing/billing_presentation/pubspec.yaml',
+      );
+      expect(pubspec, contains('bloc_concurrency: ^'));
+      expect(pubspec, contains('flutter_bloc: ^'));
+      // Sorted, because `sort_pub_dependencies` is an error in this workspace
+      // and `bloc_concurrency` sorts before `billing_api` in nobody's
+      // intuition.
+      expect(
+        pubspec.indexOf('billing_api:'),
+        lessThan(pubspec.indexOf('bloc_concurrency:')),
+      );
+    });
+
     test('nothing but the barrel sits directly under lib/', () {
       generate();
       final strays = workspace
