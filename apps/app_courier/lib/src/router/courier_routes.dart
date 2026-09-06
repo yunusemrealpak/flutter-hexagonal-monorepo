@@ -217,12 +217,13 @@ PeykRouter buildCourierRouter(GetIt container) {
       ),
       'messaging.thread': (context, parameters) => _parsed(
         ThreadId.parse(parameters['threadId'] ?? ''),
-        (thread) => ThreadScreen(
-          controller: ThreadController(
+        (thread) => BlocProvider(
+          create: (_) => ThreadBloc(
             messaging: container<MessagingFacade>(),
             thread: thread,
             reader: actor(),
           ),
+          child: const ThreadScreen(),
         ),
       ),
       'documents.view': (context, parameters) => _parsed(

@@ -1,20 +1,20 @@
-import 'dart:async';
-
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:messaging_api/messaging_api.dart';
 
 import '../messaging_strings.dart';
-import 'thread_controller.dart';
+import 'thread_bloc.dart';
+import 'thread_event.dart';
 import 'thread_state.dart';
 
 /// Where a courier and the operation talk.
+///
+/// The bloc arrives through the widget tree: whoever mounts this screen puts a
+/// [ThreadBloc] above it with `BlocProvider`.
 final class ThreadScreen extends StatefulWidget {
-  /// Creates the screen over [controller].
-  const ThreadScreen({required this.controller, super.key});
-
-  /// What drives it.
-  final ThreadController controller;
+  /// Creates the screen.
+  const ThreadScreen({super.key});
 
   @override
   State<ThreadScreen> createState() => _ThreadScreenState();
@@ -39,8 +39,9 @@ class _ThreadScreenState extends State<ThreadScreen> {
   @override
   void initState() {
     super.initState();
-    widget.controller.watch();
-    unawaited(widget.controller.load());
+    context.read<ThreadBloc>()
+      ..add(const ThreadWatched())
+      ..add(const ThreadRequested());
   }
 
   @override
@@ -49,9 +50,15 @@ class _ThreadScreenState extends State<ThreadScreen> {
 
     return PeykScreen(
       title: strings.resolve(MessagingStrings.threadTitle),
-      body: ListenableBuilder(
-        listenable: widget.controller,
-        builder: (context, _) => switch (widget.controller.state) {
+      // No `buildWhen` and no `BlocSelector`, and both are deliberate.
+      // `ThreadReady` follows `ThreadReady` on every arriving message, so
+      // narrowing on the case would suppress the only emission that matters;
+      // and without that narrowing a selector underneath would be re-created
+      // rather than skipped, which is the half of the pattern people leave
+      // out. The queue chip could select its count, but the list beside it
+      // redraws for the same emission anyway.
+      body: BlocBuilder<ThreadBloc, ThreadState>(
+        builder: (context, state) => switch (state) {
           ThreadIdle() || ThreadLoading() => const PeykLoadingView(),
           ThreadReady(:final messages) when messages.isEmpty => PeykEmptyView(
             message: strings.resolve(MessagingStrings.threadEmpty),
@@ -81,7 +88,8 @@ class _ThreadScreenState extends State<ThreadScreen> {
           ),
           ThreadFailed(:final failure) => PeykFailureView(
             message: strings.resolve(ThreadScreen.describe(failure)),
-            onRetry: () => unawaited(widget.controller.load()),
+            onRetry: () =>
+                context.read<ThreadBloc>().add(const ThreadRequested()),
           ),
         },
       ),
