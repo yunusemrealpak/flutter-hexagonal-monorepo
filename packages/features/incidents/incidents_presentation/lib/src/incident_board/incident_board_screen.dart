@@ -1,20 +1,20 @@
-import 'dart:async';
-
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:incidents_api/incidents_api.dart';
 
 import '../incidents_strings.dart';
-import 'incident_board_controller.dart';
+import 'incident_board_bloc.dart';
+import 'incident_board_event.dart';
 import 'incident_board_state.dart';
 
 /// Where a dispatcher works down what is still open.
+///
+/// The bloc arrives through the widget tree: whoever mounts this screen puts
+/// an [IncidentBoardBloc] above it with `BlocProvider`.
 final class IncidentBoardScreen extends StatefulWidget {
-  /// Creates the screen over [controller].
-  const IncidentBoardScreen({required this.controller, super.key});
-
-  /// What drives it.
-  final IncidentBoardController controller;
+  /// Creates the screen.
+  const IncidentBoardScreen({super.key});
 
   @override
   State<IncidentBoardScreen> createState() => _IncidentBoardScreenState();
@@ -60,7 +60,7 @@ class _IncidentBoardScreenState extends State<IncidentBoardScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(widget.controller.load());
+    context.read<IncidentBoardBloc>().add(const BoardRequested());
   }
 
   @override
@@ -69,9 +69,10 @@ class _IncidentBoardScreenState extends State<IncidentBoardScreen> {
 
     return PeykScreen(
       title: strings.resolve(IncidentsStrings.boardTitle),
-      body: ListenableBuilder(
-        listenable: widget.controller,
-        builder: (context, _) => switch (widget.controller.state) {
+      // No `buildWhen`. `BoardReady` follows `BoardReady` every time somebody
+      // resolves a row, and that is the emission the screen exists to draw.
+      body: BlocBuilder<IncidentBoardBloc, IncidentBoardState>(
+        builder: (context, state) => switch (state) {
           BoardIdle() || BoardLoading() => const PeykLoadingView(),
           // An empty board is its own view. A screen with nothing on it reads
           // as a screen that failed to load, and a dispatcher would refresh it.
@@ -87,7 +88,9 @@ class _IncidentBoardScreenState extends State<IncidentBoardScreen> {
               IncidentBoardScreen.describe(failure),
               arguments: IncidentBoardScreen.argumentsFor(failure),
             ),
-            onRetry: () => unawaited(widget.controller.load()),
+            onRetry: () => context.read<IncidentBoardBloc>().add(
+              const BoardRequested(),
+            ),
           ),
         },
       ),

@@ -199,12 +199,13 @@ PeykRouter buildHarnessRouter(GetIt container) {
           actor: actor(),
         ),
       ),
-      'incidents.board': (context, _) => IncidentBoardScreen(
-        controller: IncidentBoardController(
+      'incidents.board': (context, _) => BlocProvider(
+        create: (_) => IncidentBoardBloc(
           incidents: container<IncidentsFacade>(),
           permissions: permissions,
           actor: actor(),
         ),
+        child: const IncidentBoardScreen(),
       ),
       'inventory.count': (context, _) => CountScreen(
         controller: CountController(

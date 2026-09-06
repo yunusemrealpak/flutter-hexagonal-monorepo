@@ -134,12 +134,13 @@ PeykRouter buildDispatcherRouter(GetIt container) {
           actor: actor(),
         ),
       ),
-      'incidents.board': (context, _) => IncidentBoardScreen(
-        controller: IncidentBoardController(
+      'incidents.board': (context, _) => BlocProvider(
+        create: (_) => IncidentBoardBloc(
           incidents: container<IncidentsFacade>(),
           permissions: permissions,
           actor: actor(),
         ),
+        child: const IncidentBoardScreen(),
       ),
       'messaging.thread': (context, parameters) => _parsed(
         ThreadId.parse(parameters['threadId'] ?? ''),
