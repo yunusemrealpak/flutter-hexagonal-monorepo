@@ -29,8 +29,22 @@ final class FakeMessagingFacade implements MessagingFacade {
   /// Set to fail the next call.
   MessagingFailure? failNextWith;
 
+  /// Held open by a test that needs two calls to overlap.
+  ///
+  /// This is the one way the fake is *less* faithful than the coordinator it
+  /// stands in for: a real send crosses a network, and this one answers in the
+  /// same microtask. A caller's concurrency policy — which of two sends
+  /// arriving together is dropped, queued or restarted — is invisible against
+  /// a facade that is never in flight, so a test asserting one has to be able
+  /// to hold a call open.
+  Completer<void>? gate;
+
   @override
   Future<Result<List<Message>, MessagingFailure>> read(ThreadId thread) async {
+    if (gate case final gate?) {
+      await gate.future;
+    }
+
     final failure = _taken();
     if (failure != null) {
       return Failed(failure);
@@ -48,6 +62,10 @@ final class FakeMessagingFacade implements MessagingFacade {
     required ActorId author,
     required String body,
   }) async {
+    if (gate case final gate?) {
+      await gate.future;
+    }
+
     final failure = _taken();
     if (failure != null) {
       return Failed(failure);
@@ -81,6 +99,10 @@ final class FakeMessagingFacade implements MessagingFacade {
     required ThreadId thread,
     required ActorId reader,
   }) async {
+    if (gate case final gate?) {
+      await gate.future;
+    }
+
     final failure = _taken();
     if (failure != null) {
       return Failed(failure);

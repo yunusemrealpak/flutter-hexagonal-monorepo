@@ -13,11 +13,22 @@ environment:
 # a presentation package. Adding one that is not in that row is a violation,
 # not an exception — arch_check will say which rule and why.
 dependencies:
+  # The event transformers, and the only reason the events are worth having.
+  # `droppable()` on the collect event is what stops a double tap becoming two
+  # payments; the controller this replaced had no in-flight guard at all.
+  bloc_concurrency: ^0.3.0
   core_kernel: ^0.1.0
   core_navigation: ^0.1.0
   design_system: ^0.1.0
   flutter:
     sdk: flutter
+  # The first third-party dependency this layer has ever taken, and section 2
+  # permits it: `feature_presentation` carries `allow_third_party: true`. What
+  # it buys over ChangeNotifier is the reason it is here — an event stream a
+  # transformer can act on, state equality that suppresses a rebuild, and
+  # BlocSelector, which rebuilds a subtree only when the value it selected
+  # changed. docs/ARCHITECTURE.md §2 carries the decision.
+  flutter_bloc: ^9.1.1
   # A foreign _api, which section 2 allows a presentation package. Scenario 6
   # again: the screen asks PermissionChecker before it offers the action that
   # takes money, and never learns how identity decides. SessionReader is the
@@ -29,6 +40,7 @@ dependencies:
   shipments_api: ^0.1.0
 
 dev_dependencies:
+  bloc_test: ^10.0.0
   flutter_test:
     sdk: flutter
   identity_testing: ^0.1.0

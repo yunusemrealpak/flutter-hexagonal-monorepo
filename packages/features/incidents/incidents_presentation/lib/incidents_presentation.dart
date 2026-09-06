@@ -1,7 +1,7 @@
 /// The incidents UI: the board a dispatcher works down, and the form a courier
 /// reports from.
 ///
-/// **Scenario 6 for the fourth time.** `IncidentBoardController.canReport`
+/// **Scenario 6 for the fourth time.** `IncidentBoardBloc.canReport`
 /// asks `identity_api`'s `PermissionChecker` whether the signed-in actor holds
 /// `Permission.reportIncident`, and learns nothing else.
 /// `IncidentsRoutes` guards the two destinations with two different
@@ -12,13 +12,14 @@
 /// `build`. A check in a build method runs on every frame and turns a question
 /// about authority into a question about rendering.
 ///
-/// The controller checks it a second time before reporting. That is not
-/// belt-and-braces: a controller is reachable from a route as well as from the
+/// The bloc checks it a second time before reporting. That is not
+/// belt-and-braces: an event is reachable from a route as well as from the
 /// button the screen has already hidden.
 library;
 
-export 'src/incident_board_controller.dart';
-export 'src/incident_board_screen.dart';
-export 'src/incident_board_state.dart';
+export 'src/incident_board/incident_board_bloc.dart';
+export 'src/incident_board/incident_board_event.dart';
+export 'src/incident_board/incident_board_screen.dart';
+export 'src/incident_board/incident_board_state.dart';
 export 'src/incidents_routes.dart';
 export 'src/incidents_strings.dart';

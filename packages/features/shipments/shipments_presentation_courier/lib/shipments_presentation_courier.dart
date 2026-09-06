@@ -12,8 +12,9 @@
 /// `app_harness`.
 library;
 
-export 'src/courier_manifest_controller.dart';
-export 'src/courier_manifest_screen.dart';
-export 'src/courier_manifest_state.dart';
+export 'src/courier_manifest/courier_manifest_bloc.dart';
+export 'src/courier_manifest/courier_manifest_event.dart';
+export 'src/courier_manifest/courier_manifest_screen.dart';
+export 'src/courier_manifest/courier_manifest_state.dart';
 export 'src/shipments_courier_routes.dart';
 export 'src/shipments_courier_strings.dart';

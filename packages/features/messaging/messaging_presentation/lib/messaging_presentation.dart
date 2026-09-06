@@ -7,18 +7,25 @@
 /// would be showing a courier something the domain does not model, and they
 /// would have to look in two places to reconstruct what they said.
 ///
-/// **The controller does not reload after sending.** The facade announces the
-/// thread and the subscription does the reading; doing both would read the
-/// thread twice for every message somebody types.
+/// **The bloc does not read after sending.** The facade announces the thread
+/// and the subscription does the reading; doing both would read the thread
+/// twice for every message somebody types. The subscription re-dispatches the
+/// read event rather than reading itself, so every read goes through one
+/// handler with one `restartable()` policy.
 ///
 /// **The change stream is filtered here.** The facade announces every thread
 /// that moves, because one connection coming back drains several — filtering
-/// in the controller is what lets two thread screens exist at once without
-/// either redrawing for the other's traffic.
+/// in the bloc is what lets two thread screens exist at once without either
+/// redrawing for the other's traffic.
+///
+/// **Sending is `sequential()`, never `droppable()`.** Two messages typed
+/// quickly are two different things somebody said, and they have to arrive in
+/// the order they were written.
 library;
 
 export 'src/messaging_routes.dart';
 export 'src/messaging_strings.dart';
-export 'src/thread_controller.dart';
-export 'src/thread_screen.dart';
-export 'src/thread_state.dart';
+export 'src/thread/thread_bloc.dart';
+export 'src/thread/thread_event.dart';
+export 'src/thread/thread_screen.dart';
+export 'src/thread/thread_state.dart';

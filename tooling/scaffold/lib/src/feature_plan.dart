@@ -231,9 +231,17 @@ final class FeaturePlan {
       PackageRole.presentation => (
         [
           api,
+          // The two hosted packages a screen in this workspace cannot be
+          // written without. `feature_presentation` is the one role whose row
+          // allows third-party dependencies, and these are the ones the
+          // conversion settled on: `flutter_bloc` for the provider and the
+          // builders, `bloc_concurrency` for the transformer every `on`
+          // registration names.
+          'bloc_concurrency',
           'core_kernel',
           ifPresent('core_navigation'),
           ifPresent('design_system'),
+          'flutter_bloc',
         ],
         ['flutter_test'],
         true,

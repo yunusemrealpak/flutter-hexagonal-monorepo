@@ -13,6 +13,7 @@ environment:
 dependencies:
   analytics_otel: ^0.1.0
   background_tasks: ^0.1.0
+  bloc: ^9.0.1
   connectivity_monitor: ^0.1.0
   connectivity_plus_platform_interface: ^2.1.0
   core_kernel: ^0.1.0
@@ -33,6 +34,7 @@ dependencies:
   firebase_messaging_platform_interface: ^4.9.3
   flutter:
     sdk: flutter
+  flutter_bloc: ^9.1.1
   flutter_localizations:
     sdk: flutter
   flutter_secure_storage_platform_interface: ^2.0.1
@@ -58,6 +60,7 @@ dependencies:
   notifications_api: ^0.1.0
   notifications_core: ^0.1.0
   notifications_presentation: ^0.1.0
+  observability_bloc: ^0.1.0
   opentelemetry: ^0.18.11
   payments_api: ^0.1.0
   payments_application: ^0.1.0

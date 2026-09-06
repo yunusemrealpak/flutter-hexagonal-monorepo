@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:core_kernel/core_kernel.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:settings_api/settings_api.dart';
@@ -14,8 +15,8 @@ import 'package:settings_presentation/settings_presentation.dart';
 /// A `SettingsFacade` this test steers.
 ///
 /// A fake rather than a mock: it really stores what it is given and really
-/// announces it, so the tests below exercise the controller's logic instead of
-/// a script of expected calls. `settings` has no `_testing` package — nothing
+/// announces it, so the tests below exercise the bloc's logic instead of a
+/// script of expected calls. `settings` has no `_testing` package — nothing
 /// outside the feature consumes its fakes — so the stand-in lives here, which
 /// is what the constitution asks for.
 final class _Settings implements SettingsFacade {
@@ -78,22 +79,35 @@ Widget _wrap(Widget child) => PeykTheme.wrap(child: child);
 
 void main() {
   late _Settings settings;
-  late SettingsController controller;
 
   setUp(() {
     settings = _Settings();
-    controller = SettingsController(settings: settings, actor: _courier);
   });
 
   tearDown(() async {
-    controller.dispose();
     await settings.dispose();
   });
+
+  /// The tree the screen needs, with the bloc **owned by the provider**.
+  ///
+  /// A widget test must never close a bloc itself: `Bloc.close()` completes on
+  /// microtasks scheduled inside the fake-async zone, so awaiting it from the
+  /// body or from `addTearDown` hangs with no failure and no timeout.
+  Widget screen({VoidCallback? onSignOut}) => _wrap(
+    BlocProvider(
+      create: (_) => SettingsBloc(settings: settings, actor: _courier),
+      child: SettingsScreen(onSignOut: onSignOut),
+    ),
+  );
+
+  /// The bloc the screen is running on.
+  SettingsBloc blocOf(WidgetTester tester) =>
+      tester.element(find.byType(SettingsScreen)).read<SettingsBloc>();
 
   testWidgets('the screen shows the current choices once they arrive', (
     tester,
   ) async {
-    await tester.pumpWidget(_wrap(SettingsScreen(controller: controller)));
+    await tester.pumpWidget(screen());
     await tester.pumpAndSettle();
 
     expect(
@@ -111,21 +125,19 @@ void main() {
   });
 
   testWidgets('tapping a palette records it', (tester) async {
-    await tester.pumpWidget(_wrap(SettingsScreen(controller: controller)));
+    await tester.pumpWidget(screen());
     await tester.pumpAndSettle();
 
     await tester.tap(find.text(SettingsStrings.theme(ThemePreference.dark)));
     await tester.pumpAndSettle();
 
-    expect(controller.state, isA<SettingsReady>());
-    expect(
-      (controller.state as SettingsReady).preferences.theme,
-      ThemePreference.dark,
-    );
+    final state = blocOf(tester).state;
+    expect(state, isA<SettingsReady>());
+    expect((state as SettingsReady).preferences.theme, ThemePreference.dark);
   });
 
   testWidgets('a change made elsewhere reaches the screen', (tester) async {
-    await tester.pumpWidget(_wrap(SettingsScreen(controller: controller)));
+    await tester.pumpWidget(screen());
     await tester.pumpAndSettle();
 
     settings.announce(
@@ -134,7 +146,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-      (controller.state as SettingsReady).preferences.syncPolicy,
+      (blocOf(tester).state as SettingsReady).preferences.syncPolicy,
       SyncPolicy.manual,
     );
   });
@@ -144,7 +156,7 @@ void main() {
   ) async {
     settings.failWith = const PreferencesUnavailable();
 
-    await tester.pumpWidget(_wrap(SettingsScreen(controller: controller)));
+    await tester.pumpWidget(screen());
     await tester.pumpAndSettle();
 
     expect(find.text(SettingsStrings.failureUnavailable), findsOneWidget);
@@ -154,7 +166,7 @@ void main() {
     testWidgets('no button when the app does not offer the action', (
       tester,
     ) async {
-      await tester.pumpWidget(_wrap(SettingsScreen(controller: controller)));
+      await tester.pumpWidget(screen());
       await tester.pumpAndSettle();
 
       expect(find.text(SettingsStrings.signOut), findsNothing);
@@ -163,11 +175,7 @@ void main() {
     testWidgets('the button reports the tap and nothing else', (tester) async {
       var taps = 0;
 
-      await tester.pumpWidget(
-        _wrap(
-          SettingsScreen(controller: controller, onSignOut: () => taps++),
-        ),
-      );
+      await tester.pumpWidget(screen(onSignOut: () => taps++));
       await tester.pumpAndSettle();
       // The button is the last thing on a scrolling screen, so a test surface
       // of 800x600 has it below the fold.
@@ -189,9 +197,7 @@ void main() {
     ) async {
       settings.failWith = const PreferencesUnavailable();
 
-      await tester.pumpWidget(
-        _wrap(SettingsScreen(controller: controller, onSignOut: () {})),
-      );
+      await tester.pumpWidget(screen(onSignOut: () {}));
       await tester.pumpAndSettle();
 
       expect(find.text(SettingsStrings.failureUnavailable), findsOneWidget);

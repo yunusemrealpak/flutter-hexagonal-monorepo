@@ -16,8 +16,9 @@
 /// restyle.
 library;
 
-export 'src/report_controller.dart';
-export 'src/report_screen.dart';
-export 'src/report_state.dart';
+export 'src/report/report_bloc.dart';
+export 'src/report/report_event.dart';
+export 'src/report/report_screen.dart';
+export 'src/report/report_state.dart';
 export 'src/reporting_routes.dart';
 export 'src/reporting_strings.dart';

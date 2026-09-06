@@ -30,7 +30,7 @@ This file is the constitution. Read it in full at the start of every session, to
 | `<feature>_api` | `core_kernel`, `core_ports`, other features' `_api` packages only |
 | `<feature>_application` | own `_api`, `core_kernel`, `core_ports`, other features' `_api` packages only |
 | `<feature>_infrastructure` | own `_api`, `core_kernel`, `core_ports`, `platform/*` |
-| `<feature>_presentation*` | own `_api`, other features' `_api`, `core_kernel`, `core_navigation`, `design_system` |
+| `<feature>_presentation*` | own `_api`, other features' `_api`, `core_kernel`, `core_navigation`, `design_system`, plus `flutter_bloc` and `bloc_concurrency` |
 | `<feature>_testing` | own `_api`, `core_kernel`, `core_ports`, `core_testing`, other features' `_api` packages |
 | `<feature>_core` (reduced split) | own `_api`, `core_kernel`, `core_ports`, `platform/*`, other features' `_api` |
 | `platform/*` | `core_kernel`, `core_ports`, the `flutter` SDK |
@@ -231,7 +231,11 @@ Doing it by hand — or checking the scaffolder's output — means verifying all
 5. Implementation lives under `lib/src/`; the barrel exports only the public surface.
 5.1. **An `_api` package groups its sources by kind**: `entities/` (`extends Entity<Id>`), `values/` (everything defined by its value), `events/` (`extends DomainEvent`), `failures/` (`extends Failure`) and `ports/driving` / `ports/driven` — driving when `_application` implements the interface, driven when `_infrastructure` or `platform/*` does. The folders exist for that last split: it is the distinction the architecture is named after, and flat it is invisible. An interface is not automatically a port (`SyncCommand` is a value).
 
-5.2. **`_application` and `_infrastructure` group their sources too.** `use_cases/` (`implements UseCase<I, O>`), `coordinators/` (implements one of its own `_api`'s driving ports), `commands/` (`implements SyncCommand`), `values/` (a `sealed` input), `lifecycle/` (the composition root builds, holds and disposes it) and `internal/` (the barrel does not export it); on the other side `adapters/` (implements a port), `dto/` (`@JsonSerializable`) and `mappers/` (`abstract final class`). The `dto` / `mappers` split is invariant 1.2.10 made visible. **`_presentation` and `_testing` stay flat** — five files, one of each kind, and a `_testing` package's names are already its taxonomy.
+5.2. **`_application` and `_infrastructure` group their sources too.** `use_cases/` (`implements UseCase<I, O>`), `coordinators/` (implements one of its own `_api`'s driving ports), `commands/` (`implements SyncCommand`), `values/` (a `sealed` input), `lifecycle/` (the composition root builds, holds and disposes it) and `internal/` (the barrel does not export it); on the other side `adapters/` (implements a port), `dto/` (`@JsonSerializable`) and `mappers/` (`abstract final class`). The `dto` / `mappers` split is invariant 1.2.10 made visible. **`_testing` stays flat** — its names are already its taxonomy.
+
+5.2.1. **A `_presentation` package groups on a different axis: by the state a file reads, not by kind.** One folder per piece of state, holding its bloc, its events, its state type and every widget that reads them — `inbox/` carries `UnreadBadge`, `sync_status/` carries `SyncStatusBadge` beside the bloc it reads, and `settings_presentation` has both `settings/` and `alerts/`. `<feature>_routes.dart` and `<feature>_strings.dart` stay at the root, because they are what the package offers an app rather than part of a screen. Grouping by kind here would put two units' blocs side by side with only a name prefix separating them, which is the distinction the folder was supposed to draw.
+
+5.2.2. **A screen is driven by a `Bloc`, and every `on<E>` registration names a transformer.** `restartable()` for a read, `droppable()` for a write a second tap would repeat, `sequential()` for two different things that must both happen in order. The default is `concurrent()` and it is the policy nothing here wanted, so an unqualified registration is a decision nobody made. A transformer governs one registration and does not span two: events that must share a policy share a sealed intermediate type and one `on`. The screen takes nothing and reads its bloc from the tree; the app decides the lifetime. `BlocSelector` selects what reaches the pixels — a resolved `String?`, a `bool`, a record of them — never a state with no `==` and never a `Set`. `buildWhen` compares `runtimeType` unless a case can follow itself, and then compares the immutable payload by reference identity. Where neither can ever prevent a rebuild, write neither and say so in a comment. `docs/ARCHITECTURE.md` §2 carries the reasoning and `docs/TESTING.md` §3.1 the two rules that make the tests real — the `gate` on every fake, and `BlocProvider(create:)` owning any bloc a widget test pumps.
 
 5.3. **The criterion for a folder anywhere else: the file name cannot carry the distinction.** It passes cleanly in `_api` and only marginally in the two roles above, which were grouped anyway and deliberately. Apply the test, not the precedent. `docs/ARCHITECTURE.md` §2 carries the tables, the reasoning and the case against; the scaffolder writes every layout and `tooling/scaffold`'s generator tests assert them.
 6. If the package uses code generation, `build.yaml` enables only the builders it needs and disables the rest explicitly. A package with no generated files has no `build_runner` dependency and no `build.yaml`, so no builder ever runs there — that is the cheapest configuration, not a missing one.
@@ -299,7 +303,7 @@ At the **end** of a phase: verify the acceptance criteria in the spec, push, ope
 
 This section is the handoff between sessions. It is rewritten at every phase boundary and it is the only part of this file that is expected to go stale — everything above is the constitution. Read it after section 9, then check it against `git log` before trusting it.
 
-**Branch:** `main`. **Last tag:** `phase-08`. The eight phases the specification defines are complete, merged and tagged; `main` is protected. What follows the spec is ordinary product work under the same constitution — ten pull requests merged and four open in a stack, all listed under "Start here in the next session" below. **Working tree:** clean; `arch_check` clean across 76 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (2,138 cases in 193 test files); `melos run gen:check` and `graph:check` clean.
+**Branch:** `main`. **Last tag:** `phase-08`. The eight phases the specification defines are complete, merged and tagged; `main` is protected. What follows the spec is ordinary product work under the same constitution — ten pull requests merged and four open in a stack, all listed under "Start here in the next session" below. **Working tree:** clean; `arch_check` clean across 77 packages; `dart analyze --fatal-infos --fatal-warnings .` clean across the workspace; `melos run test` green (2,183 cases in 194 test files); `melos run gen:check` and `graph:check` clean.
 
 ### Phase 8 is complete, merged and tagged
 
@@ -885,14 +889,15 @@ narrative is `docs/ARCHITECTURE.md` §2; the check-list entry is §7.5.1 above;
   layout *and* the relative import across it — re-run with the template's
   import reverted, it fails.
 
-**BLoC was considered and declined.** The spec's test pyramid says *"Bloc ve
-widget testi"*, so this is a deliberate reading rather than an oversight, and
-the argument is in `docs/ARCHITECTURE.md` §2: every `_presentation` package
-has **zero third-party dependencies** — not even `go_router`, which lives in
-`apps/*` — so `flutter_bloc` would be the first, in the layer kept cleanest.
-The pattern is already Cubit's: sealed state, one emitter, ports through the
-constructor. If it is ever adopted it should be `Cubit` and not `Bloc`; the
-states do not change and no event classes appear.
+**BLoC was considered and declined here, and adopted three entries below.**
+The argument for declining was that every `_presentation` package had zero
+third-party dependencies — not even `go_router`, which lives in `apps/*` — so
+`flutter_bloc` would be the first, in the layer kept cleanest. It is left
+standing because it was a real argument and because the *prediction* attached
+to it was wrong in an instructive way: "if it is ever adopted it should be
+`Cubit` and not `Bloc`; no event classes appear." A method name cannot carry a
+concurrency policy, and `bloc_concurrency` hangs one on an event type. See
+**The presentation layer is Bloc now** below.
 
 #### The layout, one ring out — done
 
@@ -934,6 +939,71 @@ other. The tables are `docs/ARCHITECTURE.md` §2; the check-list entries are
   as last time: `injectable` numbers its imports from the URIs it resolved.
   Rule 19 puts them in the commit with their sources.
 
+#### The presentation layer is Bloc now — done, and the events are why
+
+Asked directly, twice: *"comprehensive, not a basic integration"*, then *"fold
+the presentation layer first, then the other packages and the BlocObserver."*
+Fourteen presentation packages, then the observer, then the scaffolder. The
+narrative is `docs/ARCHITECTURE.md` §2; the check-list entry is §7.5.2.2
+above; `docs/TESTING.md` §3.1 holds the two rules that make the tests real and
+`DEPENDENCY_RULES.md` §8 records the two the checker cannot reach.
+
+- **Events pay for themselves through `bloc_concurrency` and not otherwise.**
+  The Cubit prediction was right that method names describe transitions — and
+  a method name has nowhere to say *what happens when it is asked twice*. That
+  is the whole return: `droppable()` deleted the hand-written `loadingMore`
+  in-flight guard, `restartable()` with `emit.onEach` deleted a nullable
+  `StreamSubscription`, its `??=` idempotence guard and a `dispose` override in
+  four packages, and `sequential()` has no hand-written equivalent anybody
+  writes correctly the first time.
+- **A transformer governs one `on` registration and does not span two.** Where
+  two events must share a policy they share a sealed intermediate type and one
+  registration: `SettlementRequested`, `ReorderRequested`, `PreferenceChosen`.
+  Nothing warns about the alternative — two registrations, two independent
+  policies, and a settlement that can be recorded twice.
+- **The `BlocSelector` rule is not the obvious one.** *Select what reaches the
+  pixels, not the state it came from.* These sealed states hold entities and
+  have no `==`, so selecting one gives a selector that fires on every emission
+  — a `BlocBuilder` with more words that compiles and passes every test. A
+  `Set` is never selected: two sets with the same contents are never equal.
+- **`buildWhen` by identity where a case can follow itself.** `runtimeType`
+  where it cannot; `!identical(before.plan, after.plan)` where it can, because
+  an immutable value is a different object when it is a different value and
+  the same object cannot have changed.
+- **A gated fake is what gives a transformer test teeth.** A fake that answers
+  in the same microtask makes all four transformers produce the same trace.
+  Every fake carries a `Completer<void>? gate`; every transformer was re-run
+  with the wrong one in place and failed. The first messaging test did *not*
+  fail and had to be rewritten — that is the whole reason the procedure exists.
+- **`Bloc.close()` deadlocks in a widget test.** It completes on microtasks
+  scheduled inside the fake-async zone, so awaiting it from a `testWidgets`
+  tear-down hangs with no failure, no timeout and no message. A bloc a widget
+  test pumps is owned by `BlocProvider(create:)`; only a plain `test()` may
+  close one.
+- **Two blocs, not one, where two facts have two lifetimes.** `sync`'s
+  controller drove the review list and the queue badge from one
+  `notifyListeners`, and its own comment admitted the cost: a status tick
+  redrew a list that had not changed. Splitting it was a lifetime decision, not
+  a rendering trick — a badge follows the queue for as long as an app runs, a
+  list dies with its route. The same shape gave settings + alerts and
+  `FollowedRouteBloc` / `SupervisedRouteBloc`.
+- **`platform/observability_bloc` is the 77th package**, and the shape is
+  `ClockTimeProvider`'s: a third-party interface satisfied *using* a core port.
+  Not one copy per app, which is three files that drift, and not `core_ports`,
+  which a `BlocObserver` fails §1.1.1's test for. It records **types and never
+  values** — `Transition.toString()` prints a session with somebody's name.
+- **One honest negative result.** `SettingsScreen` and `ReviewQueueScreen` have
+  no `buildWhen` and no selector, because every emission changes something they
+  draw. A control that can never prevent a rebuild is one everybody has to read
+  and re-check. Not every screen pays for one.
+- **A pre-existing defect fell out of the conversion.** `BoardReady.copyWith`
+  was `resume: resume ?? this.resume`, and `PageRequest.following` answers
+  `null` when a board is exhausted — so the one answer meaning "there is no
+  more" was read as "keep the cursor you had". The tail stayed on screen and
+  re-fetched the last page from the same cursor. The fix is structural:
+  `appending` is now the only way to change the rows or the cursor, and neither
+  is a `copyWith` parameter any more.
+
 #### What is worth taking next
 
 Items 1 and 2 of this list are done, above. The rest stand as written; each entry names the evidence so the next session does not have to re-derive it.
@@ -954,7 +1024,7 @@ Items 1 and 2 of this list are done, above. The rest stand as written; each entr
 
 **10. `onBackgroundMessage` is never set**, and it is in the same category as `codemagic.yaml`: real, and unrunnable here. It needs `apps/*/android`, Firebase initialisation and a native invoker this repository does not build, so a handler written now could not be exercised even by a test. `courierBackgroundTasks` joined it on 2026-09-02 for exactly the same reason, which is what promoted item 7 to the top of the plan: this category now has four members and gains one with every device capability.
 
-Smaller, and each named in a note: a push that merely arrives shows nothing in-app, `PeykNavigationDestination` carries no unread count, and the scanned barcode and pasted URL produce no locations yet.
+Smaller, and each named in a note: a push that merely arrives shows nothing in-app, `PeykNavigationDestination` carries no unread count, and the scanned barcode and pasted URL produce no locations yet. `SyncStatusBadge` has had no call site since it was written — it now reads a `SyncStatusBloc` from the tree, so mounting it is one provider above a shell and the badge in it, which is a change to `CourierShell` rather than to `sync_presentation`.
 
 The gaps the repository states rather than fixes are deliberate: `codemagic.yaml`, `fastlane/Fastfile`, `onBackgroundMessage` and `courierBackgroundTasks` cannot run without `apps/*/android/`, `apps/*/ios/` and `apps/*/config/<flavour>.json` (the specification excludes native builds), and no test carries the `golden` or `integration` tag yet — the tags, presets, exclusions and CI steps are the mechanism, and the images arrive with the screens that need them.
 
@@ -975,4 +1045,4 @@ The pre-commit hook runs format, analyze **on staged files only**, and `arch_che
 
 `melos run gen` is also a staleness gate in practice. Phase 7 found `app_harness`'s generated container drifting because one `@InjectableInit` was missing `preferRelativeImports` — regeneration produced absolute self-imports, which rule S3 reads as reaching across a boundary.
 
-**One flake seen in phase 6, not reproduced since:** `storage_drift` failed once under `melos run test` and passed on every re-run. If it recurs, suspect concurrent access to the temporary SQLite files rather than the code.
+**The `storage_drift` flake has now been seen twice**, both times under `melos run test` and never under `dart test` in the package alone — phase 6, and again on 2026-09-06. It passes on every re-run. The suspicion stays what it was: concurrent access to the temporary SQLite files while other packages' suites run beside it, rather than the code. It has not been chased because a flake that only appears under the whole-workspace run and never in isolation is one whose reproduction costs more than it has cost so far; the `flaky` tag and its quarantine preset are the mechanism if it becomes a third.

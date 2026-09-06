@@ -1,11 +1,14 @@
 @Tags(['widget'])
 library;
 
+import 'dart:async';
+
 import 'package:core_kernel/core_kernel.dart';
 import 'package:design_system/design_system.dart';
 import 'package:documents_api/documents_api.dart';
 import 'package:documents_presentation/documents_presentation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shipments_api/shipments_api.dart';
 
@@ -15,6 +18,13 @@ ShipmentId get _parcel =>
 /// A `DocumentsFacade` this test steers.
 final class _Documents implements DocumentsFacade {
   int renders = 0;
+
+  /// Held open by a test that needs two requests to overlap.
+  ///
+  /// Without it there is no window to drop a second event in: the facade
+  /// answers in the same microtask, so the first handler is finished before
+  /// the second event is delivered and `droppable()` has nothing to do.
+  Completer<void>? gate;
 
   /// Set to fail the next call, whatever it is.
   DocumentsFailure? failWith;
@@ -26,13 +36,19 @@ final class _Documents implements DocumentsFacade {
   Future<Result<Document, DocumentsFailure>> obtain({
     required DocumentKind kind,
     required ShipmentId shipment,
-  }) async => _produce(kind, shipment);
+  }) async {
+    await gate?.future;
+    return _produce(kind, shipment);
+  }
 
   @override
   Future<Result<Document, DocumentsFailure>> refresh({
     required DocumentKind kind,
     required ShipmentId shipment,
-  }) async => _produce(kind, shipment);
+  }) async {
+    await gate?.future;
+    return _produce(kind, shipment);
+  }
 
   Result<Document, DocumentsFailure> _produce(
     DocumentKind kind,
@@ -54,26 +70,34 @@ final class _Documents implements DocumentsFacade {
   }
 }
 
-Widget _wrap(Widget child) => PeykTheme.wrap(child: child);
-
 void main() {
   late _Documents documents;
 
   setUp(() => documents = _Documents());
 
-  DocumentController controller({ShareDocument? share}) {
-    final built = DocumentController(
-      documents: documents,
-      kind: DocumentKind.waybill,
-      shipment: _parcel,
-      share: share,
-    );
-    addTearDown(built.dispose);
-    return built;
-  }
+  DocumentBloc build({ShareDocument? share}) => DocumentBloc(
+    documents: documents,
+    kind: DocumentKind.waybill,
+    shipment: _parcel,
+    share: share,
+  );
+
+  /// The tree the screen needs, with the bloc **owned by the provider**.
+  ///
+  /// Never a bloc the test closes itself: a widget test runs inside a
+  /// fake-async zone and `Bloc.close()` completes on microtasks scheduled
+  /// there, so awaiting it from the body or from `addTearDown` hangs with no
+  /// failure and no timeout. `BlocProvider` closes it while the tree is being
+  /// disposed, which is inside the window.
+  Widget screen({ShareDocument? share}) => PeykTheme.wrap(
+    child: BlocProvider<DocumentBloc>(
+      create: (_) => build(share: share),
+      child: const DocumentScreen(),
+    ),
+  );
 
   testWidgets('a document shows its kind and its size', (tester) async {
-    await tester.pumpWidget(_wrap(DocumentScreen(controller: controller())));
+    await tester.pumpWidget(screen());
     await tester.pumpAndSettle();
 
     expect(
@@ -89,7 +113,7 @@ void main() {
   testWidgets('an app with no share callback shows no share control', (
     tester,
   ) async {
-    await tester.pumpWidget(_wrap(DocumentScreen(controller: controller())));
+    await tester.pumpWidget(screen());
     await tester.pumpAndSettle();
 
     expect(find.text(DocumentsStrings.share), findsNothing);
@@ -99,9 +123,10 @@ void main() {
     tester,
   ) async {
     final shared = <Document>[];
-    final subject = controller(share: (document) async => shared.add(document));
 
-    await tester.pumpWidget(_wrap(DocumentScreen(controller: subject)));
+    await tester.pumpWidget(
+      screen(share: (document) async => shared.add(document)),
+    );
     await tester.pumpAndSettle();
     await tester.tap(find.text(DocumentsStrings.share));
     await tester.pumpAndSettle();
@@ -115,7 +140,7 @@ void main() {
   ) async {
     documents.failWith = const DocumentRefused(reason: 'not delivered yet');
 
-    await tester.pumpWidget(_wrap(DocumentScreen(controller: controller())));
+    await tester.pumpWidget(screen());
     await tester.pumpAndSettle();
 
     expect(
@@ -128,21 +153,43 @@ void main() {
 
   test('sharing before the document arrives does nothing', () async {
     final shared = <Document>[];
-    final subject = controller(share: (document) async => shared.add(document));
+    final bloc = build(share: (document) async => shared.add(document));
+    addTearDown(bloc.close);
 
-    await subject.share();
+    bloc.add(const DocumentShared());
+    await Future<void>.delayed(Duration.zero);
 
     expect(shared, isEmpty);
   });
 
-  test('refresh asks for the document again', () async {
-    final subject = controller();
-    await subject.load();
+  test('producing it again asks for the document a second time', () async {
+    final bloc = build();
+    addTearDown(bloc.close);
 
-    await subject.refresh();
+    bloc.add(const DocumentRequested());
+    await bloc.stream.firstWhere((state) => state is DocumentReady);
+    bloc.add(const DocumentRefreshRequested());
+    await bloc.stream.firstWhere((state) => state is DocumentReady);
 
     expect(documents.renders, 2);
-    expect(subject.state, isA<DocumentReady>());
+    expect(bloc.state, isA<DocumentReady>());
+  });
+
+  // A document is produced server-side, so a repeated tap must not pay for the
+  // work twice. Remove the transformer and this reports two renders.
+  test('a second request while one is in flight is dropped', () async {
+    documents.gate = Completer<void>();
+    final bloc = build();
+    addTearDown(bloc.close);
+
+    bloc
+      ..add(const DocumentRequested())
+      ..add(const DocumentRequested());
+    await Future<void>.delayed(Duration.zero);
+    documents.gate!.complete();
+    await bloc.stream.firstWhere((state) => state is DocumentReady);
+
+    expect(documents.renders, 1);
   });
 
   group('what DocumentsStrings.all covers', () {

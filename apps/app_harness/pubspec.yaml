@@ -19,6 +19,7 @@ environment:
 # that is deliberate: this app's *product* behaviour is to run on fakes, so
 # they ship in its lib/ and not only in its tests.
 dependencies:
+  bloc: ^9.0.1
   core_kernel: ^0.1.0
   core_navigation: ^0.1.0
   core_ports: ^0.1.0
@@ -34,6 +35,7 @@ dependencies:
   documents_presentation: ^0.1.0
   flutter:
     sdk: flutter
+  flutter_bloc: ^9.1.1
   flutter_localizations:
     sdk: flutter
   get_it: ^9.2.0
@@ -55,6 +57,7 @@ dependencies:
   notifications_api: ^0.1.0
   notifications_core: ^0.1.0
   notifications_presentation: ^0.1.0
+  observability_bloc: ^0.1.0
   payments_api: ^0.1.0
   payments_application: ^0.1.0
   payments_presentation: ^0.1.0

@@ -3,9 +3,11 @@ library;
 
 import 'dart:async';
 
+import 'package:bloc_test/bloc_test.dart';
 import 'package:core_kernel/core_kernel.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:identity_presentation/identity_presentation.dart';
@@ -52,17 +54,38 @@ void main() {
   /// and a catalogue. The default catalogue echoes keys, so an assertion below
   /// reads as a claim about *which* string the screen asked for rather than
   /// about an app's wording.
-  Widget screen(SignInController controller) =>
-      PeykTheme.wrap(child: SignInScreen(controller: controller));
+  /// The tree the screen needs, with the bloc **owned by the provider**.
+  ///
+  /// Never `BlocProvider.value` with a bloc the test closes itself. A widget
+  /// test runs inside a fake-async zone, and `Bloc.close()` completes on
+  /// microtasks scheduled in that zone — so awaiting it from the body, or from
+  /// `addTearDown`, waits for a queue nothing is draining any more and the test
+  /// hangs with no failure and no timeout. `BlocProvider(create:)` closes it
+  /// while the tree is being disposed, which is inside the window. Plain
+  /// `test` cases below are unaffected and use `addTearDown(bloc.close)`.
+  Widget screen(IdentityFacade identity) => PeykTheme.wrap(
+    child: BlocProvider<SignInBloc>(
+      create: (_) => SignInBloc(identity: identity),
+      child: const SignInScreen(),
+    ),
+  );
 
   testWidgets('renders the session once it arrives', (tester) async {
     final facade = _Facade(Success(session))..gate.complete();
-    final controller = SignInController(identity: facade);
-    addTearDown(controller.dispose);
 
-    await tester.pumpWidget(screen(controller));
-    await controller.submit(credentials);
-    await tester.pumpAndSettle();
+    await tester.pumpWidget(screen(facade));
+    // Dispatched through the tree, the way the app does it: nothing outside
+    // this widget holds the bloc.
+    tester
+        .element(find.byType(SignInScreen))
+        .read<SignInBloc>()
+        .add(CredentialsSubmitted(credentials));
+    // `pump`, never `pumpAndSettle`: the pending state draws a spinner, and
+    // settling waits for an animation that is supposed to run forever. Two
+    // frames, because the event is delivered in a microtask and the facade's
+    // answer arrives in the next one.
+    await tester.pump();
+    await tester.pump();
 
     expect(
       find.textContaining(IdentityStrings.signedInAs),
@@ -71,20 +94,70 @@ void main() {
     expect(find.textContaining('Ali Veli'), findsOneWidget);
   });
 
-  test('a second submit while one is in flight is ignored', () async {
+  test('a second submit while one is in flight is dropped', () async {
     // Without this, a double tap on a slow connection sends two sign-ins and
     // the second one's session replaces the first's — including its device
-    // binding, which the two requests may not agree about.
+    // binding, which the two requests may not agree about. `droppable()` is
+    // the whole guard; remove the transformer and this reports two attempts.
     final facade = _Facade(Success(session));
-    final controller = SignInController(identity: facade);
-    addTearDown(controller.dispose);
+    final bloc = SignInBloc(identity: facade);
+    addTearDown(bloc.close);
 
-    final first = controller.submit(credentials);
-    final second = controller.submit(credentials);
+    bloc
+      ..add(CredentialsSubmitted(credentials))
+      ..add(CredentialsSubmitted(credentials));
+    await Future<void>.delayed(Duration.zero);
     facade.gate.complete();
-    await Future.wait([first, second]);
+    await bloc.stream.firstWhere((state) => state is SignedIn);
 
     expect(facade.attempts, 1);
+  });
+
+  blocTest<SignInBloc, SignInState>(
+    'clearing a rejection returns the screen to the form',
+    build: () => SignInBloc(
+      identity: _Facade(const Failed(InvalidCredentials()))..gate.complete(),
+    ),
+    act: (bloc) async {
+      bloc.add(CredentialsSubmitted(credentials));
+      await bloc.stream.firstWhere((state) => state is SignInRejected);
+      bloc.add(const SignInCleared());
+    },
+    // Matchers rather than instances, because `SignInState` deliberately
+    // carries no `==`. Nothing this bloc emits is worth de-duplicating: every
+    // transition changes the case, so equality would buy no suppressed rebuild
+    // and would have to decide what two sessions being "the same" means — and
+    // `Session.actor` is an entity, whose equality is its identifier alone.
+    expect: () => [
+      isA<SignInPending>(),
+      isA<SignInRejected>().having(
+        (state) => state.failure,
+        'failure',
+        const InvalidCredentials(),
+      ),
+      isA<SignInIdle>(),
+    ],
+  );
+
+  test('clearing is refused while an attempt is in flight', () async {
+    // `droppable()` covers a second submit and says nothing about a different
+    // event arriving mid-flight. Without the guard the screen goes back to the
+    // form and then moves off it again when the answer lands.
+    final facade = _Facade(Success(session));
+    final bloc = SignInBloc(identity: facade);
+    addTearDown(bloc.close);
+
+    // The gate is released at the end rather than left hanging: `close()`
+    // waits for the handler that is still inside `signIn`, so a test that
+    // walks away from an in-flight request hangs its own tear-down.
+    addTearDown(facade.gate.complete);
+
+    bloc.add(CredentialsSubmitted(credentials));
+    await bloc.stream.firstWhere((state) => state is SignInPending);
+    bloc.add(const SignInCleared());
+    await Future<void>.delayed(Duration.zero);
+
+    expect(bloc.state, isA<SignInPending>());
   });
 
   group('what a rejection says', () {

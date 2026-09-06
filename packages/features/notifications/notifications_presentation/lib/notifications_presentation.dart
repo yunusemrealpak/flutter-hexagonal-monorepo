@@ -7,10 +7,17 @@
 /// keeps those screens from having to hold a `NotificationsFacade` of their
 /// own.
 ///
-/// **The count and the list are separate.** They answer different questions
-/// and change at different times: the badge follows the count continuously,
-/// and the list is read when somebody opens the inbox. Folding one into the
-/// other would make every arriving alert redraw a list nobody is looking at.
+/// **The count and the list are separate blocs, in separate folders.** They
+/// answer different questions and change at different rates: the badge follows
+/// the count continuously and the list is read when somebody opens the inbox.
+/// One bloc carrying both would emit a state with a list in it every time an
+/// alert arrived, and every app that wanted a badge on a tab would have to
+/// build an inbox to get one.
+///
+/// `UnreadBloc` is also where the workspace's one subscription-holding bloc
+/// lives. It follows the count with `emit.onEach` inside a `restartable()`
+/// handler, which is what replaces a nullable subscription field, a guard
+/// against watching twice, and a `dispose` override.
 ///
 /// **Nothing here renders a sentence.** An `InboxEntry` carries a localisation
 /// key and its arguments, `NotificationsStrings` declares the keys this
@@ -20,9 +27,13 @@
 /// chosen there.
 library;
 
-export 'src/inbox_controller.dart';
-export 'src/inbox_screen.dart';
-export 'src/inbox_state.dart';
+export 'src/inbox/inbox_bloc.dart';
+export 'src/inbox/inbox_event.dart';
+export 'src/inbox/inbox_screen.dart';
+export 'src/inbox/inbox_state.dart';
 export 'src/notifications_routes.dart';
 export 'src/notifications_strings.dart';
-export 'src/unread_badge.dart';
+export 'src/unread/unread_badge.dart';
+export 'src/unread/unread_bloc.dart';
+export 'src/unread/unread_event.dart';
+export 'src/unread/unread_state.dart';

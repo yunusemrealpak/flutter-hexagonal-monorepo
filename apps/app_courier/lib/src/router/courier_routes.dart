@@ -10,6 +10,7 @@ import 'package:design_system/design_system.dart';
 import 'package:documents_api/documents_api.dart';
 import 'package:documents_presentation/documents_presentation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:go_router/go_router.dart';
 import 'package:identity_api/identity_api.dart';
@@ -46,10 +47,11 @@ import 'peyk_router.dart';
 /// facade is built from use cases; use cases are built over adapters. Three
 /// layers that no package may see at once, joined here.
 ///
-/// The controllers are built per navigation rather than held, because most of
-/// them subscribe to something and a held one would keep listening after
-/// somebody left the screen. `SettingsController` and the two that watch a
-/// stream are the reason `dispose` exists on them at all.
+/// The blocs are built per navigation rather than held, because most of them
+/// subscribe to something and a held one would keep listening after somebody
+/// left the screen. `BlocProvider` closes what it created when the route
+/// leaves the tree, which is the disposal this router used to have no place to
+/// do.
 ///
 /// **Half of them need a value out of the URL** — which thread, which parcel,
 /// which kind of document — and that is why a `ScreenBuilder` takes the path
@@ -83,148 +85,185 @@ PeykRouter buildCourierRouter(GetIt container) {
     shell: (context, navigationShell) =>
         CourierShell(tabs: courierTabs, shell: navigationShell),
     screens: {
-      'identity.signIn': (context, _) => SignInScreen(
-        controller: SignInController(identity: container<IdentityFacade>()),
+      'identity.signIn': (context, _) => BlocProvider(
+        create: (_) => SignInBloc(identity: container<IdentityFacade>()),
+        child: const SignInScreen(),
       ),
-      'shipments.courier.manifest': (context, _) => CourierManifestScreen(
-        controller: CourierManifestController(
+      'shipments.courier.manifest': (context, _) => BlocProvider(
+        create: (_) => CourierManifestBloc(
           shipments: container<ShipmentsFacade>(),
           session: sessions,
         ),
-        // The first step of the courier's day. `shipments` reported which stop
-        // was chosen; this file is the only place in the workspace that knows
-        // a stop leads to a door.
-        onStopSelected: (stop) => _follow(context, flow.fromStop(stop)),
+        child: CourierManifestScreen(
+          // The first step of the courier's day. `shipments` reported which
+          // stop was chosen; this file is the only place in the workspace that
+          // knows a stop leads to a door.
+          onStopSelected: (stop) => _follow(context, flow.fromStop(stop)),
+        ),
       ),
       // The same screen, reached at the URL a barcode scanner deep-links to.
       // `/stops/scan` is a mode of the manifest rather than a second screen,
       // and mounting it to the same builder is how an app says so — the
       // alternative is a route that resolves to a blank page.
-      'shipments.courier.scan': (context, _) => CourierManifestScreen(
-        controller: CourierManifestController(
+      'shipments.courier.scan': (context, _) => BlocProvider(
+        create: (_) => CourierManifestBloc(
           shipments: container<ShipmentsFacade>(),
           session: sessions,
         ),
+        child: const CourierManifestScreen(),
       ),
-      'routing.myRoute': (context, _) => RouteScreen(
-        controller: FollowedRouteController(
+      'routing.myRoute': (context, _) => BlocProvider<RouteBloc>(
+        // Provided as the base type: the screen reads the reorder affordance
+        // off what the app actually built, so a courier's tree resolves a
+        // `RouteBloc` that happens to be a `FollowedRouteBloc` and no
+        // supervision event reaches a handler.
+        create: (_) => FollowedRouteBloc(
           planning: container<RoutePlanning>(),
           following: container<RouteFollowing>(),
           courier: actor(),
         ),
+        child: const RouteScreen(),
       ),
       'delivery.proof': (context, parameters) => _parsed(
         ShipmentId.parse(parameters['shipmentId'] ?? ''),
-        (shipment) => ProofCaptureScreen(
-          shipment: shipment,
-          controller: ProofCaptureController(
+        // The bloc is provided rather than passed. `BlocProvider` closes it
+        // when the route leaves the tree, which is the disposal the router
+        // used to have no place to do.
+        (shipment) => BlocProvider(
+          create: (_) => ProofCaptureBloc(
             execution: container<DeliveryExecution>(),
             settlement: container<DeliverySettlement>(),
             permissions: permissions,
             session: sessions,
           ),
-          // The callback `ProofCaptureScreen` has taken since phase 7, and had
-          // no supplier until now. §2.4's capability row: the screen may not
-          // see `platform/*`, so the app hands over the capture and the button
-          // is drawn only because it did.
-          // The callback `ProofCaptureScreen` has taken since phase 7 and
-          // nothing could answer. Unlike the photograph it needs no device
-          // capability at all — a `design_system` panel and a `Clock` — and it
-          // still arrives as a callback, because §1.1 gives a presentation
-          // package neither `core_ports` nor a `Navigator`.
-          onCaptureSignature: () => _sign(context, container),
-          onCapturePhoto: () => _photograph(container, shipment),
-          // The way out of a permission the operating system has stopped
-          // asking about. Same shape as the capture and for the same reason —
-          // `PermissionRequester` lives in `core_ports`, which §2 does not
-          // give a presentation package — and the same supplier the alerts
-          // section already uses.
-          onOpenSettings: container<PermissionRequester>().openSettings,
-          onSettled: (attempt) => _follow(context, flow.afterProof(attempt)),
+          child: ProofCaptureScreen(
+            shipment: shipment,
+            // The callback `ProofCaptureScreen` has taken since phase 7, and
+            // had no supplier until now. §2.4's capability row: the screen may
+            // not see `platform/*`, so the app hands over the capture and the
+            // button is drawn only because it did.
+            // The callback `ProofCaptureScreen` has taken since phase 7 and
+            // nothing could answer. Unlike the photograph it needs no device
+            // capability at all — a `design_system` panel and a `Clock` — and
+            // it still arrives as a callback, because §1.1 gives a
+            // presentation package neither `core_ports` nor a `Navigator`.
+            onCaptureSignature: () => _sign(context, container),
+            onCapturePhoto: () => _photograph(container, shipment),
+            // The way out of a permission the operating system has stopped
+            // asking about. Same shape as the capture and for the same reason
+            // — `PermissionRequester` lives in `core_ports`, which §2 does not
+            // give a presentation package — and the same supplier the alerts
+            // section already uses.
+            onOpenSettings: container<PermissionRequester>().openSettings,
+            onSettled: (attempt) => _follow(context, flow.afterProof(attempt)),
+          ),
         ),
       ),
       'payments.collect': (context, parameters) => _parsed(
         ShipmentId.parse(parameters['shipmentId'] ?? ''),
-        (shipment) => CollectionScreen(
-          shipment: shipment,
-          controller: CollectionController(
+        // The bloc is provided rather than passed. `BlocProvider` closes it
+        // when the route leaves the tree, which is the disposal the router
+        // used to have no place to do.
+        (shipment) => BlocProvider(
+          create: (_) => CollectionBloc(
             payments: container<PaymentsFacade>(),
             permissions: permissions,
             session: sessions,
           ),
-          onFinished: () => _follow(context, flow.afterDoor()),
+          child: CollectionScreen(
+            shipment: shipment,
+            onFinished: () => _follow(context, flow.afterDoor()),
+          ),
         ),
       ),
-      'sync.review': (context, _) => ReviewQueueScreen(
-        controller: ReviewQueueController(sync: container<SyncFacade>()),
+      'sync.review': (context, _) => BlocProvider(
+        create: (_) => ReviewQueueBloc(sync: container<SyncFacade>()),
+        child: const ReviewQueueScreen(),
       ),
-      'settings.home': (context, _) => SettingsScreen(
-        controller: SettingsController(
-          settings: container<SettingsFacade>(),
-          actor: actor(),
+      'settings.home': (context, _) => MultiBlocProvider(
+        providers: [
+          BlocProvider(
+            create: (_) => SettingsBloc(
+              settings: container<SettingsFacade>(),
+              actor: actor(),
+            ),
+          ),
+          // The section `NotificationsFacade.openAlertsFor` was written for,
+          // and had no caller until now. It is provided here rather than
+          // always, because whether a device can be alerted at all is an app's
+          // answer: `app_dispatcher` composes `DeskAlertChannel` and provides
+          // no bloc, so the screen's `context.read<AlertsBloc?>()` is null and
+          // no switch is drawn.
+          //
+          // Opening the operating system's settings page arrives as a function
+          // because section 2 does not give a presentation package
+          // `core_ports`.
+          BlocProvider(
+            create: (_) => AlertsBloc(
+              notifications: container<NotificationsFacade>(),
+              actor: actor(),
+              openSystemSettings: container<PermissionRequester>().openSettings,
+            ),
+          ),
+        ],
+        child: SettingsScreen(
+          // The one call site `IdentityFacade.signOut` had been waiting
+          // for. Nothing here says where to go afterwards, and nothing has
+          // to: the session ends, the router's SessionRefresh fires, and the
+          // guard that was always right about a sessionless actor finally
+          // gets asked.
+          //
+          // Alerts are closed first, and the order is forced rather than
+          // tidy: closing needs the actor, and signing out is what takes the
+          // actor away. A handset left subscribed to a former courier's topic
+          // keeps buzzing with somebody else's work.
+          onSignOut: () => unawaited(_signOut(container, actor())),
         ),
-        // The screen `NotificationsFacade.openAlertsFor` was written for, and
-        // had no caller until now. It is supplied here rather than always,
-        // because whether a device can be alerted at all is an app's answer:
-        // `app_dispatcher` composes `DeskAlertChannel` and passes nothing.
-        //
-        // Opening the operating system's settings page arrives as a function
-        // because section 2 does not give a presentation package `core_ports`.
-        alerts: AlertsController(
+      ),
+      'notifications.inbox': (context, _) => BlocProvider(
+        create: (_) => InboxBloc(
           notifications: container<NotificationsFacade>(),
           actor: actor(),
-          openSystemSettings: container<PermissionRequester>().openSettings,
         ),
-        // The one call site `IdentityFacade.signOut` had been waiting for.
-        // Nothing here says where to go afterwards, and nothing has to: the
-        // session ends, the router's SessionRefresh fires, and the guard that
-        // was always right about a sessionless actor finally gets asked.
-        //
-        // Alerts are closed first, and the order is forced rather than tidy:
-        // closing needs the actor, and signing out is what takes the actor
-        // away. A handset left subscribed to a former courier's topic keeps
-        // buzzing with somebody else's work.
-        onSignOut: () => unawaited(_signOut(container, actor())),
+        child: const InboxScreen(),
       ),
-      'notifications.inbox': (context, _) => InboxScreen(
-        controller: InboxController(
-          notifications: container<NotificationsFacade>(),
-          actor: actor(),
-        ),
-      ),
-      'incidents.board': (context, _) => IncidentBoardScreen(
-        controller: IncidentBoardController(
+      'incidents.board': (context, _) => BlocProvider(
+        create: (_) => IncidentBoardBloc(
           incidents: container<IncidentsFacade>(),
           permissions: permissions,
           actor: actor(),
         ),
+        child: const IncidentBoardScreen(),
       ),
-      'inventory.count': (context, _) => CountScreen(
-        controller: CountController(
+      'inventory.count': (context, _) => BlocProvider(
+        create: (_) => CountBloc(
           inventory: container<VehicleInventoryFacade>(),
           courier: actor(),
         ),
+        child: const CountScreen(),
       ),
       'messaging.thread': (context, parameters) => _parsed(
         ThreadId.parse(parameters['threadId'] ?? ''),
-        (thread) => ThreadScreen(
-          controller: ThreadController(
+        (thread) => BlocProvider(
+          create: (_) => ThreadBloc(
             messaging: container<MessagingFacade>(),
             thread: thread,
             reader: actor(),
           ),
+          child: const ThreadScreen(),
         ),
       ),
       'documents.view': (context, parameters) => _parsed(
         ShipmentId.parse(parameters['shipmentId'] ?? ''),
         (shipment) => _parsed(
           DocumentKind.parse(parameters['kind'] ?? ''),
-          (kind) => DocumentScreen(
-            controller: DocumentController(
+          (kind) => BlocProvider(
+            create: (_) => DocumentBloc(
               documents: container<DocumentsFacade>(),
               kind: kind,
               shipment: shipment,
             ),
+            child: const DocumentScreen(),
           ),
         ),
       ),

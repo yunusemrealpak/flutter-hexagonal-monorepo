@@ -124,7 +124,7 @@ One type refuses the mechanical answer, and it is instructive: `SyncCommand` is 
 
 ### What `_application` and `_infrastructure` look like inside
 
-The same treatment, one ring out. An earlier version of this section claimed the other roles hold one kind of thing each; counting the files showed that is true of `_presentation` and false of the two below.
+The same treatment, one ring out. An earlier version of this section claimed the other roles hold one kind of thing each; counting the files showed it is false of both of these, and false of `_presentation` in a different way — see the section after this one.
 
 ```
 delivery_application/lib/src/       delivery_infrastructure/lib/src/
@@ -156,19 +156,57 @@ Two of these folders are worth defining because nothing else in the workspace na
 
 **The case against this layout was real and is worth recording.** In `_api` the file name genuinely could not carry the distinction: `delivery_gateway.dart` and `delivery_execution.dart` sit beside each other and nothing but the contents says which way the arrow points. Here the names already carry most of it — `*_dto.dart`, `*_mapper.dart`, `*_coordinator.dart`, `*_command.dart` — and several of the folders hold exactly one file, `identity_application` being a package with one file in one folder. So the general criterion this repository now uses is: **a folder earns its place when the file name cannot carry the distinction.** That test passes in `_api` and is marginal here; the layout was adopted anyway, deliberately, because a reader scanning a package sees its shape before reading a single name and the shape survives a rename. Recording the weaker case is the point — the next person to propose folders somewhere else should apply the criterion, not the precedent.
 
-**`_presentation` and `_testing` stay flat.** A presentation package holds one controller, one state, one screen, its routes and its strings — five files, one of each kind, so a folder per kind is five folders holding one file each with nothing left over. A `_testing` package's names are its whole taxonomy: `fake_*`, `*_contract`, `*_fixtures`.
+### What a `_presentation` package looks like inside
 
-### There is no BLoC here, and that is a decision
+One ring further out, and on a **different axis**. `_api` groups by kind because it has many kinds and one subject. A presentation package has the opposite shape: one *set* of kinds — a bloc, its events, its state, a screen — repeated once per thing on screen. So what varies is which state, and that is what the folders are:
 
-The `_presentation` packages drive their screens with a hand-written controller over a sealed state type: `ProofCaptureState` has five cases, `ProofCaptureController` extends `ChangeNotifier`, holds four ports and emits states. That is Cubit's semantics with none of Cubit's package.
+```
+settings_presentation/lib/src/
+  alerts/              alerts_bloc.dart  alerts_event.dart  alerts_state.dart
+  settings/            settings_bloc.dart  settings_event.dart  settings_state.dart
+                       settings_screen.dart
+  settings_routes.dart
+  settings_strings.dart
+```
 
-The specification's test pyramid says *"Bloc ve widget testi (`_presentation`): yüzde 15"*, so the word appears in the task this repository is built from. It is read as the name of a layer's tests rather than as a mandated library, for one reason that outweighs the vocabulary argument:
+**A folder holds one piece of state and everything that reads it** — widgets included. `UnreadBadge` sits in `inbox/` beside the screen, because both read `InboxState`; `SyncStatusBadge` sits in `sync_status/` beside the bloc it reads, and *not* in `review_queue/`, because a badge follows the queue for as long as an app runs while a review list dies with its route — the folder names the state, so two lifetimes are two folders. `alerts/` has no screen of its own — it is a section drawn inside `SettingsScreen` — and it is a folder anyway, because what is being named is the state, not a destination.
 
-**Every `_presentation` package in this workspace has zero third-party dependencies.** Not a state management package, and not `go_router` either — the router lives in `apps/*` and a presentation package publishes `RouteDefinition` values instead. `flutter_bloc` would be the first third-party runtime dependency in the layer, in exactly the layer that was kept clean of the far more obvious candidate. `arch_check` permits it (`feature_presentation` carries `allow_third_party: true`), which is what makes this a decision rather than a rule: nothing stops it but the argument.
+**What stays at the root is what the package offers an *app* rather than a screen**: `<feature>_routes.dart`, the destinations, and `<feature>_strings.dart`, the keys this package asks an app to answer. Neither is read by a bloc and neither belongs inside one; they are the package's two contracts with whatever composed it.
 
-What the decision costs is real and worth naming: no `bloc_test`, no DevTools timeline of state transitions, no event objects as an audit trail, and a reader who knows Bloc has to learn what "Controller" means here. What it buys is that the layer's dependency list is its contracts, `design_system` and Flutter — so a screen can be moved to another app, or a second app can render the same feature differently, without a state-management migration in between.
+**Grouping this layer by kind would have been the wrong answer, and `settings_presentation` is the proof.** It is the one package with two units today, and under `bloc/` + `view/` its files interleave — `alerts_bloc.dart` beside `settings_bloc.dart`, `alerts_state.dart` beside `settings_state.dart` — with nothing but a name prefix to say which state belongs to which. That is the criterion above applied honestly rather than copied: here the file name *does* carry the kind (`_bloc`, `_event`, `_state`, `_screen`), so kind is exactly what the folders must not be. The layer that needed the split is the one where the names already fail to give it.
 
-The shape is what matters and the shape is already there. **If this were adopted, `Cubit` and not `Bloc`**: the sealed states stay identical, `_emit` becomes `emit`, and no event classes appear — a 1:1 conversion. Events would add roughly sixty classes to describe transitions that method names already describe.
+The cost is the one every by-subject layout has: a package with a single screen gets a folder holding four files and two files outside it, which reads as ceremony until the second screen arrives. `settings_presentation` is the argument that it does arrive, and `routing_presentation` — where routing's two audiences (§5.7) are two blocs over one state type, `FollowedRouteBloc` and `SupervisedRouteBloc` — is the next one.
+
+**`_testing` stays flat.** Its names are its whole taxonomy: `fake_*`, `*_contract`, `*_fixtures`.
+
+### There is BLoC here now, and the earlier decision is worth reading first
+
+This section used to be called *There is no BLoC here, and that is a decision*, and it argued the case well enough that it is quoted rather than deleted: **every `_presentation` package had zero third-party dependencies** — not a state management library, and not `go_router` either, because the router lives in `apps/*` and a presentation package publishes `RouteDefinition` values instead. `flutter_bloc` would be the first third-party runtime dependency in the layer that had been kept clean of the far more obvious candidate. `arch_check` permits it (`feature_presentation` carries `allow_third_party: true`), which is what made it a decision rather than a rule: nothing stopped it but the argument.
+
+It was reversed deliberately. What the layer looks like now: fourteen presentation packages, each screen driven by a `Bloc` over the same sealed state types it always had, with `flutter_bloc` and `bloc_concurrency` as the two hosted dependencies. What follows is what the reversal bought, because the interesting part is that **the old section's own prediction of how it would go was wrong.**
+
+**The prediction: "if this were adopted, `Cubit` and not `Bloc` — events would add roughly sixty classes to describe transitions that method names already describe."** That is true of every line of it except the one that mattered. A method name describes *what* happens; it has nowhere to carry *what happens when it is asked twice.* `bloc_concurrency` hangs that policy on an event type, and it is the reason the events pay for themselves:
+
+- **`droppable()` deleted code.** `CourierManifestBloc._onMoreRequested` used to check `state.loadingMore` before fetching, because a list that fetches when scrolled fetches several times per gesture and the second request is issued from the same state as the first — the same page, appended twice, duplicate stops on a round. The transformer *is* that guard, so the check is gone and the flag survives only to draw a spinner. The same one guard covers a second submit on the sign-in form, a second tap on *complete delivery*, and a second *assign eight parcels*.
+- **`restartable()` with `emit.onEach` deleted more.** Following a stream used to mean a nullable `StreamSubscription` field, a `??=` so a second `watch()` did not open a second one, and a `dispose` override. Three things, replaced by where the handler is registered. `SyncStatusBloc` is eleven lines because of it.
+- **`sequential()` has no hand-written equivalent at all.** Choosing a language and then a palette are two writes that must both happen, in that order, without overlapping — `droppable()` loses the second and `concurrent()` lets the saving state re-enable the rows mid-flight. Nobody writes that by hand; they write a bug and find it in production.
+
+**A transformer governs one `on` registration and does not span two.** That is the constraint that shaped the event hierarchies: where two events must share a policy, they share a sealed intermediate type and one registration — `SettlementRequested` over hand-over and non-delivery, `ReorderRequested` over a move and a resequence, `PreferenceChosen` over the three settings writes. It is not ceremony; it is the only way to say "these two are the same intention".
+
+**`BlocSelector` earns its place, and the rule for using it is not the obvious one.** *Select what reaches the pixels, not the state it came from.* These sealed states hold entities and have no `==`, so selecting one gives a selector that fires on every emission — which is a `BlocBuilder` with extra words. Selecting a resolved label `String?`, a `bool`, or a record of them gives real value equality. `DispatcherBoardScreen` is the case that pays: a board is two hundred rows, ticking one changes one tick, and each row subscribes to the single `bool` that says whether it is ticked. A `Set` is never selected, because two sets with the same contents are never equal.
+
+**`buildWhen` has a criterion too.** `runtimeType` only where no case can meaningfully follow itself; where one can, compare the immutable payload by *reference identity* — `!identical(before.plan, after.plan)`, `identical(before.rows, after.rows)`. A plan or a row list is immutable, so a different object is a different value and the same object cannot have changed. Both rules are checked by widget tests that assert an untouched row is the *same widget instance* after an unrelated emission, and both fail when the control is removed.
+
+**Not every screen pays for one, and that is recorded rather than hidden.** `SettingsScreen` has no `buildWhen` and no selector: every emission changes something every row draws. `ReviewQueueScreen` has neither for the same reason. A control that can never prevent a rebuild is one everybody has to read and re-check, forever, for nothing.
+
+**What it cost.** The layer's dependency list is no longer its contracts, `design_system` and Flutter. Two hosted packages are in fourteen pubspecs, and a screen moved to another app moves with them. `bloc_test` was added to all fourteen on the assumption that a bloc is tested with `blocTest` and removed from twelve: a transformer test has to hold a fake open across two `add`s and assert on what the port saw, which the declarative form does not express.
+
+**What made the tests real.** A fake that answers in the same microtask makes every transformer look alike — the second event arrives after the first has finished, so `droppable()`, `restartable()` and `concurrent()` produce the same trace and the test asserts nothing about the choice. Every fake in this layer therefore carries a `Completer<void>? gate`, awaited conditionally so no turn is added when it is unset, and every transformer choice has a test that was re-run with the wrong transformer in place and failed. That procedure is the reason to believe any of the paragraphs above.
+
+**One rule that is load-bearing and looks like a detail.** A bloc in a widget test must be owned by `BlocProvider(create:)`; only a plain `test()` may `addTearDown(bloc.close)`. `Bloc.close()` completes on microtasks scheduled inside the fake-async zone, so awaiting it from a widget test's tear-down hangs with no failure and no timeout, which reads exactly like an implementation bug.
+
+**The observer is the part that had no hand-written equivalent either.** `platform/observability_bloc` holds `PeykBlocObserver`, installed once per composition root because `Bloc.observer` is a static setter and §1.2.7 keeps globals in the app layer. It exists for `onError`: a handler that throws is caught by bloc, so the state does not change, nothing reaches the zone's error handler, and a screen stops responding with no evidence anywhere in the process. It records **types and never values** — `Transition.toString()` prints both states in full, and in this product a state holds a session with somebody's name, a consignee's address and a captured signature.
+
 
 ---
 

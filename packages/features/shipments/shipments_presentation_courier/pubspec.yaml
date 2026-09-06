@@ -13,11 +13,18 @@ environment:
 # a presentation package. Adding one that is not in that row is a violation,
 # not an exception — arch_check will say which rule and why.
 dependencies:
+  # The event transformers, and here one of them replaces code: `droppable()`
+  # on the next page is the in-flight guard the controller used to write by
+  # hand at its one call site.
+  bloc_concurrency: ^0.3.0
   core_kernel: ^0.1.0
   core_navigation: ^0.1.0
   design_system: ^0.1.0
   flutter:
     sdk: flutter
+  # Section 2 permits it: `feature_presentation` carries
+  # `allow_third_party: true`.
+  flutter_bloc: ^9.1.1
   # A foreign _api, which section 2 allows a presentation package. The screen
   # needs to know whose manifest to ask for, and it asks through SessionReader
   # — the narrowest port identity publishes for the purpose. It never learns

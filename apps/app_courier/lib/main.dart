@@ -3,6 +3,7 @@ import 'dart:io';
 
 import 'package:analytics_otel/analytics_otel.dart';
 import 'package:background_tasks/background_tasks.dart';
+import 'package:bloc/bloc.dart';
 import 'package:connectivity_plus_platform_interface/connectivity_plus_platform_interface.dart';
 import 'package:core_ports/core_ports.dart';
 import 'package:dio/dio.dart';
@@ -13,6 +14,7 @@ import 'package:flutter_secure_storage_platform_interface/flutter_secure_storage
 import 'package:geolocator_platform_interface/geolocator_platform_interface.dart';
 import 'package:http_dio/http_dio.dart';
 import 'package:image_picker_platform_interface/image_picker_platform_interface.dart';
+import 'package:observability_bloc/observability_bloc.dart';
 import 'package:opentelemetry/api.dart' as otel;
 import 'package:permission_handler_platform_interface/permission_handler_platform_interface.dart';
 import 'package:push_messaging/push_messaging.dart';
@@ -104,6 +106,14 @@ Future<void> main() async {
     clock: container<Clock>(),
     random: container<RandomSource>(),
   );
+
+  // Every bloc in the process reports here, and nothing else does: `Bloc
+  // .observer` is a static setter, which is a global by any other name, so it
+  // is set once in a composition root the way §1.2.7 puts every other global
+  // in the app layer. What it buys is `onError` — a handler that throws is
+  // caught by bloc, so without an observer the state simply stops changing
+  // and no evidence of it exists anywhere in the process.
+  Bloc.observer = PeykBlocObserver(logger: container<Logger>());
 
   // Nothing enqueues through this and nothing waits for it: it decides when
   // a queue that already holds the work is worth attempting. Started before

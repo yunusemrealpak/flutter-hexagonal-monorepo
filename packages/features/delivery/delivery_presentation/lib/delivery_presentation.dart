@@ -1,7 +1,7 @@
 /// The delivery UI: the screen a courier taps *done* on.
 ///
 /// **This package is where scenario 6 turns up for the second time.**
-/// `ProofCaptureController.canComplete` asks `identity_api`'s
+/// `ProofCaptureBloc.canComplete` asks `identity_api`'s
 /// `PermissionChecker` whether the signed-in actor may record a hand-over, and
 /// learns nothing else — not the role, not the grant, not that `Actor` exists.
 /// `shipments_presentation_dispatcher` asks the same port before it renders
@@ -9,9 +9,9 @@
 ///
 /// The check happens twice on purpose, at two different distances. The route
 /// carries `requiredPermission: 'completeDelivery'` so an app's router keeps
-/// the wrong person off the screen; the controller asks again before the
-/// action, because a grant can be revoked while a courier is standing at a
-/// door and they are already past the router by then.
+/// the wrong person off the screen; the bloc asks again before the action,
+/// because a grant can be revoked while a courier is standing at a door and
+/// they are already past the router by then.
 ///
 /// **The camera arrives as a callback.** Capturing a signature or a photograph
 /// means `platform/media_capture`, and section 2 forbids a presentation
@@ -32,6 +32,7 @@ library;
 
 export 'src/delivery_routes.dart';
 export 'src/delivery_strings.dart';
-export 'src/proof_capture_controller.dart';
-export 'src/proof_capture_screen.dart';
-export 'src/proof_capture_state.dart';
+export 'src/proof_capture/proof_capture_bloc.dart';
+export 'src/proof_capture/proof_capture_event.dart';
+export 'src/proof_capture/proof_capture_screen.dart';
+export 'src/proof_capture/proof_capture_state.dart';

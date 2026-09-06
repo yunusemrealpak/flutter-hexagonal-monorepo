@@ -857,6 +857,12 @@ abstract class PeykDispatcherLocalizations {
   /// **'The next parcels did not load.'**
   String get shipmentsDispatcherMoreFailed;
 
+  /// The sentence behind "shipments.dispatcher.assignFailed". Shown beside the board, whose ticks survive so the same selection can be sent again.
+  ///
+  /// In en, this message translates to:
+  /// **'Those parcels were not all assigned.'**
+  String get shipmentsDispatcherAssignFailed;
+
   /// The sentence behind "shipments.dispatcher.bulkAssign".
   ///
   /// In en, this message translates to:

@@ -22,10 +22,12 @@
 /// check it.
 library;
 
-export 'src/alerts_controller.dart';
-export 'src/alerts_state.dart';
-export 'src/settings_controller.dart';
+export 'src/alerts/alerts_bloc.dart';
+export 'src/alerts/alerts_event.dart';
+export 'src/alerts/alerts_state.dart';
+export 'src/settings/settings_bloc.dart';
+export 'src/settings/settings_event.dart';
+export 'src/settings/settings_screen.dart';
+export 'src/settings/settings_state.dart';
 export 'src/settings_routes.dart';
-export 'src/settings_screen.dart';
-export 'src/settings_state.dart';
 export 'src/settings_strings.dart';

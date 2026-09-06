@@ -1,6 +1,6 @@
 /// The payments UI: the screen a courier takes money on.
 ///
-/// **Scenario 6 for the third time.** `CollectionController.canCollect` asks
+/// **Scenario 6 for the third time.** `CollectionBloc.canCollect` asks
 /// `identity_api`'s `PermissionChecker` whether the signed-in actor holds
 /// `Permission.collectPayment`, and learns nothing else.
 /// `shipments_presentation_dispatcher` asks before bulk assignment,
@@ -27,8 +27,9 @@
 /// is decided by whichever app composed it.
 library;
 
-export 'src/collection_controller.dart';
-export 'src/collection_screen.dart';
-export 'src/collection_state.dart';
+export 'src/collection/collection_bloc.dart';
+export 'src/collection/collection_event.dart';
+export 'src/collection/collection_screen.dart';
+export 'src/collection/collection_state.dart';
 export 'src/payments_routes.dart';
 export 'src/payments_strings.dart';

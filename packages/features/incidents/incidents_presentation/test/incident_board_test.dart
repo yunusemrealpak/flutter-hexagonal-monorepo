@@ -1,9 +1,12 @@
 @Tags(['widget'])
 library;
 
+import 'dart:async';
+
 import 'package:core_kernel/core_kernel.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:incidents_api/incidents_api.dart';
@@ -28,6 +31,9 @@ final class _Permissions implements PermissionChecker {
 final class _Incidents implements IncidentsFacade {
   final List<Incident> incidents = [];
 
+  /// Held open by a test that needs two calls to overlap.
+  Completer<void>? gate;
+
   /// Set to fail the next call, whatever it is.
   IncidentsFailure? failWith;
 
@@ -40,6 +46,7 @@ final class _Incidents implements IncidentsFacade {
     ShipmentId? shipmentId,
     String? note,
   }) async {
+    await gate?.future;
     final failure = _taken();
     if (failure != null) {
       return Failed(failure);
@@ -110,15 +117,36 @@ final class _Incidents implements IncidentsFacade {
 ActorId get _courier =>
     (ActorId.parse('courier-7') as Success<ActorId, IdentityFailure>).value;
 
-Widget _wrap(Widget child) => PeykTheme.wrap(child: child);
-
-IncidentBoardController _controller(
+IncidentBoardBloc _bloc(
   _Incidents incidents, {
   Set<Permission> granted = const {Permission.reportIncident},
-}) => IncidentBoardController(
+}) => IncidentBoardBloc(
   incidents: incidents,
   permissions: _Permissions(granted),
   actor: _courier,
+);
+
+/// The tree the screen needs, with the bloc **owned by the provider**.
+///
+/// Never a bloc the test closes itself: a widget test runs inside a fake-async
+/// zone and `Bloc.close()` completes on microtasks scheduled there, so
+/// awaiting it from the body or from `addTearDown` hangs with no failure and
+/// no timeout.
+Widget _screen(_Incidents incidents) => PeykTheme.wrap(
+  child: BlocProvider<IncidentBoardBloc>(
+    create: (_) => _bloc(incidents),
+    child: const IncidentBoardScreen(),
+  ),
+);
+
+/// Puts one open incident on the board.
+///
+/// Through the facade rather than through a bloc, and deliberately: a widget
+/// test must not close a bloc, so a helper that built one would either leak it
+/// or hang the test.
+Future<void> _report(_Incidents incidents) => incidents.report(
+  reportedBy: _courier,
+  category: IncidentCategory.accessDenied,
 );
 
 void main() {
@@ -129,12 +157,7 @@ void main() {
   testWidgets('a clear board says so rather than showing nothing', (
     tester,
   ) async {
-    final controller = _controller(incidents);
-    addTearDown(controller.dispose);
-
-    await tester.pumpWidget(
-      _wrap(IncidentBoardScreen(controller: controller)),
-    );
+    await tester.pumpWidget(_screen(incidents));
     await tester.pumpAndSettle();
 
     expect(find.text(IncidentsStrings.boardClear), findsOneWidget);
@@ -143,13 +166,9 @@ void main() {
   testWidgets('an open incident is drawn with its category and severity', (
     tester,
   ) async {
-    final controller = _controller(incidents);
-    addTearDown(controller.dispose);
-    await controller.report(category: IncidentCategory.accessDenied);
+    await _report(incidents);
 
-    await tester.pumpWidget(
-      _wrap(IncidentBoardScreen(controller: controller)),
-    );
+    await tester.pumpWidget(_screen(incidents));
     await tester.pumpAndSettle();
 
     expect(
@@ -169,13 +188,9 @@ void main() {
   testWidgets('a failure is rendered as a sentence, not a type name', (
     tester,
   ) async {
-    final controller = _controller(incidents);
-    addTearDown(controller.dispose);
     incidents.failWith = const IncidentLogUnavailable();
 
-    await tester.pumpWidget(
-      _wrap(IncidentBoardScreen(controller: controller)),
-    );
+    await tester.pumpWidget(_screen(incidents));
     await tester.pumpAndSettle();
 
     expect(
@@ -185,44 +200,98 @@ void main() {
   });
 
   test('an actor without the permission reports nothing', () async {
-    final controller = _controller(incidents, granted: const {});
-    addTearDown(controller.dispose);
+    final bloc = _bloc(incidents, granted: const {});
+    addTearDown(bloc.close);
 
-    await controller.report(category: IncidentCategory.accessDenied);
+    bloc.add(const IncidentReported(category: IncidentCategory.accessDenied));
+    await Future<void>.delayed(Duration.zero);
 
-    expect(controller.canReport, isFalse);
+    expect(bloc.canReport, isFalse);
     expect(incidents.reports, 0);
   });
 
   test('an actor with it does', () async {
-    final controller = _controller(incidents);
-    addTearDown(controller.dispose);
+    final bloc = _bloc(incidents);
+    addTearDown(bloc.close);
 
-    await controller.report(category: IncidentCategory.accessDenied);
+    bloc.add(const IncidentReported(category: IncidentCategory.accessDenied));
+    await bloc.stream.firstWhere((state) => state is BoardReady);
 
     expect(incidents.reports, 1);
-    expect(controller.state, isA<BoardReady>());
+    expect(bloc.state, isA<BoardReady>());
+  });
+
+  // A double tap on a slow connection would otherwise be two rows on a
+  // dispatcher's board for one thing that happened once: IncidentsFacade
+  // .report takes no idempotency key. Remove `droppable()` and this reports
+  // two.
+  test('a second report while the first is in flight is dropped', () async {
+    incidents.gate = Completer<void>();
+    final bloc = _bloc(incidents);
+    addTearDown(bloc.close);
+
+    bloc
+      ..add(const IncidentReported(category: IncidentCategory.accessDenied))
+      ..add(const IncidentReported(category: IncidentCategory.accessDenied));
+    await Future<void>.delayed(Duration.zero);
+    incidents.gate!.complete();
+    await bloc.stream.firstWhere((state) => state is BoardReady);
+
+    expect(incidents.reports, 1);
   });
 
   test('resolving refreshes the board rather than editing a row', () async {
-    final controller = _controller(incidents);
-    addTearDown(controller.dispose);
-    await controller.report(category: IncidentCategory.accessDenied);
-    final open = (controller.state as BoardReady).incidents;
+    final bloc = _bloc(incidents);
+    addTearDown(bloc.close);
+    bloc.add(const IncidentReported(category: IncidentCategory.accessDenied));
+    await bloc.stream.firstWhere((state) => state is BoardReady);
+    final open = (bloc.state as BoardReady).incidents;
 
-    await controller.resolve(open.single.id, 'redelivered');
+    bloc.add(IncidentResolved(open.single.id, 'redelivered'));
+    await bloc.stream.firstWhere(
+      (state) => state is BoardReady && state.incidents.isEmpty,
+    );
 
-    expect((controller.state as BoardReady).incidents, isEmpty);
+    expect((bloc.state as BoardReady).incidents, isEmpty);
+  });
+
+  // The reason a resolve is `sequential()` rather than `droppable()`: every
+  // one of these is a *different* incident being closed, so dropping the
+  // second would leave a dispatcher working quickly down a board with every
+  // other row silently still open.
+  test('two resolves in a row both happen', () async {
+    await _report(incidents);
+    await incidents.report(
+      reportedBy: _courier,
+      category: IncidentCategory.addressNotFound,
+    );
+    final bloc = _bloc(incidents);
+    addTearDown(bloc.close);
+    bloc.add(const BoardRequested());
+    await bloc.stream.firstWhere(
+      (state) => state is BoardReady && state.incidents.length == 2,
+    );
+    final open = (bloc.state as BoardReady).incidents;
+
+    bloc
+      ..add(IncidentResolved(open.first.id, 'redelivered'))
+      ..add(IncidentResolved(open.last.id, 'towed'));
+    await bloc.stream.firstWhere(
+      (state) => state is BoardReady && state.incidents.isEmpty,
+    );
+
+    expect((bloc.state as BoardReady).incidents, isEmpty);
   });
 
   test('a refused report leaves the failure on screen', () async {
-    final controller = _controller(incidents);
-    addTearDown(controller.dispose);
+    final bloc = _bloc(incidents);
+    addTearDown(bloc.close);
     incidents.failWith = const IncidentLogUnavailable();
 
-    await controller.report(category: IncidentCategory.accessDenied);
+    bloc.add(const IncidentReported(category: IncidentCategory.accessDenied));
+    await bloc.stream.firstWhere((state) => state is BoardFailed);
 
-    expect(controller.state, isA<BoardFailed>());
+    expect(bloc.state, isA<BoardFailed>());
   });
 
   group('what IncidentsStrings.all covers', () {

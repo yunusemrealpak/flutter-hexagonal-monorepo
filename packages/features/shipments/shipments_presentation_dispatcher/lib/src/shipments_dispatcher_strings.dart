@@ -17,6 +17,9 @@ abstract final class ShipmentsDispatcherStrings {
   /// Shown when the next page did not arrive and the ones before it did.
   static const String moreFailed = 'shipments.dispatcher.moreFailed';
 
+  /// Shown when a bulk assignment stopped part way through.
+  static const String assignFailed = 'shipments.dispatcher.assignFailed';
+
   /// The board could not be loaded.
   static const String failureUnavailable =
       'shipments.dispatcher.failure.unavailable';
@@ -51,6 +54,7 @@ abstract final class ShipmentsDispatcherStrings {
   static const List<String> all = [
     loadMore,
     moreFailed,
+    assignFailed,
     title,
     empty,
     bulkAssign,

@@ -8,6 +8,7 @@ import 'package:design_system/design_system.dart';
 import 'package:documents_api/documents_api.dart';
 import 'package:documents_presentation/documents_presentation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:identity_presentation/identity_presentation.dart';
@@ -43,10 +44,11 @@ import 'peyk_router.dart';
 /// facade is built from use cases; use cases are built over adapters. Three
 /// layers that no package may see at once, joined here.
 ///
-/// The controllers are built per navigation rather than held, because most of
-/// them subscribe to something and a held one would keep listening after
-/// somebody left the screen. `SettingsController` and the two that watch a
-/// stream are the reason `dispose` exists on them at all.
+/// The blocs are built per navigation rather than held, because most of them
+/// subscribe to something and a held one would keep listening after somebody
+/// left the screen. `BlocProvider` closes what it created when the route
+/// leaves the tree, which is the disposal this router used to have no place to
+/// do.
 ///
 /// **Half of them need a value out of the URL** — which thread, which parcel,
 /// which kind of document — and that is why a `ScreenBuilder` takes the path
@@ -73,166 +75,199 @@ PeykRouter buildHarnessRouter(GetIt container) {
     signInRoute: 'identity.signIn',
     homeRoute: 'shipments.courier.manifest',
     screens: {
-      'identity.signIn': (context, _) => SignInScreen(
-        controller: SignInController(identity: container<IdentityFacade>()),
+      'identity.signIn': (context, _) => BlocProvider(
+        create: (_) => SignInBloc(identity: container<IdentityFacade>()),
+        child: const SignInScreen(),
       ),
-      'shipments.courier.manifest': (context, _) => CourierManifestScreen(
-        controller: CourierManifestController(
+      'shipments.courier.manifest': (context, _) => BlocProvider(
+        create: (_) => CourierManifestBloc(
           shipments: container<ShipmentsFacade>(),
           session: sessions,
         ),
+        child: const CourierManifestScreen(),
       ),
       // The same screen, reached at the URL a barcode scanner deep-links to.
       // `/stops/scan` is a mode of the manifest rather than a second screen,
       // and mounting it to the same builder is how an app says so — the
       // alternative is a route that resolves to a blank page.
-      'shipments.courier.scan': (context, _) => CourierManifestScreen(
-        controller: CourierManifestController(
+      'shipments.courier.scan': (context, _) => BlocProvider(
+        create: (_) => CourierManifestBloc(
           shipments: container<ShipmentsFacade>(),
           session: sessions,
         ),
+        child: const CourierManifestScreen(),
       ),
-      'shipments.dispatcher.board': (context, _) => DispatcherBoardScreen(
-        controller: DispatcherBoardController(
+      'shipments.dispatcher.board': (context, _) => BlocProvider(
+        create: (_) => DispatcherBoardBloc(
           shipments: container<ShipmentsFacade>(),
           permissions: permissions,
           session: sessions,
         ),
+        child: const DispatcherBoardScreen(),
       ),
       // Also the same screen. `/board/assign` differs by carrying a wider
       // permission, which the guard checks before this builder runs — so the
       // board a dispatcher reaches through it is the board with the bulk
       // action on it, and the screen needs no flag to know that.
-      'shipments.dispatcher.bulkAssign': (context, _) => DispatcherBoardScreen(
-        controller: DispatcherBoardController(
+      'shipments.dispatcher.bulkAssign': (context, _) => BlocProvider(
+        create: (_) => DispatcherBoardBloc(
           shipments: container<ShipmentsFacade>(),
           permissions: permissions,
           session: sessions,
         ),
+        child: const DispatcherBoardScreen(),
       ),
-      'routing.myRoute': (context, _) => RouteScreen(
-        controller: FollowedRouteController(
+      'routing.myRoute': (context, _) => BlocProvider<RouteBloc>(
+        create: (_) => FollowedRouteBloc(
           planning: container<RoutePlanning>(),
           following: container<RouteFollowing>(),
           courier: actor(),
         ),
+        child: const RouteScreen(),
       ),
       'routing.courierRoute': (context, parameters) => _parsed(
         ActorId.parse(parameters['courierId'] ?? ''),
-        (courier) => RouteScreen(
+        (courier) => BlocProvider<RouteBloc>(
           // The dispatcher's view of the same screen, and the only difference
-          // between the two: which controller the app can build. This one is
-          // the only app that can build both, which is what makes it the place
-          // the split is legible.
-          controller: SupervisedRouteController(
+          // between the two: which bloc the app can build. This one is the
+          // only app that can build both, which is what makes it the place the
+          // split is legible.
+          create: (_) => SupervisedRouteBloc(
             planning: container<RoutePlanning>(),
             supervision: container<RouteSupervision>(),
             courier: courier,
           ),
+          child: const RouteScreen(),
         ),
       ),
       'delivery.proof': (context, parameters) => _parsed(
         ShipmentId.parse(parameters['shipmentId'] ?? ''),
-        (shipment) => ProofCaptureScreen(
-          shipment: shipment,
-          controller: ProofCaptureController(
+        (shipment) => BlocProvider(
+          create: (_) => ProofCaptureBloc(
             execution: container<DeliveryExecution>(),
             settlement: container<DeliverySettlement>(),
             permissions: permissions,
             session: sessions,
           ),
-          onOpenSettings: container<PermissionRequester>().openSettings,
+          child: ProofCaptureScreen(
+            shipment: shipment,
+            onOpenSettings: container<PermissionRequester>().openSettings,
+          ),
         ),
       ),
       'payments.collect': (context, parameters) => _parsed(
         ShipmentId.parse(parameters['shipmentId'] ?? ''),
-        (shipment) => CollectionScreen(
-          shipment: shipment,
-          controller: CollectionController(
+        // The bloc is provided rather than passed. `BlocProvider` closes it
+        // when the route leaves the tree, which is the disposal the router
+        // used to have no place to do.
+        (shipment) => BlocProvider(
+          create: (_) => CollectionBloc(
             payments: container<PaymentsFacade>(),
             permissions: permissions,
             session: sessions,
           ),
+          child: CollectionScreen(
+            shipment: shipment,
+          ),
         ),
       ),
-      'sync.review': (context, _) => ReviewQueueScreen(
-        controller: ReviewQueueController(sync: container<SyncFacade>()),
+      'sync.review': (context, _) => BlocProvider(
+        create: (_) => ReviewQueueBloc(sync: container<SyncFacade>()),
+        child: const ReviewQueueScreen(),
       ),
-      'settings.home': (context, _) => SettingsScreen(
-        controller: SettingsController(
-          settings: container<SettingsFacade>(),
-          actor: actor(),
+      'settings.home': (context, _) => MultiBlocProvider(
+        providers: [
+          BlocProvider(
+            create: (_) => SettingsBloc(
+              settings: container<SettingsFacade>(),
+              actor: actor(),
+            ),
+          ),
+          // The section `NotificationsFacade.openAlertsFor` was written for,
+          // and had no caller until now. It is provided here rather than
+          // always, because whether a device can be alerted at all is an app's
+          // answer: `app_dispatcher` composes `DeskAlertChannel` and provides
+          // no bloc, so the screen's `context.read<AlertsBloc?>()` is null and
+          // no switch is drawn.
+          //
+          // Opening the operating system's settings page arrives as a function
+          // because section 2 does not give a presentation package
+          // `core_ports`.
+          BlocProvider(
+            create: (_) => AlertsBloc(
+              notifications: container<NotificationsFacade>(),
+              actor: actor(),
+              openSystemSettings: container<PermissionRequester>().openSettings,
+            ),
+          ),
+        ],
+        child: SettingsScreen(
+          // The one call site `IdentityFacade.signOut` had been waiting
+          // for. Nothing here says where to go afterwards, and nothing has
+          // to: the session ends, the router's SessionRefresh fires, and the
+          // guard that was always right about a sessionless actor finally
+          // gets asked.
+          //
+          // Alerts are closed first, and the order is forced rather than
+          // tidy: closing needs the actor, and signing out is what takes the
+          // actor away. A handset left subscribed to a former courier's topic
+          // keeps buzzing with somebody else's work.
+          onSignOut: () => unawaited(_signOut(container, actor())),
         ),
-        // The screen `NotificationsFacade.openAlertsFor` was written for, and
-        // had no caller until now. It is supplied here rather than always,
-        // because whether a device can be alerted at all is an app's answer:
-        // `app_dispatcher` composes `DeskAlertChannel` and passes nothing.
-        //
-        // Opening the operating system's settings page arrives as a function
-        // because section 2 does not give a presentation package `core_ports`.
-        alerts: AlertsController(
+      ),
+      'notifications.inbox': (context, _) => BlocProvider(
+        create: (_) => InboxBloc(
           notifications: container<NotificationsFacade>(),
           actor: actor(),
-          openSystemSettings: container<PermissionRequester>().openSettings,
         ),
-        // The one call site `IdentityFacade.signOut` had been waiting for.
-        // Nothing here says where to go afterwards, and nothing has to: the
-        // session ends, the router's SessionRefresh fires, and the guard that
-        // was always right about a sessionless actor finally gets asked.
-        //
-        // Alerts are closed first, and the order is forced rather than tidy:
-        // closing needs the actor, and signing out is what takes the actor
-        // away. A handset left subscribed to a former courier's topic keeps
-        // buzzing with somebody else's work.
-        onSignOut: () => unawaited(_signOut(container, actor())),
+        child: const InboxScreen(),
       ),
-      'notifications.inbox': (context, _) => InboxScreen(
-        controller: InboxController(
-          notifications: container<NotificationsFacade>(),
-          actor: actor(),
-        ),
-      ),
-      'incidents.board': (context, _) => IncidentBoardScreen(
-        controller: IncidentBoardController(
+      'incidents.board': (context, _) => BlocProvider(
+        create: (_) => IncidentBoardBloc(
           incidents: container<IncidentsFacade>(),
           permissions: permissions,
           actor: actor(),
         ),
+        child: const IncidentBoardScreen(),
       ),
-      'inventory.count': (context, _) => CountScreen(
-        controller: CountController(
+      'inventory.count': (context, _) => BlocProvider(
+        create: (_) => CountBloc(
           inventory: container<VehicleInventoryFacade>(),
           courier: actor(),
         ),
+        child: const CountScreen(),
       ),
       'messaging.thread': (context, parameters) => _parsed(
         ThreadId.parse(parameters['threadId'] ?? ''),
-        (thread) => ThreadScreen(
-          controller: ThreadController(
+        (thread) => BlocProvider(
+          create: (_) => ThreadBloc(
             messaging: container<MessagingFacade>(),
             thread: thread,
             reader: actor(),
           ),
+          child: const ThreadScreen(),
         ),
       ),
       'documents.view': (context, parameters) => _parsed(
         ShipmentId.parse(parameters['shipmentId'] ?? ''),
         (shipment) => _parsed(
           DocumentKind.parse(parameters['kind'] ?? ''),
-          (kind) => DocumentScreen(
-            controller: DocumentController(
+          (kind) => BlocProvider(
+            create: (_) => DocumentBloc(
               documents: container<DocumentsFacade>(),
               kind: kind,
               shipment: shipment,
             ),
+            child: const DocumentScreen(),
           ),
         ),
       ),
-      'reports.board': (context, _) => ReportScreen(
-        controller: ReportController(
+      'reports.board': (context, _) => BlocProvider(
+        create: (_) => ReportBloc(
           reporting: container<ReportingFacade>(),
           permissions: permissions,
         ),
+        child: const ReportScreen(),
       ),
     },
   );

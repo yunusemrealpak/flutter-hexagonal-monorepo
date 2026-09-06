@@ -11,8 +11,8 @@
 /// presentation package, and the two apps use it for different subjects, so
 /// reading the actor from `SessionReader` — the way
 /// `shipments_presentation_courier` does — would be right in one app and wrong
-/// in the other. `RouteController` takes an `ActorId`; the app decides where
-/// it came from.
+/// in the other. `RouteBloc` takes an `ActorId`; the app decides where it came
+/// from.
 ///
 /// **What crosses, and what does not.** `ActorId` and the routing vocabulary,
 /// and nothing else. This package never names a `Shipment`, and could not: a
@@ -20,12 +20,12 @@
 /// what is in the parcel would have to reach into `shipments_api` and would be
 /// the second place in the product that knows what a shipment is.
 ///
-/// **Two controllers, because routing has two audiences.**
-/// `FollowedRouteController` holds `RouteFollowing` — the interface whose
-/// ports read *this device's* position — and `SupervisedRouteController` holds
-/// `RouteSupervision`. An app builds the one it can honestly answer, and
-/// `RouteScreen` reads the reorder affordance off the type rather than off a
-/// boolean the app used to pass.
+/// **Two blocs, because routing has two audiences.** `FollowedRouteBloc` holds
+/// `RouteFollowing` — the interface whose ports read *this device's* position
+/// — and `SupervisedRouteBloc` holds `RouteSupervision`. An app builds the one
+/// it can honestly answer, and `RouteScreen` reads the reorder affordance off
+/// the type rather than off a boolean the app used to pass. The reorder events
+/// reach a handler only on the subclass that registers one.
 ///
 /// This package holds no adapter and no use case. It depends on contracts
 /// only, so what actually answers `RoutePlanning` is decided by whichever app
@@ -33,8 +33,9 @@
 /// `app_harness`.
 library;
 
-export 'src/route_controller.dart';
-export 'src/route_screen.dart';
-export 'src/route_view_state.dart';
+export 'src/route/route_bloc.dart';
+export 'src/route/route_event.dart';
+export 'src/route/route_screen.dart';
+export 'src/route/route_view_state.dart';
 export 'src/routing_routes.dart';
 export 'src/routing_strings.dart';

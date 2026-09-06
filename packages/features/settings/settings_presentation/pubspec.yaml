@@ -14,11 +14,22 @@ environment:
 # a presentation package. Adding one that is not in that row is a violation,
 # not an exception — arch_check will say which rule and why.
 dependencies:
+  # The event transformers. `sequential()` on the preference writes is what
+  # keeps a palette change and a language change from overlapping — the rows
+  # are disabled while one is in flight, and an overlap would re-enable them
+  # while the other was still out.
+  bloc_concurrency: ^0.3.0
   core_kernel: ^0.1.0
   core_navigation: ^0.1.0
   design_system: ^0.1.0
   flutter:
     sdk: flutter
+  # Section 2 permits it: `feature_presentation` carries
+  # `allow_third_party: true`. It is also what makes the alerts section
+  # optional by absence — a nullable `context.read<AlertsBloc?>()` says the
+  # same thing the nullable constructor parameter used to, and the provider
+  # owns the disposal.
+  flutter_bloc: ^9.1.1
   # For ActorId. The screen is always somebody's settings, and the identity is
   # handed to it by whichever app composed it.
   identity_api: ^0.1.0
