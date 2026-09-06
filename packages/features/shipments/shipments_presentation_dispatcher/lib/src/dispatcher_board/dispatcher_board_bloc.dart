@@ -110,8 +110,8 @@ final class DispatcherBoardBloc
       final board = await _shipments.manifestFor(actor, page: resume);
       emit(
         switch (board) {
-          Success(value: final page) => showing.copyWith(
-            rows: [...showing.rows, ...page.items],
+          Success(value: final page) => showing.appending(
+            page.items,
             resume: resume.following(page),
           ),
           // The rows and the ticks both survive. Dropping to `BoardFailed`

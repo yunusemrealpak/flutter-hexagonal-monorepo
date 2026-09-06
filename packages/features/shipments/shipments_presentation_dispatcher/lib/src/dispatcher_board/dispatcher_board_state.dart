@@ -80,21 +80,43 @@ final class BoardReady extends DispatcherBoardState {
   BoardReady withSelection(Set<String> selection) =>
       copyWith(selected: selection);
 
+  /// Returns a copy with [page] appended and the cursor **replaced**.
+  ///
+  /// Not [copyWith], and the difference is a defect this screen had. A
+  /// `copyWith` whose parameters are nullable cannot tell *not passed* from
+  /// *passed null*, so `resume: null` there means **keep the old cursor** —
+  /// and `null` is exactly what the last page of a board answers. The board
+  /// went on offering a tail it had already exhausted, and pressing it fetched
+  /// the same page from the same cursor and appended it a second time: the
+  /// same parcel on two rows, each with its own tick.
+  BoardReady appending(
+    List<ShipmentSummary> page, {
+    required PageRequest? resume,
+  }) => BoardReady(
+    rows: [...rows, ...page],
+    selected: selected,
+    resume: resume,
+  );
+
   /// Returns a copy with the given fields replaced.
   ///
   /// The two transient fields are dropped unless passed, because they describe
   /// one attempt at one page rather than the board.
+  ///
+  /// **The rows and the cursor are deliberately not among the parameters.**
+  /// They are the two fields whose `null` means something — an exhausted board
+  /// answers `resume: null` — and a nullable `copyWith` parameter cannot say
+  /// it. [appending] is where both change, together, which is also the only
+  /// way they ever change.
   BoardReady copyWith({
-    List<ShipmentSummary>? rows,
     Set<String>? selected,
-    PageRequest? resume,
     bool loadingMore = false,
     ShipmentFailure? moreFailure,
     ShipmentFailure? assignFailure,
   }) => BoardReady(
-    rows: rows ?? this.rows,
+    rows: rows,
     selected: selected ?? this.selected,
-    resume: resume ?? this.resume,
+    resume: resume,
     loadingMore: loadingMore,
     moreFailure: moreFailure,
     assignFailure: assignFailure,

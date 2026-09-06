@@ -209,6 +209,29 @@ void main() {
       expect(state.moreFailure, isA<ShipmentsUnavailable>());
     });
 
+    test('a board that has run out stops offering its last page', () async {
+      final facade = _Facade.pages([
+        Success(PageOf(items: [row('a')], next: const PageCursor('a'))),
+        Success(PageOf(items: [row('b')])),
+      ]);
+      final bloc = over(facade, {Permission.assignShipment});
+
+      await dispatch(bloc, const BoardRequested());
+      await dispatch(bloc, const MoreRequested());
+
+      expect((bloc.state as BoardReady).hasMore, isFalse);
+
+      // And asks for nothing when it is asked anyway. `copyWith` cannot tell
+      // "not passed" from "passed null", so the exhausted cursor the last page
+      // answered used to leave the old one in place: the tail stayed on the
+      // board, and pressing it fetched the same page from the same cursor and
+      // appended it a second time.
+      await dispatch(bloc, const MoreRequested());
+
+      expect(facade.asked, 2);
+      expect((bloc.state as BoardReady).rows.map((r) => r.id), ['a', 'b']);
+    });
+
     test('will not fetch the same page twice in one gesture', () async {
       // A board that asks for more when it is scrolled asks several times in
       // one swipe. Without the guard the second request is issued from the
