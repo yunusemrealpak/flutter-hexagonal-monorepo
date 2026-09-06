@@ -22,6 +22,13 @@ final class DocumentLoading extends DocumentState {
 }
 
 /// The document is here.
+///
+/// **No `==`, deliberately.** `Document` is an entity, and an entity's
+/// equality in this workspace is its identifier alone — so a state that
+/// delegated to it would report the archived copy and a freshly produced one
+/// as the same state, and `Bloc` drops an emission that compares equal to the
+/// one before it. A courier who pressed *produce again* would watch the old
+/// size stay on screen.
 final class DocumentReady extends DocumentState {
   /// Creates the state.
   const DocumentReady(this.document);

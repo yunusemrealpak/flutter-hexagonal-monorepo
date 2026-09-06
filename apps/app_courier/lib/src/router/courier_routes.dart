@@ -226,12 +226,13 @@ PeykRouter buildCourierRouter(GetIt container) {
         ShipmentId.parse(parameters['shipmentId'] ?? ''),
         (shipment) => _parsed(
           DocumentKind.parse(parameters['kind'] ?? ''),
-          (kind) => DocumentScreen(
-            controller: DocumentController(
+          (kind) => BlocProvider(
+            create: (_) => DocumentBloc(
               documents: container<DocumentsFacade>(),
               kind: kind,
               shipment: shipment,
             ),
+            child: const DocumentScreen(),
           ),
         ),
       ),

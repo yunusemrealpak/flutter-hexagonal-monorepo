@@ -14,14 +14,21 @@ environment:
 # a presentation package. Adding one that is not in that row is a violation,
 # not an exception — arch_check will say which rule and why.
 dependencies:
+  # `droppable()` on both requests: producing a document is server-side work,
+  # so a repeated tap must not pay for it twice.
+  bloc_concurrency: ^0.3.0
   core_kernel: ^0.1.0
   core_navigation: ^0.1.0
   design_system: ^0.1.0
   documents_api: ^0.1.0
   flutter:
     sdk: flutter
+  # Section 2 permits a third party here — `feature_presentation` carries
+  # `allow_third_party: true`. docs/ARCHITECTURE.md §2 carries the decision.
+  flutter_bloc: ^9.1.1
   shipments_api: ^0.1.0
 
 dev_dependencies:
+  bloc_test: ^10.0.0
   flutter_test:
     sdk: flutter

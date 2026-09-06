@@ -1,11 +1,11 @@
-import 'dart:async';
-
 import 'package:design_system/design_system.dart';
 import 'package:documents_api/documents_api.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../documents_strings.dart';
-import 'document_controller.dart';
+import 'document_bloc.dart';
+import 'document_event.dart';
 import 'document_state.dart';
 
 /// Where a piece of paperwork is shown.
@@ -14,12 +14,11 @@ import 'document_state.dart';
 /// and this package may not depend on one; what the screen shows is the
 /// document's identity and size, and an app that has a viewer puts it where
 /// the placeholder is.
+/// The bloc arrives through the widget tree: whoever mounts this screen puts a
+/// [DocumentBloc] above it with `BlocProvider`.
 final class DocumentScreen extends StatefulWidget {
-  /// Creates the screen over [controller].
-  const DocumentScreen({required this.controller, super.key});
-
-  /// What drives it.
-  final DocumentController controller;
+  /// Creates the screen.
+  const DocumentScreen({super.key});
 
   @override
   State<DocumentScreen> createState() => _DocumentScreenState();
@@ -69,7 +68,10 @@ class _DocumentScreenState extends State<DocumentScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(widget.controller.load());
+    // Asking is the screen's job. An app that had to remember to dispatch this
+    // would be an app that forgets it on the second route that mounts the
+    // screen.
+    context.read<DocumentBloc>().add(const DocumentRequested());
   }
 
   @override
@@ -78,9 +80,13 @@ class _DocumentScreenState extends State<DocumentScreen> {
 
     return PeykScreen(
       title: strings.resolve(DocumentsStrings.title),
-      body: ListenableBuilder(
-        listenable: widget.controller,
-        builder: (context, _) => switch (widget.controller.state) {
+      // No `buildWhen`. `DocumentReady` can follow `DocumentReady` — that is
+      // what producing the document again does — so narrowing on the state's
+      // case would leave the previous render's size on screen. `buildWhen`
+      // pays where a `BlocSelector` sits under it and the repeated case is
+      // drawn by the selector, which is `CollectionScreen`'s shape.
+      body: BlocBuilder<DocumentBloc, DocumentState>(
+        builder: (context, state) => switch (state) {
           DocumentIdle() || DocumentLoading() => const PeykLoadingView(),
           DocumentReady(:final document) => Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -95,11 +101,13 @@ class _DocumentScreenState extends State<DocumentScreen> {
                   arguments: {'bytes': document.sizeInBytes},
                 ),
               ),
-              if (widget.controller.canShare) ...[
+              if (context.read<DocumentBloc>().canShare) ...[
                 const PeykGap.vertical(PeykGapSize.betweenGroups),
                 PeykButton(
                   label: strings.resolve(DocumentsStrings.share),
-                  onPressed: widget.controller.share,
+                  onPressed: () => context.read<DocumentBloc>().add(
+                    const DocumentShared(),
+                  ),
                   tone: PeykButtonTone.primary,
                 ),
               ],
@@ -111,7 +119,9 @@ class _DocumentScreenState extends State<DocumentScreen> {
               arguments: DocumentScreen.argumentsFor(failure),
             ),
             onRetry: DocumentScreen.canRetry(failure)
-                ? () => unawaited(widget.controller.load())
+                ? () => context.read<DocumentBloc>().add(
+                    const DocumentRequested(),
+                  )
                 : null,
           ),
         },
