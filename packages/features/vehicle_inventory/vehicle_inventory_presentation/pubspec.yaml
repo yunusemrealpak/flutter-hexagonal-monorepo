@@ -30,6 +30,5 @@ dependencies:
   vehicle_inventory_api: ^0.1.0
 
 dev_dependencies:
-  bloc_test: ^10.0.0
   flutter_test:
     sdk: flutter
