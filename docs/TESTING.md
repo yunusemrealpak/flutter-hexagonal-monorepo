@@ -11,7 +11,7 @@ Where the numbers below are counts of this repository, they are counts as of the
 | Layer | Target | Today | Runs in |
 |---|---|---|---|
 | Pure Dart unit (`_api`, `_application`, `core_*`, `tooling`) | 80% | 797 (52%) | `dart test`, milliseconds |
-| Controller and widget (`_presentation`, `apps`) | 15% | 84 `testWidgets` (5.5%) | `flutter test` |
+| Bloc and widget (`_presentation`, `apps`) | 15% | 84 `testWidgets` (5.5%) | `flutter test` |
 | Golden (`design_system`, selected screens) | 4% | 0 | `flutter test --tags golden` |
 | Integration | 1% | 0 | nightly |
 
@@ -74,6 +74,29 @@ Rules for writing one:
 5. **`noSuchMethod` for the rest.** A test stand-in that implements one port and stubs the other twenty methods with plausible values is a stand-in that will quietly answer a question the test never meant to ask. Throwing is louder.
 
 `core_testing` ships `FakeClock`, `FakeIdGenerator`, `FakeRandomSource`, `InMemoryKeyValueStore`, `RecordingLogger`, `RecordingEventBus` and `RecordingAnalyticsSink` — every `core_ports` capability, so that no feature has to write its own clock.
+
+---
+
+## 3.1 Testing a Bloc, and the two things that make the test real
+
+Both of these were learned by writing a test that passed and proved nothing.
+
+**A fake that answers in the same microtask makes every transformer look alike.** The second event arrives after the first has already finished, so `droppable()`, `restartable()`, `sequential()` and `concurrent()` produce the same trace — the test passes under all four and asserts nothing about the choice that was made. Every fake driven by a bloc in this workspace therefore carries:
+
+```dart
+/// Completed by the test to hold a call open, when there is one.
+Completer<void>? gate;
+```
+
+awaited conditionally at the top of the method — `if (gate case final gate?) await gate.future;` — so that an unset gate adds no turn and the ordinary tests are unaffected. A transformer test holds it open across two `add`s, completes it, and then asserts on what the port saw.
+
+**The procedure that gives a transformer test teeth**: write it, watch it pass, then swap the transformer for the wrong one and watch it fail. Every transformer in this workspace has been through it, and one — the first messaging test — did not fail and had to be rewritten. A test that passes under the wrong policy is not a test of the policy.
+
+**A bloc in a widget test must be owned by `BlocProvider(create:)`.** Only a plain `test()` may `addTearDown(bloc.close)`. `Bloc.close()` completes on microtasks scheduled inside the fake-async zone, so awaiting it from a `testWidgets` tear-down hangs with no failure, no timeout and no message — which reads exactly like an implementation bug and costs an hour before anybody suspects the tear-down.
+
+**`bloc_test` is used in two packages and deliberately not in the other twelve.** `blocTest` is a good fit for *given these events, expect these states*. It does not express *hold the port open, add two events, release it, then assert on what the port saw*, which is the shape of every transformer test above.
+
+**A rendering control is tested by widget identity.** `buildWhen` and `BlocSelector` are claims that something did *not* rebuild, so the assertion is `identical(before, after)` on the widget captured from the tree — not a rebuild counter, which needs a hook in production code. Each of those tests was re-run with its control removed and fails.
 
 ---
 
