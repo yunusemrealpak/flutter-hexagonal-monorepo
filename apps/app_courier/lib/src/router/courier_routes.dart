@@ -84,8 +84,9 @@ PeykRouter buildCourierRouter(GetIt container) {
     shell: (context, navigationShell) =>
         CourierShell(tabs: courierTabs, shell: navigationShell),
     screens: {
-      'identity.signIn': (context, _) => SignInScreen(
-        controller: SignInController(identity: container<IdentityFacade>()),
+      'identity.signIn': (context, _) => BlocProvider(
+        create: (_) => SignInBloc(identity: container<IdentityFacade>()),
+        child: const SignInScreen(),
       ),
       'shipments.courier.manifest': (context, _) => CourierManifestScreen(
         controller: CourierManifestController(

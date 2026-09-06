@@ -74,8 +74,9 @@ PeykRouter buildHarnessRouter(GetIt container) {
     signInRoute: 'identity.signIn',
     homeRoute: 'shipments.courier.manifest',
     screens: {
-      'identity.signIn': (context, _) => SignInScreen(
-        controller: SignInController(identity: container<IdentityFacade>()),
+      'identity.signIn': (context, _) => BlocProvider(
+        create: (_) => SignInBloc(identity: container<IdentityFacade>()),
+        child: const SignInScreen(),
       ),
       'shipments.courier.manifest': (context, _) => CourierManifestScreen(
         controller: CourierManifestController(

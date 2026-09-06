@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:core_kernel/core_kernel.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:identity_presentation/identity_presentation.dart';
@@ -63,8 +64,9 @@ PeykRouter buildDispatcherRouter(GetIt container) {
     signInRoute: 'identity.signIn',
     homeRoute: 'shipments.dispatcher.board',
     screens: {
-      'identity.signIn': (context, _) => SignInScreen(
-        controller: SignInController(identity: container<IdentityFacade>()),
+      'identity.signIn': (context, _) => BlocProvider(
+        create: (_) => SignInBloc(identity: container<IdentityFacade>()),
+        child: const SignInScreen(),
       ),
       'shipments.dispatcher.board': (context, _) => DispatcherBoardScreen(
         controller: DispatcherBoardController(

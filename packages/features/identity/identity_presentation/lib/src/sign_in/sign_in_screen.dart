@@ -1,18 +1,24 @@
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:identity_api/identity_api.dart';
 
 import '../identity_strings.dart';
-import 'sign_in_controller.dart';
+import 'sign_in_bloc.dart';
+import 'sign_in_event.dart';
 import 'sign_in_state.dart';
 
 /// The sign-in screen.
+///
+/// The bloc arrives through the widget tree rather than the constructor.
+/// `BlocProvider` is an `InheritedWidget` scoped to a subtree, not a service
+/// locator, so invariant 1.2.7 is satisfied for the same reason
+/// `PeykStrings.of(context)` satisfies it two lines below.
 final class SignInScreen extends StatelessWidget {
-  /// Creates the screen over [controller].
-  const SignInScreen({required this.controller, super.key});
-
-  /// What drives it.
-  final SignInController controller;
+  /// Creates the screen.
+  ///
+  /// Whoever mounts it puts a [SignInBloc] above it with `BlocProvider`.
+  const SignInScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -20,10 +26,15 @@ final class SignInScreen extends StatelessWidget {
 
     return PeykScreen(
       title: strings.resolve(IdentityStrings.signInTitle),
-      body: ListenableBuilder(
-        listenable: controller,
-        builder: (context, _) => Center(
-          child: switch (controller.state) {
+      // No `buildWhen` here, and that is a decision rather than an omission.
+      // Every transition this bloc can make changes the state's case —
+      // pending, signed in, rejected — so narrowing on the case would skip
+      // nothing, and narrowing further would have to know which failure is on
+      // screen. `buildWhen` pays where a `BlocSelector` sits under it, which
+      // is `CollectionScreen`'s shape and not this one's.
+      body: BlocBuilder<SignInBloc, SignInState>(
+        builder: (context, state) => Center(
+          child: switch (state) {
             SignInIdle() => PeykText.body(
               strings.resolve(IdentityStrings.signInIdle),
             ),
@@ -36,7 +47,9 @@ final class SignInScreen extends StatelessWidget {
             ),
             SignInRejected(:final failure) => PeykFailureView(
               message: strings.resolve(describe(failure)),
-              onRetry: canRetry(failure) ? controller.clear : null,
+              onRetry: canRetry(failure)
+                  ? () => context.read<SignInBloc>().add(const SignInCleared())
+                  : null,
             ),
           },
         ),
