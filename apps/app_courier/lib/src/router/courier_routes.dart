@@ -193,11 +193,12 @@ PeykRouter buildCourierRouter(GetIt container) {
         // buzzing with somebody else's work.
         onSignOut: () => unawaited(_signOut(container, actor())),
       ),
-      'notifications.inbox': (context, _) => InboxScreen(
-        controller: InboxController(
+      'notifications.inbox': (context, _) => BlocProvider(
+        create: (_) => InboxBloc(
           notifications: container<NotificationsFacade>(),
           actor: actor(),
         ),
+        child: const InboxScreen(),
       ),
       'incidents.board': (context, _) => BlocProvider(
         create: (_) => IncidentBoardBloc(

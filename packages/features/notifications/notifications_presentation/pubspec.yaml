@@ -14,14 +14,22 @@ environment:
 # a presentation package. Adding one that is not in that row is a violation,
 # not an exception — arch_check will say which rule and why.
 dependencies:
+  # `restartable()` twice, for two different reasons: a newer inbox read makes
+  # an older one worthless, and a second watch must cancel the first
+  # subscription rather than open a second one.
+  bloc_concurrency: ^0.3.0
   core_kernel: ^0.1.0
   core_navigation: ^0.1.0
   design_system: ^0.1.0
   flutter:
     sdk: flutter
+  # Section 2 permits a third party here — `feature_presentation` carries
+  # `allow_third_party: true`. docs/ARCHITECTURE.md §2 carries the decision.
+  flutter_bloc: ^9.1.1
   identity_api: ^0.1.0
   notifications_api: ^0.1.0
 
 dev_dependencies:
+  bloc_test: ^10.0.0
   flutter_test:
     sdk: flutter

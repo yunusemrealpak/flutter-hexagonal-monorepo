@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:core_kernel/core_kernel.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:notifications_api/notifications_api.dart';
@@ -14,7 +15,7 @@ import 'package:notifications_presentation/notifications_presentation.dart';
 /// A `NotificationsFacade` this test steers.
 ///
 /// A fake, not a mock: it really holds an inbox and really announces a count,
-/// so the tests exercise the controller's logic rather than a script of calls.
+/// so the tests exercise the blocs' logic rather than a script of calls.
 /// `notifications` ships no `_testing` package — nothing outside the feature
 /// consumes its fakes — so the stand-in lives here.
 final class _Notifications implements NotificationsFacade {
@@ -114,25 +115,35 @@ Widget _wrap(Widget child) => PeykTheme.wrap(child: child);
 
 void main() {
   late _Notifications notifications;
-  late InboxController controller;
 
-  setUp(() {
-    notifications = _Notifications();
-    controller = InboxController(
-      notifications: notifications,
-      actor: _courier,
-    );
-  });
+  setUp(() => notifications = _Notifications());
 
-  tearDown(() async {
-    controller.dispose();
-    await notifications.dispose();
-  });
+  tearDown(() => notifications.dispose());
+
+  /// The inbox screen, with its bloc **owned by the provider**.
+  ///
+  /// A widget test must never close a bloc itself: `Bloc.close()` completes on
+  /// microtasks scheduled inside the fake-async zone, so awaiting it from the
+  /// body or from `addTearDown` hangs with no failure and no timeout.
+  Widget inbox() => _wrap(
+    BlocProvider<InboxBloc>(
+      create: (_) => InboxBloc(notifications: notifications, actor: _courier),
+      child: const InboxScreen(),
+    ),
+  );
+
+  Widget badge() => _wrap(
+    BlocProvider<UnreadBloc>(
+      create: (_) =>
+          UnreadBloc(notifications: notifications)..add(const UnreadWatched()),
+      child: const UnreadBadge(),
+    ),
+  );
 
   testWidgets('an empty inbox says so rather than showing nothing', (
     tester,
   ) async {
-    await tester.pumpWidget(_wrap(InboxScreen(controller: controller)));
+    await tester.pumpWidget(inbox());
     await tester.pumpAndSettle();
 
     expect(find.text(NotificationsStrings.inboxEmpty), findsOneWidget);
@@ -141,7 +152,7 @@ void main() {
   testWidgets('an alert is drawn as a key and its arguments', (tester) async {
     notifications.entries = [_entry(id: 'push-1')];
 
-    await tester.pumpWidget(_wrap(InboxScreen(controller: controller)));
+    await tester.pumpWidget(inbox());
     await tester.pumpAndSettle();
 
     expect(find.text('inbox.assignment'), findsOneWidget);
@@ -150,7 +161,7 @@ void main() {
   testWidgets('tapping an unread alert marks it read', (tester) async {
     notifications.entries = [_entry(id: 'push-1')];
 
-    await tester.pumpWidget(_wrap(InboxScreen(controller: controller)));
+    await tester.pumpWidget(inbox());
     await tester.pumpAndSettle();
     await tester.tap(find.text('inbox.assignment'));
     await tester.pumpAndSettle();
@@ -163,12 +174,12 @@ void main() {
   ) async {
     notifications.entries = [_entry(id: 'push-1', read: true)];
 
-    await tester.pumpWidget(_wrap(InboxScreen(controller: controller)));
+    await tester.pumpWidget(inbox());
     await tester.pumpAndSettle();
     await tester.tap(find.text('inbox.assignment'));
     await tester.pumpAndSettle();
 
-    expect(controller.state, isA<InboxReady>());
+    expect(notifications.entries.single.isUnread, isFalse);
   });
 
   testWidgets('a failure is rendered as the key an app answers', (
@@ -176,7 +187,7 @@ void main() {
   ) async {
     notifications.failWith = const InboxUnavailable();
 
-    await tester.pumpWidget(_wrap(InboxScreen(controller: controller)));
+    await tester.pumpWidget(inbox());
     await tester.pumpAndSettle();
 
     expect(
@@ -185,11 +196,12 @@ void main() {
     );
   });
 
-  testWidgets('the badge is absent at zero and present above it', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_wrap(UnreadBadge(controller: controller)));
-    controller.watch();
+  // Nothing at all before a count arrives, and that is not the same as zero:
+  // zero claims nothing is waiting, and `UnreadUnknown` admits nothing is
+  // known. Drawing zero first makes an inbox with three alerts flash "none" on
+  // the way to saying so.
+  testWidgets('the badge draws nothing until a count arrives', (tester) async {
+    await tester.pumpWidget(badge());
     await tester.pumpAndSettle();
 
     expect(find.text('0'), findsNothing);
@@ -198,5 +210,62 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('3'), findsOneWidget);
+  });
+
+  // The badge's own state, without a screen. `emit.onEach` inside a
+  // `restartable()` handler is what holds the subscription, so there is no
+  // field to leak and no `dispose` to forget.
+  test('the count follows the stream', () async {
+    final bloc = UnreadBloc(notifications: notifications);
+    addTearDown(bloc.close);
+
+    bloc.add(const UnreadWatched());
+    await Future<void>.delayed(Duration.zero);
+    notifications
+      ..announce(2)
+      ..announce(5);
+    await bloc.stream.firstWhere((state) => state == const UnreadCount(5));
+
+    expect(bloc.state, const UnreadCount(5));
+  });
+
+  // Equality on the count is what suppresses this. The stream re-reports the
+  // same number whenever anything in the store moves, and `Bloc` drops an
+  // emission that compares equal to the one before it.
+  test('the same count twice is one emission', () async {
+    final bloc = UnreadBloc(notifications: notifications);
+    addTearDown(bloc.close);
+    final seen = <UnreadState>[];
+    final subscription = bloc.stream.listen(seen.add);
+    addTearDown(subscription.cancel);
+
+    bloc.add(const UnreadWatched());
+    await Future<void>.delayed(Duration.zero);
+    notifications
+      ..announce(2)
+      ..announce(2)
+      ..announce(3);
+    await bloc.stream.firstWhere((state) => state == const UnreadCount(3));
+
+    expect(seen, [const UnreadCount(2), const UnreadCount(3)]);
+  });
+
+  // Watching twice replaces the subscription rather than opening a second one
+  // — which the ChangeNotifier had to do with a `_counts ??=` guard.
+  test('watching twice does not double the emissions', () async {
+    final bloc = UnreadBloc(notifications: notifications);
+    addTearDown(bloc.close);
+    final seen = <UnreadState>[];
+    final subscription = bloc.stream.listen(seen.add);
+    addTearDown(subscription.cancel);
+
+    bloc
+      ..add(const UnreadWatched())
+      ..add(const UnreadWatched());
+    await Future<void>.delayed(Duration.zero);
+    notifications.announce(7);
+    await bloc.stream.firstWhere((state) => state == const UnreadCount(7));
+
+    expect(seen, [const UnreadCount(7)]);
   });
 }

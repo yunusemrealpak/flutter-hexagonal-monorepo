@@ -1,20 +1,19 @@
-import 'dart:async';
-
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:notifications_api/notifications_api.dart';
 
 import '../notifications_strings.dart';
-import 'inbox_controller.dart';
+import 'inbox_bloc.dart';
+import 'inbox_event.dart';
 import 'inbox_state.dart';
 
 /// Where a courier reads what the operation has told them.
 final class InboxScreen extends StatefulWidget {
-  /// Creates the screen over [controller].
-  const InboxScreen({required this.controller, super.key});
-
-  /// What drives it.
-  final InboxController controller;
+  /// Creates the screen.
+  ///
+  /// Whoever mounts it puts an [InboxBloc] above it with `BlocProvider`.
+  const InboxScreen({super.key});
 
   @override
   State<InboxScreen> createState() => _InboxScreenState();
@@ -65,8 +64,7 @@ class _InboxScreenState extends State<InboxScreen> {
   @override
   void initState() {
     super.initState();
-    widget.controller.watch();
-    unawaited(widget.controller.load());
+    context.read<InboxBloc>().add(const InboxRequested());
   }
 
   @override
@@ -75,9 +73,12 @@ class _InboxScreenState extends State<InboxScreen> {
 
     return PeykScreen(
       title: strings.resolve(NotificationsStrings.inboxTitle),
-      body: ListenableBuilder(
-        listenable: widget.controller,
-        builder: (context, _) => switch (widget.controller.state) {
+      // No `buildWhen`: `InboxReady` follows `InboxReady` every time an alert
+      // is marked read, and that is the emission this screen exists to draw.
+      // The unread count is not in this state at all, so nothing here rebuilds
+      // for an alert arriving elsewhere.
+      body: BlocBuilder<InboxBloc, InboxState>(
+        builder: (context, state) => switch (state) {
           InboxIdle() || InboxLoading() => const PeykLoadingView(),
           // An empty inbox is its own view rather than an empty list, because
           // a screen with nothing on it reads as a screen that failed to load
@@ -87,13 +88,12 @@ class _InboxScreenState extends State<InboxScreen> {
           ),
           InboxReady(:final entries) => ListView.builder(
             itemCount: entries.length,
-            itemBuilder: (context, index) =>
-                _Alert(entry: entries[index], controller: widget.controller),
+            itemBuilder: (context, index) => _Alert(entry: entries[index]),
           ),
           InboxFailed(:final failure) => PeykFailureView(
             message: strings.resolve(InboxScreen.describe(failure)),
             onRetry: InboxScreen.canRetry(failure)
-                ? () => unawaited(widget.controller.load())
+                ? () => context.read<InboxBloc>().add(const InboxRequested())
                 : null,
           ),
         },
@@ -109,10 +109,9 @@ class _InboxScreenState extends State<InboxScreen> {
 /// would read it. That is the same catalogue call every label makes, and it is
 /// the reason `StringCatalogue.resolve` takes arguments at all.
 class _Alert extends StatelessWidget {
-  const _Alert({required this.entry, required this.controller});
+  const _Alert({required this.entry});
 
   final InboxEntry entry;
-  final InboxController controller;
 
   @override
   Widget build(BuildContext context) => PeykListRow(
@@ -120,6 +119,8 @@ class _Alert extends StatelessWidget {
       context,
     ).resolve(entry.subject, arguments: entry.arguments),
     trailing: entry.isUnread ? const PeykBadge(count: 1) : null,
-    onTap: entry.isUnread ? () => controller.markRead(entry.id) : null,
+    onTap: entry.isUnread
+        ? () => context.read<InboxBloc>().add(AlertMarkedRead(entry.id))
+        : null,
   );
 }
