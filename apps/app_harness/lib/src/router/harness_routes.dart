@@ -79,21 +79,23 @@ PeykRouter buildHarnessRouter(GetIt container) {
         create: (_) => SignInBloc(identity: container<IdentityFacade>()),
         child: const SignInScreen(),
       ),
-      'shipments.courier.manifest': (context, _) => CourierManifestScreen(
-        controller: CourierManifestController(
+      'shipments.courier.manifest': (context, _) => BlocProvider(
+        create: (_) => CourierManifestBloc(
           shipments: container<ShipmentsFacade>(),
           session: sessions,
         ),
+        child: const CourierManifestScreen(),
       ),
       // The same screen, reached at the URL a barcode scanner deep-links to.
       // `/stops/scan` is a mode of the manifest rather than a second screen,
       // and mounting it to the same builder is how an app says so — the
       // alternative is a route that resolves to a blank page.
-      'shipments.courier.scan': (context, _) => CourierManifestScreen(
-        controller: CourierManifestController(
+      'shipments.courier.scan': (context, _) => BlocProvider(
+        create: (_) => CourierManifestBloc(
           shipments: container<ShipmentsFacade>(),
           session: sessions,
         ),
+        child: const CourierManifestScreen(),
       ),
       'shipments.dispatcher.board': (context, _) => DispatcherBoardScreen(
         controller: DispatcherBoardController(

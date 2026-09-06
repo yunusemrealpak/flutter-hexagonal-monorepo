@@ -89,25 +89,28 @@ PeykRouter buildCourierRouter(GetIt container) {
         create: (_) => SignInBloc(identity: container<IdentityFacade>()),
         child: const SignInScreen(),
       ),
-      'shipments.courier.manifest': (context, _) => CourierManifestScreen(
-        controller: CourierManifestController(
+      'shipments.courier.manifest': (context, _) => BlocProvider(
+        create: (_) => CourierManifestBloc(
           shipments: container<ShipmentsFacade>(),
           session: sessions,
         ),
-        // The first step of the courier's day. `shipments` reported which stop
-        // was chosen; this file is the only place in the workspace that knows
-        // a stop leads to a door.
-        onStopSelected: (stop) => _follow(context, flow.fromStop(stop)),
+        child: CourierManifestScreen(
+          // The first step of the courier's day. `shipments` reported which
+          // stop was chosen; this file is the only place in the workspace that
+          // knows a stop leads to a door.
+          onStopSelected: (stop) => _follow(context, flow.fromStop(stop)),
+        ),
       ),
       // The same screen, reached at the URL a barcode scanner deep-links to.
       // `/stops/scan` is a mode of the manifest rather than a second screen,
       // and mounting it to the same builder is how an app says so — the
       // alternative is a route that resolves to a blank page.
-      'shipments.courier.scan': (context, _) => CourierManifestScreen(
-        controller: CourierManifestController(
+      'shipments.courier.scan': (context, _) => BlocProvider(
+        create: (_) => CourierManifestBloc(
           shipments: container<ShipmentsFacade>(),
           session: sessions,
         ),
+        child: const CourierManifestScreen(),
       ),
       'routing.myRoute': (context, _) => BlocProvider<RouteBloc>(
         // Provided as the base type: the screen reads the reorder affordance

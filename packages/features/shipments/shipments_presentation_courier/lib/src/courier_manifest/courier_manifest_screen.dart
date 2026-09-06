@@ -1,33 +1,32 @@
-import 'dart:async';
-
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:shipments_api/shipments_api.dart';
 
 import '../shipments_courier_strings.dart';
-import 'courier_manifest_controller.dart';
+import 'courier_manifest_bloc.dart';
+import 'courier_manifest_event.dart';
 import 'courier_manifest_state.dart';
 
 /// The courier's stop list.
 ///
-/// It takes the controller rather than building one. A widget that constructed
-/// its own would have to know which adapters are behind it, and that decision
-/// belongs to an app.
+/// It reads its bloc from the tree rather than building one. A widget that
+/// constructed its own would have to know which adapters are behind it, and
+/// that decision belongs to an app.
 ///
 /// **The same feature, drawn twice.** `shipments_presentation_dispatcher`
 /// renders the same `ShipmentSummary` rows as a selectable board. Scenario 7
 /// is that neither package knows the other exists: both depend on
 /// `shipments_api` and on nothing else of shipments'.
+///
+/// **`buildWhen` compares the rows by identity.** Fetching the next page emits
+/// twice — once to raise `loadingMore`, once with the longer list — and only
+/// the second changes a stop tile. The list is immutable, so a different
+/// object is a different list; the tail row, which is what the first emission
+/// is *for*, selects the two fields it draws.
 final class CourierManifestScreen extends StatefulWidget {
-  /// Creates the screen over [controller].
-  const CourierManifestScreen({
-    required this.controller,
-    this.onStopSelected,
-    super.key,
-  });
-
-  /// What drives it.
-  final CourierManifestController controller;
+  /// Creates the screen. Its bloc comes from the tree above it.
+  const CourierManifestScreen({this.onStopSelected, super.key});
 
   /// Reports the stop somebody chose, when this app has somewhere to take it.
   ///
@@ -79,10 +78,10 @@ class _CourierManifestScreenState extends State<CourierManifestScreen> {
   @override
   void initState() {
     super.initState();
-    // initState cannot be async, and the load is genuinely fire-and-forget:
-    // its result reaches the screen through the controller's notification
-    // rather than through this call.
-    unawaited(widget.controller.load());
+    // Fire-and-forget: the answer arrives as a state rather than as a
+    // returned value, which is what lets `initState` start a network round
+    // trip without being async.
+    context.read<CourierManifestBloc>().add(const ManifestRequested());
   }
 
   @override
@@ -91,9 +90,16 @@ class _CourierManifestScreenState extends State<CourierManifestScreen> {
 
     return PeykScreen(
       title: strings.resolve(ShipmentsCourierStrings.title),
-      body: ListenableBuilder(
-        listenable: widget.controller,
-        builder: (context, _) => switch (widget.controller.state) {
+      body: BlocBuilder<CourierManifestBloc, CourierManifestState>(
+        // A longer list redraws the list; raising `loadingMore` does not,
+        // because the tail row selects that for itself.
+        buildWhen: (previous, current) => switch ((previous, current)) {
+          (ManifestReady(rows: final before), ManifestReady(rows: final after))
+              when identical(before, after) =>
+            false,
+          _ => true,
+        },
+        builder: (context, state) => switch (state) {
           ManifestIdle() || ManifestLoading() => const PeykLoadingView(),
           // Not an error. "Nothing assigned to you yet" is an ordinary
           // morning, and a failure view here would have couriers calling the
@@ -112,10 +118,7 @@ class _CourierManifestScreenState extends State<CourierManifestScreen> {
             // what makes that safe either way.
             itemCount: state.rows.length + (state.hasMore ? 1 : 0),
             itemBuilder: (context, index) => index == state.rows.length
-                ? _More(
-                    state: state,
-                    onMore: () => unawaited(widget.controller.loadMore()),
-                  )
+                ? const _More()
                 : _StopTile(
                     row: state.rows[index],
                     onSelected: widget.onStopSelected,
@@ -125,7 +128,9 @@ class _CourierManifestScreenState extends State<CourierManifestScreen> {
             message: strings.resolve(
               CourierManifestScreen.describe(failure),
             ),
-            onRetry: () => unawaited(widget.controller.load()),
+            onRetry: () => context.read<CourierManifestBloc>().add(
+              const ManifestRequested(),
+            ),
           ),
         },
       ),
@@ -138,41 +143,61 @@ class _CourierManifestScreenState extends State<CourierManifestScreen> {
 /// It is one widget rather than three states drawn by the parent because all
 /// three occupy the same slot, and a courier who has just failed to load more
 /// still needs the way to try again in the place they were looking.
+///
+/// The two things it draws are selected rather than passed, which is what lets
+/// the list above ignore the emission that only raised `loadingMore`. A
+/// `(bool, String?)` record has value equality all the way down, so this
+/// rebuilds when the tail changes and not when the state does.
 final class _More extends StatelessWidget {
-  const _More({required this.state, required this.onMore});
-
-  final ManifestReady state;
-  final VoidCallback onMore;
+  const _More();
 
   @override
   Widget build(BuildContext context) {
     final strings = PeykStrings.of(context);
 
-    if (state.loadingMore) return const PeykLoadingView();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (state.moreFailure case final failure?) ...[
-          PeykChip(
-            label: strings.resolve(ShipmentsCourierStrings.moreFailed),
-            intent: PeykIntent.warning,
-          ),
-          const PeykGap.vertical(PeykGapSize.betweenLines),
-          // The failure is named for the log-reading reader of this file: the
-          // chip says the page did not arrive, and `describe` is what an app
-          // would use to say why in a banner it owns.
-          PeykText.caption(
-            strings.resolve(CourierManifestScreen.describe(failure)),
-          ),
-          const PeykGap.vertical(PeykGapSize.betweenLines),
-        ],
-        PeykButton(
-          label: strings.resolve(ShipmentsCourierStrings.loadMore),
-          onPressed: onMore,
+    return BlocSelector<
+      CourierManifestBloc,
+      CourierManifestState,
+      (bool, String?)
+    >(
+      selector: (state) => switch (state) {
+        ManifestReady(:final loadingMore, :final moreFailure) => (
+          loadingMore,
+          moreFailure == null
+              ? null
+              : strings.resolve(CourierManifestScreen.describe(moreFailure)),
         ),
-      ],
+        _ => (false, null),
+      },
+      builder: (context, tail) {
+        final (loadingMore, failure) = tail;
+        if (loadingMore) return const PeykLoadingView();
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (failure != null) ...[
+              PeykChip(
+                label: strings.resolve(ShipmentsCourierStrings.moreFailed),
+                intent: PeykIntent.warning,
+              ),
+              const PeykGap.vertical(PeykGapSize.betweenLines),
+              // The failure is named for the log-reading reader of this file:
+              // the chip says the page did not arrive, and `describe` is what
+              // an app would use to say why in a banner it owns.
+              PeykText.caption(failure),
+              const PeykGap.vertical(PeykGapSize.betweenLines),
+            ],
+            PeykButton(
+              label: strings.resolve(ShipmentsCourierStrings.loadMore),
+              onPressed: () => context.read<CourierManifestBloc>().add(
+                const MoreRequested(),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 }
