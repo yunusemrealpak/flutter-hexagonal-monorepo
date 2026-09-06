@@ -300,6 +300,8 @@ final class DispatcherCatalogue implements StringCatalogue {
         l.shipmentsDispatcherLoadMore,
     'shipments.dispatcher.moreFailed': (l, arguments) =>
         l.shipmentsDispatcherMoreFailed,
+    'shipments.dispatcher.assignFailed': (l, arguments) =>
+        l.shipmentsDispatcherAssignFailed,
     'shipments.dispatcher.bulkAssign': (l, arguments) =>
         l.shipmentsDispatcherBulkAssign(_int(arguments['count'])),
     'shipments.dispatcher.failure.unavailable': (l, arguments) =>

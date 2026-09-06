@@ -15,7 +15,8 @@
 /// nothing here would change.
 library;
 
-export 'src/dispatcher_board/dispatcher_board_controller.dart';
+export 'src/dispatcher_board/dispatcher_board_bloc.dart';
+export 'src/dispatcher_board/dispatcher_board_event.dart';
 export 'src/dispatcher_board/dispatcher_board_screen.dart';
 export 'src/dispatcher_board/dispatcher_board_state.dart';
 export 'src/shipments_dispatcher_routes.dart';

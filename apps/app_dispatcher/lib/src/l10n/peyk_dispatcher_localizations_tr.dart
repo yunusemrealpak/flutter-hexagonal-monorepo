@@ -447,6 +447,9 @@ class PeykDispatcherLocalizationsTr extends PeykDispatcherLocalizations {
   String get shipmentsDispatcherMoreFailed => 'Sonraki gönderiler yüklenemedi.';
 
   @override
+  String get shipmentsDispatcherAssignFailed => 'Gönderilerin hepsi atanamadı.';
+
+  @override
   String shipmentsDispatcherBulkAssign(int count) {
     String _temp0 = intl.Intl.pluralLogic(
       count,

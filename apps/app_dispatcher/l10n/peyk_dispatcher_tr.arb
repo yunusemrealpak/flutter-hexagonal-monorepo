@@ -126,6 +126,7 @@
   "shipmentsDispatcherEmpty": "Panoda bir şey yok.",
   "shipmentsDispatcherLoadMore": "Daha fazla gönderi yükle",
   "shipmentsDispatcherMoreFailed": "Sonraki gönderiler yüklenemedi.",
+  "shipmentsDispatcherAssignFailed": "Gönderilerin hepsi atanamadı.",
   "shipmentsDispatcherBulkAssign": "{count, plural, =0{Ata} other{{count} gönderi ata}}",
   "shipmentsDispatcherFailureUnavailable": "Pano yüklenemedi.",
   "reportsTitle": "Gün",

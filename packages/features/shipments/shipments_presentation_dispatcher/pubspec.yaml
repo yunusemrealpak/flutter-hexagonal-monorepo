@@ -13,11 +13,19 @@ environment:
 # a presentation package. Adding one that is not in that row is a violation,
 # not an exception — arch_check will say which rule and why.
 dependencies:
+  # The event transformers. `droppable()` appears twice here for two different
+  # reasons: on the next page it is the in-flight guard, and on the bulk
+  # assignment it is the double-tap guard a payment needs.
+  bloc_concurrency: ^0.3.0
   core_kernel: ^0.1.0
   core_navigation: ^0.1.0
   design_system: ^0.1.0
   flutter:
     sdk: flutter
+  # Section 2 permits it: `feature_presentation` carries
+  # `allow_third_party: true`. This is the screen it buys the most on — a
+  # board is two hundred rows and a tick changes one of them.
+  flutter_bloc: ^9.1.1
   # A foreign _api, which section 2 allows a presentation package. This is
   # scenario 6: the board asks identity_api's PermissionChecker before it
   # renders the bulk-assign action, and never learns how identity decides.
@@ -25,6 +33,7 @@ dependencies:
   shipments_api: ^0.1.0
 
 dev_dependencies:
+  bloc_test: ^10.0.0
   flutter_test:
     sdk: flutter
   identity_testing: ^0.1.0

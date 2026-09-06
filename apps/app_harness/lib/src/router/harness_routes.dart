@@ -97,23 +97,25 @@ PeykRouter buildHarnessRouter(GetIt container) {
         ),
         child: const CourierManifestScreen(),
       ),
-      'shipments.dispatcher.board': (context, _) => DispatcherBoardScreen(
-        controller: DispatcherBoardController(
+      'shipments.dispatcher.board': (context, _) => BlocProvider(
+        create: (_) => DispatcherBoardBloc(
           shipments: container<ShipmentsFacade>(),
           permissions: permissions,
           session: sessions,
         ),
+        child: const DispatcherBoardScreen(),
       ),
       // Also the same screen. `/board/assign` differs by carrying a wider
       // permission, which the guard checks before this builder runs — so the
       // board a dispatcher reaches through it is the board with the bulk
       // action on it, and the screen needs no flag to know that.
-      'shipments.dispatcher.bulkAssign': (context, _) => DispatcherBoardScreen(
-        controller: DispatcherBoardController(
+      'shipments.dispatcher.bulkAssign': (context, _) => BlocProvider(
+        create: (_) => DispatcherBoardBloc(
           shipments: container<ShipmentsFacade>(),
           permissions: permissions,
           session: sessions,
         ),
+        child: const DispatcherBoardScreen(),
       ),
       'routing.myRoute': (context, _) => BlocProvider<RouteBloc>(
         create: (_) => FollowedRouteBloc(

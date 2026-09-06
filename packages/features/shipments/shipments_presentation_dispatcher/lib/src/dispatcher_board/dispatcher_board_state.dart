@@ -34,6 +34,7 @@ final class BoardReady extends DispatcherBoardState {
     this.resume,
     this.loadingMore = false,
     this.moreFailure,
+    this.assignFailure,
   });
 
   /// Every shipment fetched so far.
@@ -63,6 +64,15 @@ final class BoardReady extends DispatcherBoardState {
   /// invalidated the two hundred rows a dispatcher is already working through.
   final ShipmentFailure? moreFailure;
 
+  /// Why the last bulk assignment did not finish, or `null`.
+  ///
+  /// Beside the rows for the same reason [moreFailure] is, and it has to be
+  /// somewhere: an assignment that stops half way through is the one outcome
+  /// on this screen a dispatcher must act on, and the operation used to answer
+  /// it to a caller that no app had. The ticks survive it, so the same
+  /// selection can be sent again once whatever refused has stopped refusing.
+  final ShipmentFailure? assignFailure;
+
   /// Whether asking again would produce anything.
   bool get hasMore => resume != null;
 
@@ -80,12 +90,14 @@ final class BoardReady extends DispatcherBoardState {
     PageRequest? resume,
     bool loadingMore = false,
     ShipmentFailure? moreFailure,
+    ShipmentFailure? assignFailure,
   }) => BoardReady(
     rows: rows ?? this.rows,
     selected: selected ?? this.selected,
     resume: resume ?? this.resume,
     loadingMore: loadingMore,
     moreFailure: moreFailure,
+    assignFailure: assignFailure,
   );
 }
 

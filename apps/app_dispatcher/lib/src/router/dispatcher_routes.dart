@@ -69,23 +69,25 @@ PeykRouter buildDispatcherRouter(GetIt container) {
         create: (_) => SignInBloc(identity: container<IdentityFacade>()),
         child: const SignInScreen(),
       ),
-      'shipments.dispatcher.board': (context, _) => DispatcherBoardScreen(
-        controller: DispatcherBoardController(
+      'shipments.dispatcher.board': (context, _) => BlocProvider(
+        create: (_) => DispatcherBoardBloc(
           shipments: container<ShipmentsFacade>(),
           permissions: permissions,
           session: sessions,
         ),
+        child: const DispatcherBoardScreen(),
       ),
       // The same screen. `/board/assign` differs by carrying a wider
       // permission, which the guard checks before this builder runs — so the
       // board reached through it is the board with the bulk action on it, and
       // the screen needs no flag to know that.
-      'shipments.dispatcher.bulkAssign': (context, _) => DispatcherBoardScreen(
-        controller: DispatcherBoardController(
+      'shipments.dispatcher.bulkAssign': (context, _) => BlocProvider(
+        create: (_) => DispatcherBoardBloc(
           shipments: container<ShipmentsFacade>(),
           permissions: permissions,
           session: sessions,
         ),
+        child: const DispatcherBoardScreen(),
       ),
       // Somebody else's route, and the only screen in the workspace whose
       // behaviour differs between the two apps. The difference is the bloc's
