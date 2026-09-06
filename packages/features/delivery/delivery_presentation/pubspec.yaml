@@ -13,12 +13,22 @@ environment:
 # a presentation package. Adding one that is not in that row is a violation,
 # not an exception — arch_check will say which rule and why.
 dependencies:
+  # The event transformers. `droppable()` is what stops a second tap on the
+  # retry button opening a second attempt at the same door, and what keeps a
+  # courier who taps *delivered* and then *could not deliver* from settling
+  # the same attempt twice.
+  bloc_concurrency: ^0.3.0
   core_kernel: ^0.1.0
   core_navigation: ^0.1.0
   delivery_api: ^0.1.0
   design_system: ^0.1.0
   flutter:
     sdk: flutter
+  # Section 2 permits it: `feature_presentation` carries
+  # `allow_third_party: true`. What it buys here is BlocSelector — a keystroke
+  # in the recipient field emits a new state several times a second, and the
+  # chips and buttons around it are identical in every one of them.
+  flutter_bloc: ^9.1.1
   # A foreign _api, which section 2 allows a presentation package. This is
   # scenario 6: the screen asks identity_api's PermissionChecker before it
   # offers the action that records a hand-over, and never learns how identity
@@ -31,6 +41,7 @@ dependencies:
   shipments_api: ^0.1.0
 
 dev_dependencies:
+  bloc_test: ^10.0.0
   delivery_testing: ^0.1.0
   flutter_test:
     sdk: flutter

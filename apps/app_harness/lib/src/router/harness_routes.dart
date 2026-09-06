@@ -135,15 +135,17 @@ PeykRouter buildHarnessRouter(GetIt container) {
       ),
       'delivery.proof': (context, parameters) => _parsed(
         ShipmentId.parse(parameters['shipmentId'] ?? ''),
-        (shipment) => ProofCaptureScreen(
-          shipment: shipment,
-          controller: ProofCaptureController(
+        (shipment) => BlocProvider(
+          create: (_) => ProofCaptureBloc(
             execution: container<DeliveryExecution>(),
             settlement: container<DeliverySettlement>(),
             permissions: permissions,
             session: sessions,
           ),
-          onOpenSettings: container<PermissionRequester>().openSettings,
+          child: ProofCaptureScreen(
+            shipment: shipment,
+            onOpenSettings: container<PermissionRequester>().openSettings,
+          ),
         ),
       ),
       'payments.collect': (context, parameters) => _parsed(

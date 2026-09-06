@@ -117,32 +117,37 @@ PeykRouter buildCourierRouter(GetIt container) {
       ),
       'delivery.proof': (context, parameters) => _parsed(
         ShipmentId.parse(parameters['shipmentId'] ?? ''),
-        (shipment) => ProofCaptureScreen(
-          shipment: shipment,
-          controller: ProofCaptureController(
+        // The bloc is provided rather than passed. `BlocProvider` closes it
+        // when the route leaves the tree, which is the disposal the router
+        // used to have no place to do.
+        (shipment) => BlocProvider(
+          create: (_) => ProofCaptureBloc(
             execution: container<DeliveryExecution>(),
             settlement: container<DeliverySettlement>(),
             permissions: permissions,
             session: sessions,
           ),
-          // The callback `ProofCaptureScreen` has taken since phase 7, and had
-          // no supplier until now. §2.4's capability row: the screen may not
-          // see `platform/*`, so the app hands over the capture and the button
-          // is drawn only because it did.
-          // The callback `ProofCaptureScreen` has taken since phase 7 and
-          // nothing could answer. Unlike the photograph it needs no device
-          // capability at all — a `design_system` panel and a `Clock` — and it
-          // still arrives as a callback, because §1.1 gives a presentation
-          // package neither `core_ports` nor a `Navigator`.
-          onCaptureSignature: () => _sign(context, container),
-          onCapturePhoto: () => _photograph(container, shipment),
-          // The way out of a permission the operating system has stopped
-          // asking about. Same shape as the capture and for the same reason —
-          // `PermissionRequester` lives in `core_ports`, which §2 does not
-          // give a presentation package — and the same supplier the alerts
-          // section already uses.
-          onOpenSettings: container<PermissionRequester>().openSettings,
-          onSettled: (attempt) => _follow(context, flow.afterProof(attempt)),
+          child: ProofCaptureScreen(
+            shipment: shipment,
+            // The callback `ProofCaptureScreen` has taken since phase 7, and
+            // had no supplier until now. §2.4's capability row: the screen may
+            // not see `platform/*`, so the app hands over the capture and the
+            // button is drawn only because it did.
+            // The callback `ProofCaptureScreen` has taken since phase 7 and
+            // nothing could answer. Unlike the photograph it needs no device
+            // capability at all — a `design_system` panel and a `Clock` — and
+            // it still arrives as a callback, because §1.1 gives a
+            // presentation package neither `core_ports` nor a `Navigator`.
+            onCaptureSignature: () => _sign(context, container),
+            onCapturePhoto: () => _photograph(container, shipment),
+            // The way out of a permission the operating system has stopped
+            // asking about. Same shape as the capture and for the same reason
+            // — `PermissionRequester` lives in `core_ports`, which §2 does not
+            // give a presentation package — and the same supplier the alerts
+            // section already uses.
+            onOpenSettings: container<PermissionRequester>().openSettings,
+            onSettled: (attempt) => _follow(context, flow.afterProof(attempt)),
+          ),
         ),
       ),
       'payments.collect': (context, parameters) => _parsed(

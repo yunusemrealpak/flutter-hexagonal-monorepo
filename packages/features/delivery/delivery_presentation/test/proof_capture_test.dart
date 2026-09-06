@@ -1,12 +1,15 @@
 @Tags(['widget'])
 library;
 
+import 'dart:async';
+
 import 'package:core_kernel/core_kernel.dart';
 import 'package:delivery_api/delivery_api.dart';
 import 'package:delivery_presentation/delivery_presentation.dart';
 import 'package:delivery_testing/delivery_testing.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:identity_testing/identity_testing.dart';
@@ -59,12 +62,28 @@ final class _Facade implements DeliveryExecution, DeliverySettlement {
   /// The grades `startAttempt` was asked for, in order.
   final List<DeliveryGrade> grades = [];
 
+  /// Held open by a test that needs two calls to overlap.
+  ///
+  /// Without it every port answers in the same microtask, so a handler is
+  /// finished before the next event is delivered and `droppable()` never has
+  /// anything to drop — a concurrency test against an ungated fake passes
+  /// whatever transformer is on the registration, and therefore asserts
+  /// nothing.
+  Completer<void>? gate;
+
+  Future<void> _held() async {
+    if (gate case final gate?) {
+      await gate.future;
+    }
+  }
+
   @override
   Future<Result<DeliveryAttempt, DeliveryFailure>> startAttempt({
     required ShipmentId shipment,
     required ActorId courier,
     DeliveryGrade grade = DeliveryGrade.standard,
   }) async {
+    await _held();
     grades.add(grade);
     return startAnswer ?? Success(DeliveryFixtures.attempt(grade: grade));
   }
@@ -74,6 +93,7 @@ final class _Facade implements DeliveryExecution, DeliverySettlement {
     required DeliveryAttempt attempt,
     required ProofOfDelivery proof,
   }) async {
+    await _held();
     proofs.add(proof);
     return completeAnswer ?? Success(DeliveryFixtures.completed());
   }
@@ -83,6 +103,7 @@ final class _Facade implements DeliveryExecution, DeliverySettlement {
     required DeliveryAttempt attempt,
     required NonDeliveryReason reason,
   }) async {
+    await _held();
     reasons.add(reason);
     return Success(DeliveryFixtures.failed(reason: reason));
   }
@@ -92,11 +113,11 @@ final class _Facade implements DeliveryExecution, DeliverySettlement {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-ProofCaptureController _controller(
+ProofCaptureBloc _bloc(
   _Facade facade, {
   Set<Permission> granted = const {Permission.completeDelivery},
   bool signedIn = true,
-}) => ProofCaptureController(
+}) => ProofCaptureBloc(
   execution: facade,
   settlement: facade,
   session: _Session(
@@ -107,36 +128,68 @@ ProofCaptureController _controller(
 
 void main() {
   late _Facade facade;
-  late ProofCaptureController controller;
+  late ProofCaptureBloc bloc;
 
   setUp(() {
     facade = _Facade();
-    controller = _controller(facade);
-    addTearDown(controller.dispose);
+    bloc = _bloc(facade);
+    // Only a plain `test` may close a bloc itself. In a widget test the
+    // provider owns it: `Bloc.close()` completes on microtasks scheduled
+    // inside the fake-async zone, so awaiting it from a tear-down hangs with
+    // no failure and no timeout.
+    addTearDown(bloc.close);
   });
 
-  Future<void> arrive({DeliveryGrade grade = DeliveryGrade.standard}) =>
-      controller.arrive(shipment: DeliveryFixtures.shipment(), grade: grade);
+  /// Opens the door, and waits for the port to answer.
+  Future<void> arrive(
+    ProofCaptureBloc bloc, {
+    DeliveryGrade grade = DeliveryGrade.standard,
+  }) async {
+    bloc.add(
+      ArrivalRequested(shipment: DeliveryFixtures.shipment(), grade: grade),
+    );
+    await pumpEventQueue();
+  }
 
-  group('ProofCaptureController', () {
+  group('ProofCaptureBloc', () {
     test('starts before the door', () {
-      expect(controller.state, isA<AwaitingArrival>());
+      expect(bloc.state, isA<AwaitingArrival>());
     });
 
     test('opens an attempt and waits at the door', () async {
-      await arrive();
+      await arrive(bloc);
 
-      expect(controller.state, isA<AtTheDoor>());
+      expect(bloc.state, isA<AtTheDoor>());
     });
 
     test('asks for nothing when nobody is signed in', () async {
-      final anonymous = _controller(facade, signedIn: false);
-      addTearDown(anonymous.dispose);
+      final anonymous = _bloc(facade, signedIn: false);
+      addTearDown(anonymous.close);
 
-      await anonymous.arrive(shipment: DeliveryFixtures.shipment());
+      await arrive(anonymous);
 
       expect(anonymous.state, isA<AwaitingArrival>());
       expect(facade.grades, isEmpty);
+    });
+
+    test('a second arrival while the first is in flight is dropped', () async {
+      // Opening an attempt is a write. Two taps on the retry button are one
+      // courier saying they are at the door, and answering both would open
+      // two attempts at the same address — which is why this registration is
+      // `droppable()` rather than `restartable()`.
+      final gate = Completer<void>();
+      facade.gate = gate;
+      addTearDown(() => gate.isCompleted ? null : gate.complete());
+
+      bloc
+        ..add(ArrivalRequested(shipment: DeliveryFixtures.shipment()))
+        ..add(ArrivalRequested(shipment: DeliveryFixtures.shipment()));
+      await pumpEventQueue();
+      gate.complete();
+      await pumpEventQueue();
+
+      expect(facade.grades, hasLength(1));
+      expect(bloc.state, isA<AtTheDoor>());
     });
 
     test('reports a courier who is not at the address', () async {
@@ -144,37 +197,38 @@ void main() {
         OutsideDeliveryArea(metresAway: 450, allowedMetres: 100),
       );
 
-      await arrive();
+      await arrive(bloc);
 
-      expect(controller.state, isA<CaptureFailed>());
+      expect(bloc.state, isA<CaptureFailed>());
     });
 
     test('reads the policy rather than restating it', () async {
       // A second copy of the rule here would tell a courier they were finished
       // on the day the policy changed and the use case disagreed.
-      await arrive(grade: DeliveryGrade.highValue);
-      final atTheDoor = controller.state as AtTheDoor;
+      await arrive(bloc, grade: DeliveryGrade.highValue);
+      final atTheDoor = bloc.state as AtTheDoor;
 
       expect(atTheDoor.missing, {EvidenceKind.signature, EvidenceKind.photo});
       expect(atTheDoor.isComplete, isFalse);
     });
 
     test('a standard parcel is complete on one piece of evidence', () async {
-      await arrive();
-      controller.addPhoto(DeliveryFixtures.photo());
+      await arrive(bloc);
+      bloc.add(PhotoCaptured(Success(DeliveryFixtures.photo())));
+      await pumpEventQueue();
 
-      expect((controller.state as AtTheDoor).isComplete, isTrue);
+      expect((bloc.state as AtTheDoor).isComplete, isTrue);
     });
 
     test('builds the proof from the evidence, with no clock', () async {
       // Section 2 does not allow this package core_ports, so the instant comes
       // from the evidence through ProofOfDelivery.from.
-      await arrive();
-      controller
-        ..recipientIs('A. Yilmaz')
-        ..addSignature(DeliveryFixtures.signature());
-
-      await controller.complete();
+      await arrive(bloc);
+      bloc
+        ..add(const RecipientNamed('A. Yilmaz'))
+        ..add(SignatureCaptured(Success(DeliveryFixtures.signature())))
+        ..add(const HandoverRecorded());
+      await pumpEventQueue();
 
       expect(facade.proofs.single.capturedAt, DeliveryFixtures.noon);
       expect(facade.proofs.single.recipient.name, 'A. Yilmaz');
@@ -184,25 +238,26 @@ void main() {
       // Scenario 6 where it bites. The use case does not check permissions —
       // identity is not one of its collaborators — so this is the last thing
       // between an actor without the grant and a recorded delivery.
-      final ungranted = _controller(facade, granted: const {});
-      addTearDown(ungranted.dispose);
-      await ungranted.arrive(shipment: DeliveryFixtures.shipment());
+      final ungranted = _bloc(facade, granted: const {});
+      addTearDown(ungranted.close);
+      await arrive(ungranted);
       ungranted
-        ..recipientIs('A. Yilmaz')
-        ..addSignature(DeliveryFixtures.signature());
-
-      await ungranted.complete();
+        ..add(const RecipientNamed('A. Yilmaz'))
+        ..add(SignatureCaptured(Success(DeliveryFixtures.signature())))
+        ..add(const HandoverRecorded());
+      await pumpEventQueue();
 
       expect(ungranted.canComplete, isFalse);
       expect(facade.proofs, isEmpty);
     });
 
     test('a capture blocked in settings leaves a notice at the door', () async {
-      await arrive();
+      await arrive(bloc);
 
-      controller.capturedPhoto(const Failed(CaptureBlockedInSettings()));
+      bloc.add(const PhotoCaptured(Failed(CaptureBlockedInSettings())));
+      await pumpEventQueue();
 
-      final atTheDoor = controller.state as AtTheDoor;
+      final atTheDoor = bloc.state as AtTheDoor;
       expect(atTheDoor.notice, isA<CaptureBlockedInSettings>());
     });
 
@@ -211,20 +266,22 @@ void main() {
       // somebody who changed their mind is the defect this whole type exists
       // to stop, so the one case that reaches here as a `Failed` is the one
       // that draws nothing.
-      await arrive();
+      await arrive(bloc);
 
-      controller.capturedPhoto(const Failed(CaptureDeclined()));
+      bloc.add(const PhotoCaptured(Failed(CaptureDeclined())));
+      await pumpEventQueue();
 
-      expect((controller.state as AtTheDoor).notice, isNull);
+      expect((bloc.state as AtTheDoor).notice, isNull);
     });
 
     test('evidence that arrives clears whatever the last try said', () async {
-      await arrive();
-      controller
-        ..capturedPhoto(const Failed(CaptureNotAllowed()))
-        ..capturedPhoto(Success(DeliveryFixtures.photo()));
+      await arrive(bloc);
+      bloc
+        ..add(const PhotoCaptured(Failed(CaptureNotAllowed())))
+        ..add(PhotoCaptured(Success(DeliveryFixtures.photo())));
+      await pumpEventQueue();
 
-      final atTheDoor = controller.state as AtTheDoor;
+      final atTheDoor = bloc.state as AtTheDoor;
       expect(atTheDoor.notice, isNull);
       expect(atTheDoor.carries, contains(EvidenceKind.photo));
     });
@@ -234,27 +291,31 @@ void main() {
       // writing the recipient's name has not unblocked anything, and watching
       // the only way out vanish under their thumb is worse than not offering
       // it — which is what dropping it with the refusal would do.
-      await arrive();
-      controller
-        ..capturedPhoto(const Failed(CaptureBlockedInSettings()))
-        ..recipientIs('A. Yilmaz');
+      await arrive(bloc);
+      bloc
+        ..add(const PhotoCaptured(Failed(CaptureBlockedInSettings())))
+        ..add(const RecipientNamed('A. Yilmaz'));
+      await pumpEventQueue();
 
       expect(
-        (controller.state as AtTheDoor).notice,
+        (bloc.state as AtTheDoor).notice,
         isA<CaptureBlockedInSettings>(),
       );
     });
 
     test('a capture that produced nothing usable says so', () async {
-      await arrive();
+      await arrive(bloc);
 
-      controller.capturedPhoto(
-        const Failed(
-          EvidenceUnusable(MediaTooLarge(bytes: 9000000, limit: 2097152)),
+      bloc.add(
+        const PhotoCaptured(
+          Failed(
+            EvidenceUnusable(MediaTooLarge(bytes: 9000000, limit: 2097152)),
+          ),
         ),
       );
+      await pumpEventQueue();
 
-      final notice = (controller.state as AtTheDoor).notice;
+      final notice = (bloc.state as AtTheDoor).notice;
       expect(notice, isA<EvidenceUnusable>());
       expect((notice! as EvidenceUnusable).failure, isA<MediaTooLarge>());
     });
@@ -262,18 +323,23 @@ void main() {
     test('reads the permission every time rather than caching it', () async {
       // A grant can be revoked mid-shift, and a screen answering from a value
       // it captured when it opened would keep offering an action the operation
-      // has taken away.
-      expect(controller.canComplete, isTrue);
-      expect(_controller(facade, granted: const {}).canComplete, isFalse);
+      // has taken away. It is a getter on the bloc for that reason: in the
+      // state it would be frozen at the last emission.
+      final ungranted = _bloc(facade, granted: const {});
+      addTearDown(ungranted.close);
+
+      expect(bloc.canComplete, isTrue);
+      expect(ungranted.canComplete, isFalse);
     });
 
     test('a hand-over with nobody s name is refused before the port', () async {
-      await arrive();
-      controller.addSignature(DeliveryFixtures.signature());
+      await arrive(bloc);
+      bloc
+        ..add(SignatureCaptured(Success(DeliveryFixtures.signature())))
+        ..add(const HandoverRecorded());
+      await pumpEventQueue();
 
-      await controller.complete();
-
-      expect((controller.state as AtTheDoor).refusal, isNotNull);
+      expect((bloc.state as AtTheDoor).refusal, isNotNull);
       expect(facade.proofs, isEmpty);
     });
 
@@ -282,14 +348,14 @@ void main() {
       // state would send a courier back to the start of a hand-over they are
       // halfway through.
       facade.completeAnswer = const Failed(ProofStoreUnavailable());
-      await arrive();
-      controller
-        ..recipientIs('A. Yilmaz')
-        ..addSignature(DeliveryFixtures.signature());
+      await arrive(bloc);
+      bloc
+        ..add(const RecipientNamed('A. Yilmaz'))
+        ..add(SignatureCaptured(Success(DeliveryFixtures.signature())))
+        ..add(const HandoverRecorded());
+      await pumpEventQueue();
 
-      await controller.complete();
-
-      final state = controller.state as AtTheDoor;
+      final state = bloc.state as AtTheDoor;
       expect(state.refusal, isA<ProofStoreUnavailable>());
       expect(state.signature, isNotNull);
     });
@@ -297,16 +363,41 @@ void main() {
     test('recording a failed visit needs no permission', () async {
       // Every courier standing at a door may say what happened. Gating it
       // would leave the visit unrecorded rather than leaving it undone.
-      final ungranted = _controller(facade, granted: const {});
-      addTearDown(ungranted.dispose);
-      await ungranted.arrive(shipment: DeliveryFixtures.shipment());
+      final ungranted = _bloc(facade, granted: const {});
+      addTearDown(ungranted.close);
+      await arrive(ungranted);
 
-      await ungranted.couldNotDeliver(
-        const NonDeliveryReason.recipientAbsent(),
+      ungranted.add(
+        const NonDeliveryRecorded(NonDeliveryReason.recipientAbsent()),
       );
+      await pumpEventQueue();
 
       expect(ungranted.state, isA<Settled>());
       expect(facade.reasons.single, isA<RecipientAbsent>());
+    });
+
+    test('a visit is settled once, whichever two ways it is asked', () async {
+      // The reason `HandoverRecorded` and `NonDeliveryRecorded` share one
+      // `on<SettlementRequested>`: a transformer governs one registration and
+      // no more, so under two of them both of these reach the port and the
+      // domain answers the loser with `AttemptAlreadySettled`. Re-run with the
+      // registration split in two and `reasons` is no longer empty.
+      await arrive(bloc);
+      final gate = Completer<void>();
+      facade.gate = gate;
+      addTearDown(() => gate.isCompleted ? null : gate.complete());
+
+      bloc
+        ..add(const RecipientNamed('A. Yilmaz'))
+        ..add(SignatureCaptured(Success(DeliveryFixtures.signature())))
+        ..add(const HandoverRecorded())
+        ..add(const NonDeliveryRecorded(NonDeliveryReason.recipientAbsent()));
+      await pumpEventQueue();
+      gate.complete();
+      await pumpEventQueue();
+
+      expect(facade.proofs, hasLength(1));
+      expect(facade.reasons, isEmpty);
     });
   });
 
@@ -317,20 +408,18 @@ void main() {
       Future<Result<PhotoEvidence, CaptureRefusal>> Function()? onCapturePhoto,
       void Function(DeliveryAttempt)? onSettled,
       Future<bool> Function()? onOpenSettings,
-    }) {
-      final built = _controller(facade, granted: granted);
-      addTearDown(built.dispose);
-      return PeykTheme.wrap(
+    }) => PeykTheme.wrap(
+      child: BlocProvider<ProofCaptureBloc>(
+        create: (_) => _bloc(facade, granted: granted),
         child: ProofCaptureScreen(
-          controller: built,
           shipment: DeliveryFixtures.shipment(),
           grade: grade,
           onCapturePhoto: onCapturePhoto,
           onSettled: onSettled,
           onOpenSettings: onOpenSettings,
         ),
-      );
-    }
+      ),
+    );
 
     testWidgets('says what the grade still insists on', (tester) async {
       await tester.pumpWidget(screen(grade: DeliveryGrade.highValue));
@@ -372,6 +461,33 @@ void main() {
       expect(
         find.textContaining(DeliveryStrings.captured),
         findsOneWidget,
+      );
+    });
+
+    testWidgets('a keystroke redraws the field and nothing else', (
+      tester,
+    ) async {
+      // What `BlocSelector` is here for. A name is typed a character at a
+      // time and every character is a new `AtTheDoor`; the chips beside it say
+      // the same thing in all of them. `buildWhen` on the case stops the door
+      // rebuilding, the field's own selector redraws, and the chip is the
+      // *same widget instance* afterwards — which is what a rebuild would
+      // change and what this asserts.
+      await tester.pumpWidget(
+        screen(onCapturePhoto: () async => Success(DeliveryFixtures.photo())),
+      );
+      await tester.pump();
+      await tester.tap(find.text(DeliveryStrings.addPhoto));
+      await tester.pump();
+
+      final before = tester.widget<PeykChip>(find.byType(PeykChip));
+      await tester.enterText(find.byType(PeykTextField), 'A. Yilmaz');
+      await tester.pump();
+
+      expect(find.text('A. Yilmaz'), findsOneWidget);
+      expect(
+        identical(before, tester.widget<PeykChip>(find.byType(PeykChip))),
+        isTrue,
       );
     });
 
@@ -501,9 +617,9 @@ void main() {
 
       expect(settled, hasLength(1));
 
-      // Rebuilding is not an event. Settled stays on screen until somebody
-      // leaves it, so a screen that announced from `build` would send the
-      // courier onward once per notification.
+      // Rebuilding is not an event. `listenWhen` sees both states, which is
+      // what a `ChangeNotifier` could not — announcing a value with no way to
+      // say what changed is why this used to need a flag on the widget state.
       await tester.pump();
       await tester.pump();
 
