@@ -18,8 +18,8 @@
 /// explaining caching to somebody standing at a door.
 library;
 
-export 'src/document_controller.dart';
-export 'src/document_screen.dart';
-export 'src/document_state.dart';
+export 'src/document/document_controller.dart';
+export 'src/document/document_screen.dart';
+export 'src/document/document_state.dart';
 export 'src/documents_routes.dart';
 export 'src/documents_strings.dart';

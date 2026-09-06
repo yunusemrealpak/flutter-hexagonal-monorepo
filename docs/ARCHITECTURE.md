@@ -124,7 +124,7 @@ One type refuses the mechanical answer, and it is instructive: `SyncCommand` is 
 
 ### What `_application` and `_infrastructure` look like inside
 
-The same treatment, one ring out. An earlier version of this section claimed the other roles hold one kind of thing each; counting the files showed that is true of `_presentation` and false of the two below.
+The same treatment, one ring out. An earlier version of this section claimed the other roles hold one kind of thing each; counting the files showed it is false of both of these, and false of `_presentation` in a different way — see the section after this one.
 
 ```
 delivery_application/lib/src/       delivery_infrastructure/lib/src/
@@ -156,7 +156,28 @@ Two of these folders are worth defining because nothing else in the workspace na
 
 **The case against this layout was real and is worth recording.** In `_api` the file name genuinely could not carry the distinction: `delivery_gateway.dart` and `delivery_execution.dart` sit beside each other and nothing but the contents says which way the arrow points. Here the names already carry most of it — `*_dto.dart`, `*_mapper.dart`, `*_coordinator.dart`, `*_command.dart` — and several of the folders hold exactly one file, `identity_application` being a package with one file in one folder. So the general criterion this repository now uses is: **a folder earns its place when the file name cannot carry the distinction.** That test passes in `_api` and is marginal here; the layout was adopted anyway, deliberately, because a reader scanning a package sees its shape before reading a single name and the shape survives a rename. Recording the weaker case is the point — the next person to propose folders somewhere else should apply the criterion, not the precedent.
 
-**`_presentation` and `_testing` stay flat.** A presentation package holds one controller, one state, one screen, its routes and its strings — five files, one of each kind, so a folder per kind is five folders holding one file each with nothing left over. A `_testing` package's names are its whole taxonomy: `fake_*`, `*_contract`, `*_fixtures`.
+### What a `_presentation` package looks like inside
+
+One ring further out, and on a **different axis**. `_api` groups by kind because it has many kinds and one subject. A presentation package has the opposite shape: one *set* of kinds — a bloc, its events, its state, a screen — repeated once per thing on screen. So what varies is which state, and that is what the folders are:
+
+```
+settings_presentation/lib/src/
+  alerts/              alerts_bloc.dart  alerts_event.dart  alerts_state.dart
+  settings/            settings_bloc.dart  settings_event.dart  settings_state.dart
+                       settings_screen.dart
+  settings_routes.dart
+  settings_strings.dart
+```
+
+**A folder holds one piece of state and everything that reads it** — widgets included. `UnreadBadge` sits in `inbox/` beside the screen, because both read `InboxState`; `SyncStatusBadge` sits in `review_queue/` for the same reason. `alerts/` has no screen of its own — it is a section drawn inside `SettingsScreen` — and it is a folder anyway, because what is being named is the state, not a destination.
+
+**What stays at the root is what the package offers an *app* rather than a screen**: `<feature>_routes.dart`, the destinations, and `<feature>_strings.dart`, the keys this package asks an app to answer. Neither is read by a bloc and neither belongs inside one; they are the package's two contracts with whatever composed it.
+
+**Grouping this layer by kind would have been the wrong answer, and `settings_presentation` is the proof.** It is the one package with two units today, and under `bloc/` + `view/` its files interleave — `alerts_bloc.dart` beside `settings_bloc.dart`, `alerts_state.dart` beside `settings_state.dart` — with nothing but a name prefix to say which state belongs to which. That is the criterion above applied honestly rather than copied: here the file name *does* carry the kind (`_bloc`, `_event`, `_state`, `_screen`), so kind is exactly what the folders must not be. The layer that needed the split is the one where the names already fail to give it.
+
+The cost is the one every by-subject layout has: a package with a single screen gets a folder holding four files and two files outside it, which reads as ceremony until the second screen arrives. `settings_presentation` is the argument that it does arrive, and `routing_presentation` — two controllers in one file today, because routing has two audiences (§5.7) — is the next one.
+
+**`_testing` stays flat.** Its names are its whole taxonomy: `fake_*`, `*_contract`, `*_fixtures`.
 
 ### There is no BLoC here, and that is a decision
 

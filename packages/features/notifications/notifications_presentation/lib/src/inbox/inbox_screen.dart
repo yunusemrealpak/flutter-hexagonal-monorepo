@@ -4,9 +4,9 @@ import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:notifications_api/notifications_api.dart';
 
+import '../notifications_strings.dart';
 import 'inbox_controller.dart';
 import 'inbox_state.dart';
-import 'notifications_strings.dart';
 
 /// Where a courier reads what the operation has told them.
 final class InboxScreen extends StatefulWidget {

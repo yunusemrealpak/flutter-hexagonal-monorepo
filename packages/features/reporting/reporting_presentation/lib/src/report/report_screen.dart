@@ -4,9 +4,9 @@ import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:reporting_api/reporting_api.dart';
 
+import '../reporting_strings.dart';
 import 'report_controller.dart';
 import 'report_state.dart';
-import 'reporting_strings.dart';
 
 /// Where a dispatcher watches the day.
 ///

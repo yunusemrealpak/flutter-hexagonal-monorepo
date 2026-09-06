@@ -4,9 +4,9 @@ import 'package:design_system/design_system.dart';
 import 'package:documents_api/documents_api.dart';
 import 'package:flutter/widgets.dart';
 
+import '../documents_strings.dart';
 import 'document_controller.dart';
 import 'document_state.dart';
-import 'documents_strings.dart';
 
 /// Where a piece of paperwork is shown.
 ///

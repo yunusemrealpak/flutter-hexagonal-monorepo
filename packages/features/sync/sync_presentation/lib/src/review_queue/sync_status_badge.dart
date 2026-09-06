@@ -2,8 +2,8 @@ import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:sync_api/sync_api.dart';
 
+import '../sync_strings.dart';
 import 'review_queue_controller.dart';
-import 'sync_strings.dart';
 
 /// The queue indicator every screen in a courier app carries.
 ///

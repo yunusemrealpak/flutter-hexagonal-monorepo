@@ -17,8 +17,8 @@
 /// button the screen has already hidden.
 library;
 
-export 'src/incident_board_controller.dart';
-export 'src/incident_board_screen.dart';
-export 'src/incident_board_state.dart';
+export 'src/incident_board/incident_board_controller.dart';
+export 'src/incident_board/incident_board_screen.dart';
+export 'src/incident_board/incident_board_state.dart';
 export 'src/incidents_routes.dart';
 export 'src/incidents_strings.dart';

@@ -4,10 +4,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:payments_api/payments_api.dart';
 import 'package:shipments_api/shipments_api.dart';
 
+import '../payments_strings.dart';
 import 'collection_bloc.dart';
 import 'collection_event.dart';
 import 'collection_state.dart';
-import 'payments_strings.dart';
 
 /// Where a courier takes money at a door.
 ///

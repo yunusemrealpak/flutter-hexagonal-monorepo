@@ -4,9 +4,9 @@ import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:vehicle_inventory_api/vehicle_inventory_api.dart';
 
+import '../vehicle_inventory_strings.dart';
 import 'count_controller.dart';
 import 'count_state.dart';
-import 'vehicle_inventory_strings.dart';
 
 /// Where a courier counts a van.
 ///

@@ -4,9 +4,9 @@ import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:routing_api/routing_api.dart';
 
+import '../routing_strings.dart';
 import 'route_controller.dart';
 import 'route_view_state.dart';
-import 'routing_strings.dart';
 
 /// The route, in the order it will be driven.
 ///

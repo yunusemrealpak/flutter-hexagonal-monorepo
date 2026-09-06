@@ -121,6 +121,21 @@ void main() {
       );
     });
 
+    // And one layer further out, on a different axis. A presentation package
+    // has one set of kinds repeated per screen, so it groups by the state a
+    // file reads rather than by kind — the route module is what stays at the
+    // root, because it is what the package offers an app rather than part of a
+    // screen.
+    test('the _presentation seed groups by the state a file reads', () {
+      generate();
+      const package = 'packages/features/billing/billing_presentation/lib/src';
+      expect(
+        workspace.exists('$package/billing/billing_screen.dart'),
+        isTrue,
+      );
+      expect(workspace.exists('$package/billing_routes.dart'), isTrue);
+    });
+
     test('nothing but the barrel sits directly under lib/', () {
       generate();
       final strays = workspace

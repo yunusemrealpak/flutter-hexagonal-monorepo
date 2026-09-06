@@ -4,7 +4,7 @@ import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:messaging_api/messaging_api.dart';
 
-import 'messaging_strings.dart';
+import '../messaging_strings.dart';
 import 'thread_controller.dart';
 import 'thread_state.dart';
 

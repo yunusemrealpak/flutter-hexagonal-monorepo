@@ -27,9 +27,9 @@
 /// is decided by whichever app composed it.
 library;
 
-export 'src/collection_bloc.dart';
-export 'src/collection_event.dart';
-export 'src/collection_screen.dart';
-export 'src/collection_state.dart';
+export 'src/collection/collection_bloc.dart';
+export 'src/collection/collection_event.dart';
+export 'src/collection/collection_screen.dart';
+export 'src/collection/collection_state.dart';
 export 'src/payments_routes.dart';
 export 'src/payments_strings.dart';

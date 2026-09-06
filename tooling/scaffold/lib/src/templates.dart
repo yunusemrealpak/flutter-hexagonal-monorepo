@@ -256,11 +256,10 @@ String _imports({
 /// The seed writes only the two folders it has files for; the rest arrive with
 /// the feature's first entity and value.
 ///
-/// `_application` and `_infrastructure` are grouped too, by their own seeds
-/// below. `_presentation` and `_testing` stay flat, and that is a calibration
-/// rather than an oversight: a presentation package holds one controller, one
-/// state, one screen and its routes, so a folder per kind would be four
-/// folders holding one file each.
+/// `_application`, `_infrastructure` and `_presentation` are grouped too, by
+/// their own seeds below — each on the axis that actually varies in it, which
+/// is not the same axis in all three. `_testing` stays flat, and that is a
+/// calibration rather than an oversight: it holds fakes and nothing else.
 Map<String, String> _apiSources(Naming naming) {
   final feature = naming.feature;
   final type = naming.featurePascal;
@@ -443,10 +442,20 @@ final class Remote${type}Repository implements ${type}Repository {
   };
 }
 
+/// The `_presentation` seed, grouped by the state a file reads.
+///
+/// A folder holds one piece of state and everything that reads it; the route
+/// module stays at the root because it is what the package offers the *app*
+/// rather than part of a screen. That is a different axis from the one `_api`
+/// is grouped on, and deliberately so: `_api` has many kinds and one subject,
+/// while a presentation package has one set of kinds repeated per screen. Group
+/// this layer by kind and `settings_presentation`'s two units — the screen and
+/// the alerts section — end up interleaved in a `bloc/` folder with nothing but
+/// a name prefix to say which state belongs to which.
 Map<String, String> _presentationSources(PackagePlan package, Naming naming) {
   final type = naming.pascal;
   final sources = <String, String>{
-    'lib/src/${naming.snake}_screen.dart':
+    'lib/src/${naming.snake}/${naming.snake}_screen.dart':
         '''
 import 'package:flutter/widgets.dart';
 

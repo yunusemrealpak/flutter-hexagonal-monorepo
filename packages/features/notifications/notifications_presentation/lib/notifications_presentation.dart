@@ -20,9 +20,9 @@
 /// chosen there.
 library;
 
-export 'src/inbox_controller.dart';
-export 'src/inbox_screen.dart';
-export 'src/inbox_state.dart';
+export 'src/inbox/inbox_controller.dart';
+export 'src/inbox/inbox_screen.dart';
+export 'src/inbox/inbox_state.dart';
+export 'src/inbox/unread_badge.dart';
 export 'src/notifications_routes.dart';
 export 'src/notifications_strings.dart';
-export 'src/unread_badge.dart';

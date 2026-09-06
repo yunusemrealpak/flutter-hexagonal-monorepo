@@ -4,9 +4,9 @@ import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shipments_api/shipments_api.dart';
 
+import '../shipments_courier_strings.dart';
 import 'courier_manifest_controller.dart';
 import 'courier_manifest_state.dart';
-import 'shipments_courier_strings.dart';
 
 /// The courier's stop list.
 ///

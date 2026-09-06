@@ -2,7 +2,7 @@ import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:identity_api/identity_api.dart';
 
-import 'identity_strings.dart';
+import '../identity_strings.dart';
 import 'sign_in_controller.dart';
 import 'sign_in_state.dart';
 

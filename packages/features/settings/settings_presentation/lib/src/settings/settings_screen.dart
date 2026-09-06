@@ -5,11 +5,11 @@ import 'package:flutter/widgets.dart';
 import 'package:notifications_api/notifications_api.dart';
 import 'package:settings_api/settings_api.dart';
 
-import 'alerts_controller.dart';
-import 'alerts_state.dart';
+import '../alerts/alerts_controller.dart';
+import '../alerts/alerts_state.dart';
+import '../settings_strings.dart';
 import 'settings_controller.dart';
 import 'settings_state.dart';
-import 'settings_strings.dart';
 
 /// Where somebody chooses how the product behaves.
 ///

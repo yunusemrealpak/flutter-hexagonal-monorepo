@@ -33,8 +33,8 @@
 /// `app_harness`.
 library;
 
-export 'src/route_controller.dart';
-export 'src/route_screen.dart';
-export 'src/route_view_state.dart';
+export 'src/route/route_controller.dart';
+export 'src/route/route_screen.dart';
+export 'src/route/route_view_state.dart';
 export 'src/routing_routes.dart';
 export 'src/routing_strings.dart';

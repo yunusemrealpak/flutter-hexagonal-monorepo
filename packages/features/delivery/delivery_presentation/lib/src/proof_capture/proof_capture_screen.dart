@@ -6,7 +6,7 @@ import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shipments_api/shipments_api.dart';
 
-import 'delivery_strings.dart';
+import '../delivery_strings.dart';
 import 'proof_capture_controller.dart';
 import 'proof_capture_state.dart';
 

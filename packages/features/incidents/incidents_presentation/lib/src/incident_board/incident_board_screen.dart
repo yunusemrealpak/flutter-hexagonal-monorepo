@@ -4,9 +4,9 @@ import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:incidents_api/incidents_api.dart';
 
+import '../incidents_strings.dart';
 import 'incident_board_controller.dart';
 import 'incident_board_state.dart';
-import 'incidents_strings.dart';
 
 /// Where a dispatcher works down what is still open.
 final class IncidentBoardScreen extends StatefulWidget {

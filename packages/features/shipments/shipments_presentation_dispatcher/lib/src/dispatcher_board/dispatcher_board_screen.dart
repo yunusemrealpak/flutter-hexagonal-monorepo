@@ -4,9 +4,9 @@ import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
 import 'package:shipments_api/shipments_api.dart';
 
+import '../shipments_dispatcher_strings.dart';
 import 'dispatcher_board_controller.dart';
 import 'dispatcher_board_state.dart';
-import 'shipments_dispatcher_strings.dart';
 
 /// The dispatcher's board: every shipment, with the actions the actor may use.
 ///
