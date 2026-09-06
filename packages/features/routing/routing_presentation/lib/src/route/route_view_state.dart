@@ -35,8 +35,8 @@ final class RouteLoading extends RouteViewState {
 /// yet" is where a courier starts every day, and rendering it as an error
 /// sends them looking for a problem that does not exist.
 ///
-/// The translation from the one to the other happens in the controller, which
-/// is the layer that knows what the screen is for.
+/// The translation from the one to the other happens in the bloc, which is the
+/// layer that knows what the screen is for.
 final class RouteUnplanned extends RouteViewState {
   /// Creates the state.
   const RouteUnplanned();

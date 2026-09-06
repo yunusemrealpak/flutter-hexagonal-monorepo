@@ -13,11 +13,21 @@ environment:
 # a presentation package. Adding one that is not in that row is a violation,
 # not an exception — arch_check will say which rule and why.
 dependencies:
+  # The event transformers. `sequential()` on the reorder events is the one
+  # this package could not do without: two drags are two edits that must both
+  # land, in order, and each is only meaningful against the plan the previous
+  # one produced.
+  bloc_concurrency: ^0.3.0
   core_kernel: ^0.1.0
   core_navigation: ^0.1.0
   design_system: ^0.1.0
   flutter:
     sdk: flutter
+  # Section 2 permits it: `feature_presentation` carries
+  # `allow_third_party: true`. What it buys here is a subscription that is a
+  # handler rather than a field, and per-stop `BlocSelector`s — an arrival
+  # redraws one row of a route rather than all of them.
+  flutter_bloc: ^9.1.1
   # A foreign _api, which section 2 allows a presentation package. It is here
   # for one type: ActorId. Whose route this screen shows is not a fact this
   # package can assume — the same screen serves a courier looking at their own
@@ -28,6 +38,7 @@ dependencies:
   routing_api: ^0.1.0
 
 dev_dependencies:
+  bloc_test: ^10.0.0
   flutter_test:
     sdk: flutter
   routing_testing: ^0.1.0

@@ -108,12 +108,17 @@ PeykRouter buildCourierRouter(GetIt container) {
           session: sessions,
         ),
       ),
-      'routing.myRoute': (context, _) => RouteScreen(
-        controller: FollowedRouteController(
+      'routing.myRoute': (context, _) => BlocProvider<RouteBloc>(
+        // Provided as the base type: the screen reads the reorder affordance
+        // off what the app actually built, so a courier's tree resolves a
+        // `RouteBloc` that happens to be a `FollowedRouteBloc` and no
+        // supervision event reaches a handler.
+        create: (_) => FollowedRouteBloc(
           planning: container<RoutePlanning>(),
           following: container<RouteFollowing>(),
           courier: actor(),
         ),
+        child: const RouteScreen(),
       ),
       'delivery.proof': (context, parameters) => _parsed(
         ShipmentId.parse(parameters['shipmentId'] ?? ''),

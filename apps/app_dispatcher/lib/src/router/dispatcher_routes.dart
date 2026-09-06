@@ -87,20 +87,20 @@ PeykRouter buildDispatcherRouter(GetIt container) {
         ),
       ),
       // Somebody else's route, and the only screen in the workspace whose
-      // behaviour differs between the two apps. The difference is the
-      // controller's *type*: a `SupervisedRouteController` holds
-      // `RouteSupervision` and no `RouteFollowing`, so this screen can reorder
-      // a courier's afternoon and cannot ask where that courier is. The guard
-      // has already let this person in; reordering is a separate grant that
-      // only a desk holds.
+      // behaviour differs between the two apps. The difference is the bloc's
+      // *type*: a `SupervisedRouteBloc` holds `RouteSupervision` and no
+      // `RouteFollowing`, so this screen can reorder a courier's afternoon and
+      // cannot ask where that courier is. The guard has already let this
+      // person in; reordering is a separate grant that only a desk holds.
       'routing.courierRoute': (context, parameters) => _parsed(
         ActorId.parse(parameters['courierId'] ?? ''),
-        (courier) => RouteScreen(
-          controller: SupervisedRouteController(
+        (courier) => BlocProvider<RouteBloc>(
+          create: (_) => SupervisedRouteBloc(
             planning: container<RoutePlanning>(),
             supervision: container<RouteSupervision>(),
             courier: courier,
           ),
+          child: const RouteScreen(),
         ),
       ),
       'reports.board': (context, _) => BlocProvider(

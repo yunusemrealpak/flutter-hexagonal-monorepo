@@ -1,11 +1,11 @@
-import 'dart:async';
-
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:routing_api/routing_api.dart';
 
 import '../routing_strings.dart';
-import 'route_controller.dart';
+import 'route_bloc.dart';
+import 'route_event.dart';
 import 'route_view_state.dart';
 
 /// The route, in the order it will be driven.
@@ -16,20 +16,25 @@ import 'route_view_state.dart';
 /// Nothing here can tell the difference, because both arrive as a `RoutePlan`
 /// through `RoutePlanning` — which is what scenario 4 is worth once you are
 /// past the port itself.
+///
+/// **Whether the driving order can be changed is read from the bloc's type**,
+/// not from a flag. A `SupervisedRouteBloc` holds `RouteSupervision` and a
+/// `FollowedRouteBloc` does not, so the reorder affordance appears exactly
+/// when the app composed something that can answer it. The previous
+/// `reorderable` boolean said what the *viewer* may do; the app still decides
+/// that by resolving the route's `requiredPermission` through
+/// `PermissionChecker` before this screen is reached.
+///
+/// **What `buildWhen` compares here is the plan's identity, not the state's
+/// type.** `RouteReady` follows itself for two very different reasons: a stop
+/// was marked arrived, which changes one tile, and a replan arrived, which
+/// changes every row. A plan is immutable, so a different object is a
+/// different route and the same object cannot have changed — and the
+/// per-stop marks that move without a new plan are selected individually
+/// below.
 final class RouteScreen extends StatefulWidget {
-  /// Creates the screen over [controller].
-  const RouteScreen({required this.controller, super.key});
-
-  /// What drives it.
-  ///
-  /// **Whether the driving order can be changed is read from its type**, not
-  /// from a flag. A `SupervisedRouteController` holds `RouteSupervision` and a
-  /// `FollowedRouteController` does not, so the reorder affordance appears
-  /// exactly when the app composed something that can answer it. The previous
-  /// `reorderable` boolean said what the *viewer* may do; the app still
-  /// decides that by resolving the route's `requiredPermission` through
-  /// `PermissionChecker` before this screen is reached.
-  final RouteController controller;
+  /// Creates the screen. The bloc comes from the tree above it.
+  const RouteScreen({super.key});
 
   @override
   State<RouteScreen> createState() => _RouteScreenState();
@@ -89,26 +94,29 @@ class _RouteScreenState extends State<RouteScreen> {
   @override
   void initState() {
     super.initState();
-    // initState cannot be async, and the load is genuinely fire-and-forget:
-    // its result reaches the screen through the controller's notification
-    // rather than through this call.
-    widget.controller.watch();
-    unawaited(widget.controller.load());
+    // Both, and in this order: the subscription is what redraws when somebody
+    // else replans this courier, and the read is what puts a route on screen
+    // now. Neither is awaited — the answers arrive as states.
+    context.read<RouteBloc>()
+      ..add(const RouteWatched())
+      ..add(const RouteRequested());
   }
 
   @override
   Widget build(BuildContext context) {
     final strings = PeykStrings.of(context);
-    final controller = widget.controller;
-    final supervisor = controller is SupervisedRouteController
-        ? controller
-        : null;
 
     return PeykScreen(
       title: strings.resolve(RoutingStrings.title),
-      body: ListenableBuilder(
-        listenable: widget.controller,
-        builder: (context, _) => switch (widget.controller.state) {
+      body: BlocBuilder<RouteBloc, RouteViewState>(
+        // A new plan redraws the list; an arrival does not, because the marks
+        // it moves are selected per stop below.
+        buildWhen: (previous, current) => switch ((previous, current)) {
+          (RouteReady(plan: final before), RouteReady(plan: final after)) =>
+            !identical(before, after),
+          _ => previous.runtimeType != current.runtimeType,
+        },
+        builder: (context, state) => switch (state) {
           RouteIdle() || RouteLoading() => const PeykLoadingView(),
           // Not an error. This is where every day starts, and its own key
           // rather than NoPlan's: a courier who has not been given work has
@@ -121,21 +129,14 @@ class _RouteScreenState extends State<RouteScreen> {
           RouteReady(:final plan) when plan.etas.isEmpty => PeykEmptyView(
             message: strings.resolve(RoutingStrings.nothingToDrive),
           ),
-          RouteReady(:final plan, :final visited, :final refusal) => _Stops(
-            plan: plan,
-            visited: visited,
-            refusal: refusal,
-            onArrived: controller.markArrived,
-            onMoveUp: supervisor == null
-                ? null
-                : (stop) => unawaited(supervisor.moveUp(stop)),
-          ),
+          RouteReady(:final plan) => _Stops(plan: plan),
           RouteFailed(:final failure) => PeykFailureView(
             message: strings.resolve(
               RouteScreen.describe(failure),
               arguments: RouteScreen.argumentsFor(failure),
             ),
-            onRetry: () => unawaited(widget.controller.load()),
+            onRetry: () =>
+                context.read<RouteBloc>().add(const RouteRequested()),
           ),
         },
       ),
@@ -144,19 +145,9 @@ class _RouteScreenState extends State<RouteScreen> {
 }
 
 final class _Stops extends StatelessWidget {
-  const _Stops({
-    required this.plan,
-    required this.visited,
-    required this.onArrived,
-    this.onMoveUp,
-    this.refusal,
-  });
+  const _Stops({required this.plan});
 
   final RoutePlan plan;
-  final Set<StopId> visited;
-  final RoutingFailure? refusal;
-  final void Function(StopId) onArrived;
-  final void Function(StopId)? onMoveUp;
 
   @override
   Widget build(BuildContext context) {
@@ -164,9 +155,10 @@ final class _Stops extends StatelessWidget {
     // them rather than from the sequence: one source for the order and the
     // times means the two cannot disagree about which stop is third.
     final byId = {for (final stop in plan.stops) stop.id: stop};
-    final next = plan.nextStopAfter(visited);
-    final refused = refusal;
-    final moveUp = onMoveUp;
+    // The affordance is read from the type. A courier's bloc holds no
+    // `RouteSupervision`, so there is nothing for it to call and the screen
+    // cannot draw it by mistake.
+    final canReorder = context.read<RouteBloc>() is SupervisedRouteBloc;
     final strings = PeykStrings.of(context);
 
     return ListView(
@@ -174,14 +166,22 @@ final class _Stops extends StatelessWidget {
         // An advisory rather than a failure view: the route below is drivable,
         // it is just not fresh. Replacing the stops with an error page would
         // stop a courier driving a route that works.
-        if (refused != null)
-          PeykChip(
-            label: strings.resolve(
-              RouteScreen.describe(refused),
-              arguments: RouteScreen.argumentsFor(refused),
+        //
+        // Selected, because a refused reorder keeps the plan it refused —
+        // which is exactly the case the list above deliberately does not
+        // rebuild for.
+        BlocSelector<RouteBloc, RouteViewState, String?>(
+          selector: (state) => switch (state) {
+            RouteReady(refusal: final refusal?) => strings.resolve(
+              RouteScreen.describe(refusal),
+              arguments: RouteScreen.argumentsFor(refusal),
             ),
-            intent: PeykIntent.warning,
-          ),
+            _ => null,
+          },
+          builder: (context, label) => label == null
+              ? const SizedBox.shrink()
+              : PeykChip(label: label, intent: PeykIntent.warning),
+        ),
         PeykText.body(
           strings.resolve(
             RoutingStrings.summary,
@@ -195,12 +195,7 @@ final class _Stops extends StatelessWidget {
           _StopTile(
             stop: byId[eta.stop]!,
             eta: eta,
-            isNext: eta.stop == next,
-            isDone: visited.contains(eta.stop),
-            onArrived: () => onArrived(eta.stop),
-            onMoveUp: moveUp != null && index > 0
-                ? () => moveUp(eta.stop)
-                : null,
+            canMoveUp: canReorder && index > 0,
           ),
       ],
     );
@@ -211,22 +206,16 @@ final class _StopTile extends StatelessWidget {
   const _StopTile({
     required this.stop,
     required this.eta,
-    required this.isNext,
-    required this.isDone,
-    required this.onArrived,
-    this.onMoveUp,
+    required this.canMoveUp,
   });
 
   final Stop stop;
   final Eta eta;
-  final bool isNext;
-  final bool isDone;
-  final VoidCallback onArrived;
-  final VoidCallback? onMoveUp;
+  final bool canMoveUp;
 
   @override
   Widget build(BuildContext context) {
-    final moveUp = onMoveUp;
+    final bloc = context.read<RouteBloc>();
     final strings = PeykStrings.of(context);
 
     return Column(
@@ -243,42 +232,58 @@ final class _StopTile extends StatelessWidget {
           // Three separate marks rather than one status line. A stop can be
           // the next one *and* already forecast late, and a single line would
           // have to choose which of the two a courier is told.
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (isNext)
-                PeykChip(
-                  label: strings.resolve(RoutingStrings.next),
-                  intent: PeykIntent.info,
-                ),
-              if (eta.isLate) ...[
-                if (isNext) const PeykGap.horizontal(PeykGapSize.tight),
-                PeykChip(
-                  label: strings.resolve(RoutingStrings.late),
-                  intent: PeykIntent.warning,
-                ),
+          //
+          // `isNext` is asked of the state per stop rather than computed once
+          // for the list, because the rule for what "next" means belongs to
+          // `RoutePlan` and a second copy of it here would disagree with the
+          // domain's on the day either changed. A route is tens of stops.
+          trailing: BlocSelector<RouteBloc, RouteViewState, bool>(
+            selector: (state) =>
+                state is RouteReady && state.nextStop == eta.stop,
+            builder: (context, isNext) => Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isNext)
+                  PeykChip(
+                    label: strings.resolve(RoutingStrings.next),
+                    intent: PeykIntent.info,
+                  ),
+                if (eta.isLate) ...[
+                  if (isNext) const PeykGap.horizontal(PeykGapSize.tight),
+                  PeykChip(
+                    label: strings.resolve(RoutingStrings.late),
+                    intent: PeykIntent.warning,
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
         Row(
           children: [
-            if (isDone)
-              PeykChip(
-                label: strings.resolve(RoutingStrings.done),
-                intent: PeykIntent.success,
-              )
-            else
-              PeykButton(
-                label: strings.resolve(RoutingStrings.arrived),
-                onPressed: onArrived,
-                tone: PeykButtonTone.primary,
-              ),
-            if (moveUp != null) ...[
+            // The one part of a tile an arrival changes. Marking a stop done
+            // emits a new `RouteReady` over the same plan, which the list
+            // above deliberately ignores — so this is where the redraw has to
+            // happen, and it happens for one stop rather than forty.
+            BlocSelector<RouteBloc, RouteViewState, bool>(
+              selector: (state) =>
+                  state is RouteReady && state.visited.contains(eta.stop),
+              builder: (context, isDone) => isDone
+                  ? PeykChip(
+                      label: strings.resolve(RoutingStrings.done),
+                      intent: PeykIntent.success,
+                    )
+                  : PeykButton(
+                      label: strings.resolve(RoutingStrings.arrived),
+                      onPressed: () => bloc.add(StopArrived(eta.stop)),
+                      tone: PeykButtonTone.primary,
+                    ),
+            ),
+            if (canMoveUp) ...[
               const PeykGap.horizontal(PeykGapSize.betweenLines),
               PeykButton(
                 label: strings.resolve(RoutingStrings.moveUp),
-                onPressed: moveUp,
+                onPressed: () => bloc.add(StopMovedUp(eta.stop)),
               ),
             ],
           ],

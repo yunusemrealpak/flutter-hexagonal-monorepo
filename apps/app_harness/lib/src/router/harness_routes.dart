@@ -112,25 +112,27 @@ PeykRouter buildHarnessRouter(GetIt container) {
           session: sessions,
         ),
       ),
-      'routing.myRoute': (context, _) => RouteScreen(
-        controller: FollowedRouteController(
+      'routing.myRoute': (context, _) => BlocProvider<RouteBloc>(
+        create: (_) => FollowedRouteBloc(
           planning: container<RoutePlanning>(),
           following: container<RouteFollowing>(),
           courier: actor(),
         ),
+        child: const RouteScreen(),
       ),
       'routing.courierRoute': (context, parameters) => _parsed(
         ActorId.parse(parameters['courierId'] ?? ''),
-        (courier) => RouteScreen(
+        (courier) => BlocProvider<RouteBloc>(
           // The dispatcher's view of the same screen, and the only difference
-          // between the two: which controller the app can build. This one is
-          // the only app that can build both, which is what makes it the place
-          // the split is legible.
-          controller: SupervisedRouteController(
+          // between the two: which bloc the app can build. This one is the
+          // only app that can build both, which is what makes it the place the
+          // split is legible.
+          create: (_) => SupervisedRouteBloc(
             planning: container<RoutePlanning>(),
             supervision: container<RouteSupervision>(),
             courier: courier,
           ),
+          child: const RouteScreen(),
         ),
       ),
       'delivery.proof': (context, parameters) => _parsed(
