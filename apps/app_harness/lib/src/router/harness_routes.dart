@@ -8,6 +8,7 @@ import 'package:design_system/design_system.dart';
 import 'package:documents_api/documents_api.dart';
 import 'package:documents_presentation/documents_presentation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:identity_presentation/identity_presentation.dart';
@@ -146,12 +147,17 @@ PeykRouter buildHarnessRouter(GetIt container) {
       ),
       'payments.collect': (context, parameters) => _parsed(
         ShipmentId.parse(parameters['shipmentId'] ?? ''),
-        (shipment) => CollectionScreen(
-          shipment: shipment,
-          controller: CollectionController(
+        // The bloc is provided rather than passed. `BlocProvider` closes it
+        // when the route leaves the tree, which is the disposal the router
+        // used to have no place to do.
+        (shipment) => BlocProvider(
+          create: (_) => CollectionBloc(
             payments: container<PaymentsFacade>(),
             permissions: permissions,
             session: sessions,
+          ),
+          child: CollectionScreen(
+            shipment: shipment,
           ),
         ),
       ),

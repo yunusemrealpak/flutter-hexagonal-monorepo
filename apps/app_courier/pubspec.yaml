@@ -33,6 +33,7 @@ dependencies:
   firebase_messaging_platform_interface: ^4.9.3
   flutter:
     sdk: flutter
+  flutter_bloc: ^9.1.1
   flutter_localizations:
     sdk: flutter
   flutter_secure_storage_platform_interface: ^2.0.1

@@ -1,11 +1,11 @@
-import 'dart:async';
-
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:payments_api/payments_api.dart';
 import 'package:shipments_api/shipments_api.dart';
 
-import 'collection_controller.dart';
+import 'collection_bloc.dart';
+import 'collection_event.dart';
 import 'collection_state.dart';
 import 'payments_strings.dart';
 
@@ -18,17 +18,24 @@ import 'payments_strings.dart';
 /// **The amount is drawn, not typed.** It comes from `PaymentStatus`, so a
 /// courier cannot collect a different number from the one the operation is
 /// owed.
+/// **The bloc arrives through the widget tree, not the constructor**, and that
+/// is a deliberate reading of invariant 1.2.7 rather than an exception to it.
+/// The rule forbids a service locator inside a package — `GetIt`, a global,
+/// anything a reader cannot see from the call site. `BlocProvider` is an
+/// `InheritedWidget`: it is scoped to a subtree, it is visible in the tree that
+/// mounts the screen, and a test supplies it the same way an app does. This
+/// package already reaches for one that way — `PeykStrings.of(context)` on the
+/// line below — so the mechanism is not new here, only the payload.
 final class CollectionScreen extends StatefulWidget {
-  /// Creates the screen over [controller], for [shipment].
+  /// Creates the screen for [shipment].
+  ///
+  /// The bloc is not a parameter. Whoever mounts this screen puts a
+  /// [CollectionBloc] above it with `BlocProvider`.
   const CollectionScreen({
-    required this.controller,
     required this.shipment,
     this.onFinished,
     super.key,
   });
-
-  /// What drives it.
-  final CollectionController controller;
 
   /// Which parcel the money is owed against.
   final ShipmentId shipment;
@@ -127,10 +134,11 @@ class _CollectionScreenState extends State<CollectionScreen> {
   @override
   void initState() {
     super.initState();
-    // initState cannot be async, and the read is genuinely fire-and-forget:
-    // its result reaches the screen through the controller's notification
-    // rather than through this call.
-    unawaited(widget.controller.load(widget.shipment));
+    // Asking is the screen's job, not the app's. An app that had to remember
+    // to dispatch this would be an app that forgets it on the second route
+    // that mounts the screen. `read` rather than `watch`, because initState
+    // must not subscribe.
+    context.read<CollectionBloc>().add(CollectionRequested(widget.shipment));
   }
 
   @override
@@ -139,9 +147,17 @@ class _CollectionScreenState extends State<CollectionScreen> {
 
     return PeykScreen(
       title: strings.resolve(PaymentsStrings.title),
-      body: ListenableBuilder(
-        listenable: widget.controller,
-        builder: (context, _) => switch (widget.controller.state) {
+      // **`buildWhen` is what makes the selectors inside `_Door` worth
+      // writing.** Without it this builder runs on every emission — including
+      // a change of payment method — and rebuilds the whole subtree, so a
+      // `BlocSelector` underneath would be re-created rather than skipped.
+      // Narrowing the outer rebuild to *the kind of state* is the half of the
+      // pattern people leave out, and leaving it out is why "BlocSelector did
+      // not help" is a common complaint.
+      body: BlocBuilder<CollectionBloc, CollectionState>(
+        buildWhen: (previous, current) =>
+            previous.runtimeType != current.runtimeType,
+        builder: (context, state) => switch (state) {
           CollectionIdle() || CollectionLoading() => const PeykLoadingView(),
           // Where this screen spends most of its life. Most parcels are
           // prepaid, and that is not a failure.
@@ -149,13 +165,7 @@ class _CollectionScreenState extends State<CollectionScreen> {
             message: strings.resolve(PaymentsStrings.nothingOwed),
             onFinished: widget.onFinished,
           ),
-          final Owed state => _Door(
-            state: state,
-            canCollect: widget.controller.canCollect,
-            onMethod: widget.controller.takeBy,
-            onCollect: () =>
-                unawaited(widget.controller.collect(widget.shipment)),
-          ),
+          Owed() => _Door(shipment: widget.shipment),
           Collected(:final attempt) => _Finished(
             message: strings.resolve(
               PaymentsStrings.taken,
@@ -169,7 +179,9 @@ class _CollectionScreenState extends State<CollectionScreen> {
               arguments: CollectionScreen.argumentsFor(failure),
             ),
             onRetry: CollectionScreen.canRetry(failure)
-                ? () => unawaited(widget.controller.load(widget.shipment))
+                ? () => context.read<CollectionBloc>().add(
+                    CollectionRequested(widget.shipment),
+                  )
                 : null,
           ),
         },
@@ -212,81 +224,118 @@ final class _Finished extends StatelessWidget {
   }
 }
 
+/// The door itself: an amount, a way of paying, and the button.
+///
+/// **Three `BlocSelector`s rather than one `BlocBuilder`.** Each one names the
+/// slice of the state its subtree draws, and rebuilds only when that slice
+/// changes. Tapping *card* after *cash* rebuilds two option rows and nothing
+/// else — not the amount, not the collect button, not the refusal chip. Under
+/// the `ListenableBuilder` this replaced, one `notifyListeners` rebuilt the
+/// whole list.
+///
+/// The selectors are safe against a state that is no longer [Owed]: an
+/// emission can land between the outer rebuild and this one, and a selector
+/// that assumed the case would throw on the frame in between.
 final class _Door extends StatelessWidget {
-  const _Door({
-    required this.state,
-    required this.canCollect,
-    required this.onMethod,
-    required this.onCollect,
-  });
+  const _Door({required this.shipment});
 
-  final Owed state;
-  final bool canCollect;
-  final void Function(PaymentMethod) onMethod;
-  final VoidCallback onCollect;
+  final ShipmentId shipment;
 
   @override
   Widget build(BuildContext context) {
-    final refusal = state.refusal;
     final strings = PeykStrings.of(context);
-    final isCash = state.method.isCash;
 
     return ListView(
       children: [
-        PeykText.display(
-          strings.resolve(
-            PaymentsStrings.owed,
-            arguments: CollectionScreen.amountArguments(state.amount),
-          ),
+        BlocSelector<CollectionBloc, CollectionState, Money?>(
+          selector: (state) => state is Owed ? state.amount : null,
+          builder: (context, amount) => amount == null
+              ? const PeykGap.vertical(PeykGapSize.betweenRows)
+              : PeykText.display(
+                  strings.resolve(
+                    PaymentsStrings.owed,
+                    arguments: CollectionScreen.amountArguments(amount),
+                  ),
+                ),
         ),
         const PeykGap.vertical(PeykGapSize.betweenGroups),
-        PeykSection(
-          title: strings.resolve(
-            PaymentsStrings.takingBy,
-            arguments: {
-              'method': strings.resolve(
-                isCash
-                    ? PaymentsStrings.methodCash
-                    : PaymentsStrings.methodCard,
+        BlocSelector<CollectionBloc, CollectionState, PaymentMethod?>(
+          selector: (state) => state is Owed ? state.method : null,
+          builder: (context, method) {
+            if (method == null) {
+              return const PeykGap.vertical(PeykGapSize.betweenRows);
+            }
+            final isCash = method.isCash;
+
+            return PeykSection(
+              title: strings.resolve(
+                PaymentsStrings.takingBy,
+                arguments: {
+                  'method': strings.resolve(
+                    isCash
+                        ? PaymentsStrings.methodCash
+                        : PaymentsStrings.methodCard,
+                  ),
+                },
               ),
-            },
-          ),
-          children: [
-            PeykOptionRow(
-              label: strings.resolve(PaymentsStrings.methodCash),
-              selected: isCash,
-              onTap: () => onMethod(const PaymentMethod.cash()),
-            ),
-            PeykOptionRow(
-              label: strings.resolve(PaymentsStrings.methodCard),
-              selected: !isCash,
-              onTap: () => onMethod(const PaymentMethod.card(last4: '0000')),
-            ),
-          ],
+              children: [
+                PeykOptionRow(
+                  label: strings.resolve(PaymentsStrings.methodCash),
+                  selected: isCash,
+                  onTap: () => context.read<CollectionBloc>().add(
+                    const MethodChosen(PaymentMethod.cash()),
+                  ),
+                ),
+                PeykOptionRow(
+                  label: strings.resolve(PaymentsStrings.methodCard),
+                  selected: !isCash,
+                  onTap: () => context.read<CollectionBloc>().add(
+                    const MethodChosen(PaymentMethod.card(last4: '0000')),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
         const PeykGap.vertical(PeykGapSize.betweenGroups),
         // Scenario 6: the action a courier without the grant never sees. The
         // use case does not check permissions, so this is the last thing
         // between them and a recorded payment.
-        if (canCollect)
+        //
+        // `canCollect` is read from the bloc rather than selected from the
+        // state, because it is not in the state — a permission the operation
+        // revokes mid-shift must not be answered from a value the screen
+        // captured when it opened.
+        if (context.read<CollectionBloc>().canCollect)
           PeykButton(
             label: strings.resolve(PaymentsStrings.collect),
-            onPressed: onCollect,
+            onPressed: () => context.read<CollectionBloc>().add(
+              CollectionSubmitted(shipment),
+            ),
             tone: PeykButtonTone.primary,
           ),
         // An advisory rather than a failure page: the amount is still on the
         // screen and the courier can change the method and try again. A
         // refusal that replaced the screen would take the number with it.
-        if (refusal != null) ...[
-          const PeykGap.vertical(PeykGapSize.betweenRows),
-          PeykChip(
-            label: strings.resolve(
-              CollectionScreen.describe(refusal),
-              arguments: CollectionScreen.argumentsFor(refusal),
-            ),
-            intent: PeykIntent.danger,
-          ),
-        ],
+        BlocSelector<CollectionBloc, CollectionState, PaymentsFailure?>(
+          selector: (state) => state is Owed ? state.refusal : null,
+          builder: (context, refusal) => refusal == null
+              ? const PeykGap.vertical(PeykGapSize.betweenRows)
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const PeykGap.vertical(PeykGapSize.betweenRows),
+                    PeykChip(
+                      label: strings.resolve(
+                        CollectionScreen.describe(refusal),
+                        arguments: CollectionScreen.argumentsFor(refusal),
+                      ),
+                      intent: PeykIntent.danger,
+                    ),
+                  ],
+                ),
+        ),
       ],
     );
   }

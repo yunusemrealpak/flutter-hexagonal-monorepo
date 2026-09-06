@@ -1,9 +1,13 @@
 @Tags(['widget'])
 library;
 
+import 'dart:async';
+
+import 'package:bloc_test/bloc_test.dart';
 import 'package:core_kernel/core_kernel.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:identity_testing/identity_testing.dart';
@@ -45,6 +49,12 @@ final class _Facade implements PaymentsFacade {
   );
   Result<PaymentAttempt, PaymentsFailure>? collectAnswer;
 
+  /// Held open, `collectOnDelivery` does not return until the test says so.
+  ///
+  /// The only way to observe a transformer: a policy about concurrent work is
+  /// invisible unless two events genuinely overlap.
+  Completer<void>? gate;
+
   /// The amounts `collectOnDelivery` was asked for, in order.
   final List<Money> amounts = [];
 
@@ -65,6 +75,7 @@ final class _Facade implements PaymentsFacade {
   }) async {
     amounts.add(amount);
     methods.add(method);
+    await gate?.future;
     return collectAnswer ?? Success(PaymentsFixtures.taken());
   }
 
@@ -73,64 +84,119 @@ final class _Facade implements PaymentsFacade {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-CollectionController _controller(
-  _Facade facade, {
-  Set<Permission> granted = const {Permission.collectPayment},
-  bool signedIn = true,
-}) => CollectionController(
-  payments: facade,
-  session: _Session(
-    signedIn ? SessionBuilder().actor('courier-1').build() : null,
-  ),
-  permissions: _Permissions(granted),
-);
-
 void main() {
   late _Facade facade;
-  late CollectionController controller;
 
-  setUp(() {
-    facade = _Facade();
-    controller = _controller(facade);
-    addTearDown(controller.dispose);
-  });
+  setUp(() => facade = _Facade());
+
+  CollectionBloc build({
+    Set<Permission> granted = const {Permission.collectPayment},
+    bool signedIn = true,
+  }) => CollectionBloc(
+    payments: facade,
+    session: _Session(
+      signedIn ? SessionBuilder().actor('courier-1').build() : null,
+    ),
+    permissions: _Permissions(granted),
+  );
 
   void owes(int minorUnits) => facade.status = Success(
     PaymentStatus.outstanding(PaymentsFixtures.lira(minorUnits)),
   );
 
-  Future<void> load() => controller.load(PaymentsFixtures.shipment());
+  CollectionRequested request() =>
+      CollectionRequested(PaymentsFixtures.shipment());
+  CollectionSubmitted submit() =>
+      CollectionSubmitted(PaymentsFixtures.shipment());
 
-  group('CollectionController', () {
-    test('a prepaid parcel has nothing to collect', () async {
-      // Where this screen spends most of its life.
-      await load();
+  group('CollectionState', () {
+    // The trap that makes state equality dangerous in this workspace, and the
+    // reason Collected compares with identical. Entity in core_kernel compares
+    // by identifier on purpose, so two attempts under the same idempotency key
+    // are `==` however different their contents. A state that delegated to
+    // that would let Bloc drop the emission and leave the old figure drawn.
+    test('an updated attempt is not the state it replaced', () {
+      final first = PaymentsFixtures.taken(minorUnits: 1000);
+      final second = PaymentsFixtures.taken(minorUnits: 9900);
 
-      expect(controller.state, isA<NothingOwed>());
+      // The premise: the domain calls these the same attempt.
+      expect(first, second);
+
+      // The state must not.
+      expect(Collected(first), isNot(Collected(second)));
+      expect(Collected(first), Collected(first));
     });
 
-    test('a settled collection is also nothing to collect', () async {
+    test('a value-only state compares by value', () {
+      // Owed carries Money, PaymentMethod and PaymentsFailure — none of them
+      // an entity — so plain equality is the right answer and is what makes
+      // an identical re-emission cost no rebuild.
+      expect(
+        Owed(PaymentsFixtures.lira(4500)),
+        Owed(PaymentsFixtures.lira(4500)),
+      );
+      expect(
+        Owed(PaymentsFixtures.lira(4500)),
+        isNot(Owed(PaymentsFixtures.lira(9900))),
+      );
+    });
+  });
+
+  group('CollectionBloc', () {
+    blocTest<CollectionBloc, CollectionState>(
+      'a prepaid parcel has nothing to collect',
+      // Where this screen spends most of its life.
+      build: build,
+      act: (bloc) => bloc.add(request()),
+      expect: () => const [CollectionLoading(), NothingOwed()],
+    );
+
+    blocTest<CollectionBloc, CollectionState>(
+      'a settled collection is also nothing to collect',
       // Settled, refunded and never-owed are one thing to a courier standing
       // at a door: there is nothing to do here.
-      facade.status = Success(
+      setUp: () => facade.status = Success(
         PaymentStatus.settled(
           amount: PaymentsFixtures.lira(4500),
           at: PaymentsFixtures.noon,
         ),
-      );
+      ),
+      build: build,
+      act: (bloc) => bloc.add(request()),
+      expect: () => const [CollectionLoading(), NothingOwed()],
+    );
 
-      await load();
+    blocTest<CollectionBloc, CollectionState>(
+      'reports what is owed',
+      setUp: () => owes(4500),
+      build: build,
+      act: (bloc) => bloc.add(request()),
+      expect: () => [
+        const CollectionLoading(),
+        Owed(PaymentsFixtures.lira(4500)),
+      ],
+    );
 
-      expect(controller.state, isA<NothingOwed>());
-    });
+    blocTest<CollectionBloc, CollectionState>(
+      'reports a status it could not read',
+      setUp: () => facade.status = const Failed(PaymentsUnavailable()),
+      build: build,
+      act: (bloc) => bloc.add(request()),
+      expect: () => const [
+        CollectionLoading(),
+        CollectionFailed(PaymentsUnavailable()),
+      ],
+    );
 
-    test('reports what is owed', () async {
-      owes(4500);
-
-      await load();
-
-      expect((controller.state as Owed).amount, PaymentsFixtures.lira(4500));
-    });
+    blocTest<CollectionBloc, CollectionState>(
+      'defaults to cash',
+      // The case the feature is shaped around: a person holding money at a
+      // door.
+      setUp: () => owes(4500),
+      build: build,
+      act: (bloc) => bloc.add(request()),
+      verify: (bloc) => expect((bloc.state as Owed).method, isA<Cash>()),
+    );
 
     test(
       'collects the amount payments reported, not one it was told',
@@ -138,9 +204,13 @@ void main() {
         // The amount is read, never typed. A screen with a text field would be
         // exactly where a difference between the two got in.
         owes(4500);
-        await load();
+        final bloc = build();
+        addTearDown(bloc.close);
 
-        await controller.collect(PaymentsFixtures.shipment());
+        bloc.add(request());
+        await pumpEventQueue();
+        bloc.add(submit());
+        await pumpEventQueue();
 
         expect(facade.amounts.single, PaymentsFixtures.lira(4500));
       },
@@ -148,45 +218,45 @@ void main() {
 
     test('carries the method the courier chose', () async {
       owes(4500);
-      await load();
+      final bloc = build();
+      addTearDown(bloc.close);
 
-      controller.takeBy(const PaymentMethod.card(last4: '4242'));
-      await controller.collect(PaymentsFixtures.shipment());
+      bloc.add(request());
+      await pumpEventQueue();
+      bloc.add(const MethodChosen(PaymentMethod.card(last4: '4242')));
+      await pumpEventQueue();
+      bloc.add(submit());
+      await pumpEventQueue();
 
       expect(facade.methods.single, isA<Card>());
-    });
-
-    test('defaults to cash', () async {
-      // The case the feature is shaped around: a person holding money at a
-      // door.
-      owes(4500);
-      await load();
-
-      expect((controller.state as Owed).method, isA<Cash>());
     });
 
     test('refuses to take money without the grant', () async {
       // Scenario 6 where it bites. The use case does not check permissions, so
       // this is the last thing between an actor without the grant and a
       // recorded payment.
-      final ungranted = _controller(facade, granted: const {});
-      addTearDown(ungranted.dispose);
       owes(4500);
-      await ungranted.load(PaymentsFixtures.shipment());
+      final bloc = build(granted: const {});
+      addTearDown(bloc.close);
 
-      await ungranted.collect(PaymentsFixtures.shipment());
+      bloc.add(request());
+      await pumpEventQueue();
+      bloc.add(submit());
+      await pumpEventQueue();
 
-      expect(ungranted.canCollect, isFalse);
+      expect(bloc.canCollect, isFalse);
       expect(facade.amounts, isEmpty);
     });
 
     test('asks nobody to pay when nobody is signed in', () async {
-      final anonymous = _controller(facade, signedIn: false);
-      addTearDown(anonymous.dispose);
       owes(4500);
-      await anonymous.load(PaymentsFixtures.shipment());
+      final bloc = build(signedIn: false);
+      addTearDown(bloc.close);
 
-      await anonymous.collect(PaymentsFixtures.shipment());
+      bloc.add(request());
+      await pumpEventQueue();
+      bloc.add(submit());
+      await pumpEventQueue();
 
       expect(facade.amounts, isEmpty);
     });
@@ -197,21 +267,65 @@ void main() {
         CollectionRefused(reason: 'insufficient funds'),
       );
       owes(4500);
-      await load();
+      final bloc = build();
+      addTearDown(bloc.close);
 
-      await controller.collect(PaymentsFixtures.shipment());
+      bloc.add(request());
+      await pumpEventQueue();
+      bloc.add(submit());
+      await pumpEventQueue();
 
-      final state = controller.state as Owed;
+      final state = bloc.state as Owed;
       expect(state.refusal, isA<CollectionRefused>());
       expect(state.amount, PaymentsFixtures.lira(4500));
     });
 
-    test('reports a status it could not read', () async {
-      facade.status = const Failed(PaymentsUnavailable());
+    // The one behavioural change in the migration, and the reason this is a
+    // Bloc rather than a Cubit. `droppable()` is a policy about concurrent
+    // work and a method call has nowhere to carry one.
+    //
+    // Re-run with the transformer removed from `on<CollectionSubmitted>` and
+    // this fails with two amounts: collectOnDelivery takes no idempotency key
+    // from here, so the second call is a second payment.
+    test('a second tap while the first is in flight is dropped', () async {
+      owes(4500);
+      facade.gate = Completer<void>();
+      final bloc = build();
+      addTearDown(bloc.close);
 
-      await load();
+      bloc.add(request());
+      await pumpEventQueue();
 
-      expect(controller.state, isA<CollectionFailed>());
+      bloc
+        ..add(submit())
+        ..add(submit());
+      await pumpEventQueue();
+
+      expect(facade.amounts, hasLength(1));
+
+      facade.gate!.complete();
+      await pumpEventQueue();
+
+      expect(facade.amounts, hasLength(1));
+      expect(bloc.state, isA<Collected>());
+    });
+
+    // The other transformer. Asking about a second parcel abandons the answer
+    // to the first, so a slow read cannot land after a fast one and put the
+    // previous door's amount on screen.
+    test('a second read replaces the first rather than racing it', () async {
+      owes(4500);
+      final bloc = build();
+      addTearDown(bloc.close);
+
+      bloc
+        ..add(request())
+        ..add(request());
+      await pumpEventQueue();
+
+      // restartable() cancels the first handler, so only the surviving one
+      // reaches a settled state.
+      expect(bloc.state, Owed(PaymentsFixtures.lira(4500)));
     });
   });
 
@@ -219,17 +333,18 @@ void main() {
     Widget screen({
       Set<Permission> granted = const {Permission.collectPayment},
       VoidCallback? onFinished,
-    }) {
-      final built = _controller(facade, granted: granted);
-      addTearDown(built.dispose);
-      return PeykTheme.wrap(
+    }) => PeykTheme.wrap(
+      // The bloc arrives through the tree, exactly as an app supplies it.
+      // BlocProvider closes it when the subtree goes away, so the test needs
+      // no tear-down of its own.
+      child: BlocProvider<CollectionBloc>(
+        create: (_) => build(granted: granted),
         child: CollectionScreen(
-          controller: built,
           shipment: PaymentsFixtures.shipment(),
           onFinished: onFinished,
         ),
-      );
-    }
+      ),
+    );
 
     testWidgets('draws the amount, with the currency s own scale', (
       tester,
@@ -269,6 +384,37 @@ void main() {
 
       expect(
         find.textContaining(PaymentsStrings.taken),
+        findsOneWidget,
+      );
+    });
+
+    // What BlocSelector buys, asserted rather than asserted about. Choosing a
+    // method emits a new Owed, and the outer builder's buildWhen refuses it
+    // because the *kind* of state did not change — so only the two option rows
+    // are rebuilt. The observable consequence is that the amount is still on
+    // screen and correct, drawn by a subtree that was never asked to rebuild.
+    testWidgets('choosing a method leaves the rest of the door alone', (
+      tester,
+    ) async {
+      owes(4500);
+
+      await tester.pumpWidget(screen());
+      await tester.pump();
+
+      await tester.tap(find.text(PaymentsStrings.methodCard));
+      await tester.pump();
+
+      expect(
+        find.text(
+          '${PaymentsStrings.takingBy}(method=${PaymentsStrings.methodCard})',
+        ),
+        findsOneWidget,
+      );
+      expect(
+        find.text(
+          '${PaymentsStrings.owed}'
+          '(minorUnits=4500, currency=TRY, scale=2)',
+        ),
         findsOneWidget,
       );
     });
