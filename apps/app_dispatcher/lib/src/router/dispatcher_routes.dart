@@ -113,8 +113,9 @@ PeykRouter buildDispatcherRouter(GetIt container) {
         ),
         child: const ReportScreen(),
       ),
-      'sync.review': (context, _) => ReviewQueueScreen(
-        controller: ReviewQueueController(sync: container<SyncFacade>()),
+      'sync.review': (context, _) => BlocProvider(
+        create: (_) => ReviewQueueBloc(sync: container<SyncFacade>()),
+        child: const ReviewQueueScreen(),
       ),
       // No `AlertsBloc` here, and that absence is the composition speaking:
       // `DeskAlertChannel` refuses every open, so the screen's

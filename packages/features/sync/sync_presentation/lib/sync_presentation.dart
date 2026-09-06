@@ -18,9 +18,12 @@
 /// `app_harness`.
 library;
 
-export 'src/review_queue/review_queue_controller.dart';
+export 'src/review_queue/review_queue_bloc.dart';
+export 'src/review_queue/review_queue_event.dart';
 export 'src/review_queue/review_queue_screen.dart';
 export 'src/review_queue/review_queue_state.dart';
-export 'src/review_queue/sync_status_badge.dart';
 export 'src/sync_routes.dart';
+export 'src/sync_status/sync_status_badge.dart';
+export 'src/sync_status/sync_status_bloc.dart';
+export 'src/sync_status/sync_status_event.dart';
 export 'src/sync_strings.dart';

@@ -176,8 +176,9 @@ PeykRouter buildCourierRouter(GetIt container) {
           ),
         ),
       ),
-      'sync.review': (context, _) => ReviewQueueScreen(
-        controller: ReviewQueueController(sync: container<SyncFacade>()),
+      'sync.review': (context, _) => BlocProvider(
+        create: (_) => ReviewQueueBloc(sync: container<SyncFacade>()),
+        child: const ReviewQueueScreen(),
       ),
       'settings.home': (context, _) => MultiBlocProvider(
         providers: [

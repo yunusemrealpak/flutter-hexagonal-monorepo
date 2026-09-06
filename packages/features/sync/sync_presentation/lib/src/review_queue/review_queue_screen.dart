@@ -1,11 +1,11 @@
-import 'dart:async';
-
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:sync_api/sync_api.dart';
 
 import '../sync_strings.dart';
-import 'review_queue_controller.dart';
+import 'review_queue_bloc.dart';
+import 'review_queue_event.dart';
 import 'review_queue_state.dart';
 
 /// The screen a depot opens when the badge says something needs a person.
@@ -22,11 +22,8 @@ import 'review_queue_state.dart';
 /// this feature is the only thing entitled to turn a routing key into a link
 /// to the feature that owns it.
 final class ReviewQueueScreen extends StatefulWidget {
-  /// Creates the screen over [controller].
-  const ReviewQueueScreen({required this.controller, super.key});
-
-  /// What drives it.
-  final ReviewQueueController controller;
+  /// Creates the screen. Its bloc comes from the tree above it.
+  const ReviewQueueScreen({super.key});
 
   @override
   State<ReviewQueueScreen> createState() => _ReviewQueueScreenState();
@@ -49,11 +46,7 @@ class _ReviewQueueScreenState extends State<ReviewQueueScreen> {
   @override
   void initState() {
     super.initState();
-    // initState cannot be async, and the load is genuinely fire-and-forget:
-    // its result reaches the screen through the controller's notification
-    // rather than through this call.
-    widget.controller.watch();
-    unawaited(widget.controller.load());
+    context.read<ReviewQueueBloc>().add(const ReviewRequested());
   }
 
   @override
@@ -62,9 +55,14 @@ class _ReviewQueueScreenState extends State<ReviewQueueScreen> {
 
     return PeykScreen(
       title: strings.resolve(SyncStrings.reviewTitle),
-      body: ListenableBuilder(
-        listenable: widget.controller,
-        builder: (context, _) => switch (widget.controller.state) {
+      // No `buildWhen` and no `BlocSelector`, deliberately. Every state this
+      // bloc emits changes the only thing this screen draws, and the status
+      // that used to arrive here — and redraw an unchanged list on every tick
+      // of a draining queue — is a second bloc now. A control that can never
+      // prevent a rebuild is a control that has to be read and re-checked by
+      // everyone who touches the file, and prevents nothing.
+      body: BlocBuilder<ReviewQueueBloc, ReviewQueueState>(
+        builder: (context, state) => switch (state) {
           ReviewIdle() || ReviewLoading() => const PeykLoadingView(),
           // Not an error. This is the state the screen is in most of the time,
           // and showing a failure for it would send somebody looking for a
@@ -74,15 +72,13 @@ class _ReviewQueueScreenState extends State<ReviewQueueScreen> {
           ),
           ReviewReady(:final entries) => ListView.builder(
             itemCount: entries.length,
-            itemBuilder: (context, index) => _BlockedTile(
-              entry: entries[index],
-              onRetry: () =>
-                  unawaited(widget.controller.retry(entries[index].id)),
-            ),
+            itemBuilder: (context, index) =>
+                _BlockedTile(entry: entries[index]),
           ),
           ReviewFailed(:final failure) => PeykFailureView(
             message: strings.resolve(ReviewQueueScreen.describe(failure)),
-            onRetry: () => unawaited(widget.controller.load()),
+            onRetry: () =>
+                context.read<ReviewQueueBloc>().add(const ReviewRequested()),
           ),
         },
       ),
@@ -97,10 +93,9 @@ class _ReviewQueueScreenState extends State<ReviewQueueScreen> {
 /// on this screen that sync did not choose: a feature put it there, and only
 /// the app that mounted both features can say what it means in words.
 final class _BlockedTile extends StatelessWidget {
-  const _BlockedTile({required this.entry, required this.onRetry});
+  const _BlockedTile({required this.entry});
 
   final OutboxEntry entry;
-  final VoidCallback onRetry;
 
   @override
   Widget build(BuildContext context) {
@@ -116,7 +111,7 @@ final class _BlockedTile extends StatelessWidget {
         ),
         intent: PeykIntent.danger,
       ),
-      onTap: onRetry,
+      onTap: () => context.read<ReviewQueueBloc>().add(EntryRetried(entry.id)),
     );
   }
 }
