@@ -34,10 +34,11 @@ import 'peyk_router.dart';
 /// facade is built from use cases; use cases are built over adapters. Three
 /// layers that no package may see at once, joined here.
 ///
-/// The controllers are built per navigation rather than held, because most of
-/// them subscribe to something and a held one would keep listening after
-/// somebody left the screen. `SettingsController` and the two that watch a
-/// stream are the reason `dispose` exists on them at all.
+/// The blocs are built per navigation rather than held, because most of them
+/// subscribe to something and a held one would keep listening after somebody
+/// left the screen. `BlocProvider` closes what it created when the route
+/// leaves the tree, which is the disposal this router used to have no place to
+/// do.
 ///
 /// **Half of them need a value out of the URL** — which thread, which parcel,
 /// which kind of document — and that is why a `ScreenBuilder` takes the path
@@ -113,21 +114,28 @@ PeykRouter buildDispatcherRouter(GetIt container) {
       'sync.review': (context, _) => ReviewQueueScreen(
         controller: ReviewQueueController(sync: container<SyncFacade>()),
       ),
-      'settings.home': (context, _) => SettingsScreen(
-        controller: SettingsController(
+      // No `AlertsBloc` here, and that absence is the composition speaking:
+      // `DeskAlertChannel` refuses every open, so the screen's
+      // `context.read<AlertsBloc?>()` is null and no switch is drawn. A
+      // control that cannot work is worse than an absent one.
+      'settings.home': (context, _) => BlocProvider(
+        create: (_) => SettingsBloc(
           settings: container<SettingsFacade>(),
           actor: actor(),
         ),
-        // The one call site `IdentityFacade.signOut` had been waiting for.
-        // Nothing here says where to go afterwards, and nothing has to: the
-        // session ends, the router's SessionRefresh fires, and the guard that
-        // was always right about a sessionless actor finally gets asked.
-        //
-        // Alerts are closed first, and the order is forced rather than tidy:
-        // closing needs the actor, and signing out is what takes the actor
-        // away. A handset left subscribed to a former courier's topic keeps
-        // buzzing with somebody else's work.
-        onSignOut: () => unawaited(_signOut(container, actor())),
+        child: SettingsScreen(
+          // The one call site `IdentityFacade.signOut` had been waiting for.
+          // Nothing here says where to go afterwards, and nothing has to: the
+          // session ends, the router's SessionRefresh fires, and the guard
+          // that was always right about a sessionless actor finally gets
+          // asked.
+          //
+          // Alerts are closed first, and the order is forced rather than
+          // tidy: closing needs the actor, and signing out is what takes the
+          // actor away. A handset left subscribed to a former courier's topic
+          // keeps buzzing with somebody else's work.
+          onSignOut: () => unawaited(_signOut(container, actor())),
+        ),
       ),
       'notifications.inbox': (context, _) => BlocProvider(
         create: (_) => InboxBloc(

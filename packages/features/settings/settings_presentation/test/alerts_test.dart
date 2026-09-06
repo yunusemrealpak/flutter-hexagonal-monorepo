@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:core_kernel/core_kernel.dart';
 import 'package:design_system/design_system.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:notifications_api/notifications_api.dart';
@@ -15,8 +16,8 @@ import 'package:settings_presentation/settings_presentation.dart';
 /// A `NotificationsFacade` this test steers.
 ///
 /// A fake rather than a mock: it really holds a state and really changes it,
-/// so the assertions below are about what the controller did rather than about
-/// a script of calls. `notifications` ships no `_testing` package, so the
+/// so the assertions below are about what the bloc did rather than about a
+/// script of calls. `notifications` ships no `_testing` package, so the
 /// stand-in lives beside the tests that need it.
 final class _Notifications implements NotificationsFacade {
   /// What the device currently reports.
@@ -34,6 +35,19 @@ final class _Notifications implements NotificationsFacade {
   /// Every actor `closeAlertsFor` was called for, in order.
   final List<String> closed = [];
 
+  /// Held open by a test that needs two calls to overlap.
+  ///
+  /// Without it every call answers in the same microtask, so a handler is
+  /// finished before the next event is delivered and `droppable()` has nothing
+  /// to drop.
+  Completer<void>? gate;
+
+  Future<void> _held() async {
+    if (gate case final gate?) {
+      await gate.future;
+    }
+  }
+
   @override
   Future<Result<AlertState, NotificationsFailure>> alertStateFor(
     ActorId actor,
@@ -47,6 +61,7 @@ final class _Notifications implements NotificationsFacade {
     ActorId actor,
   ) async {
     opened.add(actor.value);
+    await _held();
     final failure = _taken();
     if (failure != null) {
       return Failed(failure);
@@ -128,7 +143,7 @@ void main() {
   late _Notifications notifications;
   late int settingsOpened;
 
-  AlertsController controllerFor() => AlertsController(
+  AlertsBloc blocFor() => AlertsBloc(
     notifications: notifications,
     actor: _courier,
     openSystemSettings: () async {
@@ -142,101 +157,135 @@ void main() {
     settingsOpened = 0;
   });
 
-  group('AlertsController', () {
+  group('AlertsBloc', () {
     test('reads the state it is given', () async {
       notifications.alerts = const AlertsOpen();
-      final controller = controllerFor();
+      final bloc = blocFor();
+      addTearDown(bloc.close);
 
-      await controller.load();
+      bloc.add(const AlertsRequested());
+      await pumpEventQueue();
 
       expect(
-        controller.state,
+        bloc.state,
         isA<AlertsSettled>().having(
           (s) => s.alerts,
           'alerts',
           isA<AlertsOpen>(),
         ),
       );
-      controller.dispose();
     });
 
     test('turning it on asks the facade to open alerts', () async {
-      final controller = controllerFor();
-      await controller.load();
-
-      await controller.choose(on: true);
+      final bloc = blocFor();
+      addTearDown(bloc.close);
+      bloc
+        ..add(const AlertsRequested())
+        ..add(const AlertsChosen(on: true));
+      await pumpEventQueue();
 
       expect(notifications.opened, ['courier-7']);
       expect(
-        controller.state,
+        bloc.state,
         isA<AlertsSettled>().having(
           (s) => s.alerts,
           'alerts',
           isA<AlertsOpen>(),
         ),
       );
-      controller.dispose();
     });
 
     test('turning it off asks the facade to close them', () async {
       notifications.alerts = const AlertsOpen();
-      final controller = controllerFor();
-      await controller.load();
+      final bloc = blocFor();
+      addTearDown(bloc.close);
 
-      await controller.choose(on: false);
+      bloc
+        ..add(const AlertsRequested())
+        ..add(const AlertsChosen(on: false));
+      await pumpEventQueue();
 
       expect(notifications.closed, ['courier-7']);
-      controller.dispose();
+    });
+
+    test('a second tap while a change is in flight is dropped', () async {
+      // The section disables the switch while a change is out, so a second
+      // event inside that window is the same tap arriving twice — and
+      // answering it would ask the platform to subscribe a device that is
+      // already subscribing.
+      final bloc = blocFor();
+      addTearDown(bloc.close);
+      bloc.add(const AlertsRequested());
+      await pumpEventQueue();
+      final gate = Completer<void>();
+      notifications.gate = gate;
+      addTearDown(() => gate.isCompleted ? null : gate.complete());
+
+      bloc
+        ..add(const AlertsChosen(on: true))
+        ..add(const AlertsChosen(on: true));
+      await pumpEventQueue();
+      gate.complete();
+      await pumpEventQueue();
+
+      expect(notifications.opened, ['courier-7']);
     });
 
     test('a refused change keeps the state the device actually has', () async {
-      final controller = controllerFor();
-      await controller.load();
+      final bloc = blocFor();
+      addTearDown(bloc.close);
+      bloc.add(const AlertsRequested());
+      await pumpEventQueue();
       notifications.failWith = const AlertsRefused();
 
-      await controller.choose(on: true);
+      bloc.add(const AlertsChosen(on: true));
+      await pumpEventQueue();
 
       // The device did not open. Drawing the switch on because somebody asked
       // for it is how a control ends up lying about the thing it controls.
       expect(
-        controller.state,
+        bloc.state,
         isA<AlertsSettled>()
             .having((s) => s.alerts, 'alerts', isA<AlertsClosed>())
             .having((s) => s.failure, 'failure', isA<AlertsRefused>()),
       );
-      controller.dispose();
     });
 
     test('a state that cannot be read is not guessed at', () async {
       notifications.failReadWith = const AlertStateUnavailable();
-      final controller = controllerFor();
+      final bloc = blocFor();
+      addTearDown(bloc.close);
 
-      await controller.load();
+      bloc.add(const AlertsRequested());
+      await pumpEventQueue();
 
-      expect(controller.state, isA<AlertsUnreadable>());
-      controller.dispose();
+      expect(bloc.state, isA<AlertsUnreadable>());
     });
 
     test('opening the system settings re-reads afterwards', () async {
       notifications.alerts = const AlertsUnavailable();
-      final controller = controllerFor();
-      await controller.load();
+      final bloc = blocFor();
+      addTearDown(bloc.close);
+      bloc.add(const AlertsRequested());
+      await pumpEventQueue();
       notifications.alerts = const AlertsClosed();
 
-      await controller.openSystemSettings();
+      bloc.add(const SystemSettingsOpened());
+      await pumpEventQueue();
 
       expect(settingsOpened, 1);
       // Coming back from the settings page is the one moment the answer can
-      // have changed without the app doing anything.
+      // have changed without the app doing anything. The read is
+      // re-dispatched rather than done in that handler, so it goes through
+      // the same `restartable()` policy as every other read.
       expect(
-        controller.state,
+        bloc.state,
         isA<AlertsSettled>().having(
           (s) => s.alerts,
           'alerts',
           isA<AlertsClosed>(),
         ),
       );
-      controller.dispose();
     });
   });
 
@@ -247,12 +296,19 @@ void main() {
     }) async {
       await tester.pumpWidget(
         PeykTheme.wrap(
-          child: SettingsScreen(
-            controller: SettingsController(
-              settings: _Settings(),
-              actor: _courier,
-            ),
-            alerts: withAlerts ? controllerFor() : null,
+          child: MultiBlocProvider(
+            providers: [
+              BlocProvider(
+                create: (_) =>
+                    SettingsBloc(settings: _Settings(), actor: _courier),
+              ),
+              // The section is drawn because this provider is here, and
+              // `app_dispatcher` composes no alert channel that can open — so
+              // it provides no bloc and the screen's nullable read answers
+              // null.
+              if (withAlerts) BlocProvider(create: (_) => blocFor()),
+            ],
+            child: const SettingsScreen(),
           ),
         ),
       );
@@ -273,9 +329,7 @@ void main() {
       await tester.pumpAndSettle();
     }
 
-    testWidgets('is absent when the app supplies no controller', (
-      tester,
-    ) async {
+    testWidgets('is absent when the app provides no bloc', (tester) async {
       await pumpScreen(tester, withAlerts: false);
 
       // app_dispatcher composes no alert channel that can open, so a switch

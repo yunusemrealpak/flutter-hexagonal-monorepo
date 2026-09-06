@@ -1,8 +1,10 @@
+import 'package:bloc_concurrency/bloc_concurrency.dart';
 import 'package:core_kernel/core_kernel.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:notifications_api/notifications_api.dart';
 
+import 'alerts_event.dart';
 import 'alerts_state.dart';
 
 /// Drives the alerts section of the settings screen.
@@ -28,41 +30,48 @@ import 'alerts_state.dart';
 /// telling anybody, so what the device reports after a change is the only
 /// answer worth drawing. Assuming the switch landed where it was pushed is how
 /// a control ends up lying about the thing it controls.
-final class AlertsController extends ChangeNotifier {
-  /// Creates the controller for one actor.
-  AlertsController({
+///
+/// **Reading is `restartable()` and changing is `droppable()`.** The reads
+/// arrive from three places — the section opening, the app resuming, a return
+/// from the settings page — and when two of them overlap only the newer answer
+/// is worth having. A change is the opposite: the section disables the switch
+/// while one is in flight, so a second event during that window is the same
+/// tap arriving twice, and answering it would ask the platform to subscribe a
+/// device that is already subscribing.
+final class AlertsBloc extends Bloc<AlertsEvent, AlertsState> {
+  /// Creates the bloc for one actor.
+  AlertsBloc({
     required this._notifications,
     required this._actor,
     required this._openSystemSettings,
-  });
+  }) : super(const AlertsLoading()) {
+    on<AlertsRequested>(_onRequested, transformer: restartable());
+    on<AlertsChosen>(_onChosen, transformer: droppable());
+    on<SystemSettingsOpened>(_onSystemSettingsOpened, transformer: droppable());
+  }
 
   final NotificationsFacade _notifications;
   final ActorId _actor;
   final Future<bool> Function() _openSystemSettings;
 
-  AlertsState _state = const AlertsLoading();
-
-  /// What the section should be showing.
-  AlertsState get state => _state;
-
-  /// Reads where the device stands.
-  Future<void> load() async {
-    final read = await _notifications.alertStateFor(_actor);
-    _emit(
-      switch (read) {
-        Success(:final value) => AlertsSettled(value),
-        Failed(:final failure) => AlertsUnreadable(failure),
-      },
-    );
+  Future<void> _onRequested(
+    AlertsRequested event,
+    Emitter<AlertsState> emit,
+  ) async {
+    emit(_read(await _notifications.alertStateFor(_actor)));
   }
 
   /// Turns alerts on or off, then reads back what the device actually did.
   ///
   /// A change asked for from a state with nothing on screen is refused rather
-  /// than sent, the same way `SettingsController._save` refuses one: there is
-  /// no control to have been tapped.
-  Future<void> choose({required bool on}) async {
-    final showing = switch (_state) {
+  /// than sent, the same way `SettingsBloc` refuses one: there is no control
+  /// to have been tapped.
+  ///
+  /// The re-read happens here rather than by adding [AlertsRequested], because
+  /// the answer has to be drawn *with* the refusal the change came back with,
+  /// and a second event could not carry it.
+  Future<void> _onChosen(AlertsChosen event, Emitter<AlertsState> emit) async {
+    final showing = switch (state) {
       AlertsSettled(:final alerts) => alerts,
       AlertsLoading() || AlertsUnreadable() => null,
     };
@@ -70,14 +79,14 @@ final class AlertsController extends ChangeNotifier {
       return;
     }
 
-    _emit(AlertsSettled(showing, changing: true));
+    emit(AlertsSettled(showing, changing: true));
 
-    final changed = on
+    final changed = event.on
         ? await _notifications.openAlertsFor(_actor)
         : await _notifications.closeAlertsFor(_actor);
 
     final read = await _notifications.alertStateFor(_actor);
-    _emit(
+    emit(
       switch (read) {
         Success(:final value) => AlertsSettled(
           value,
@@ -95,16 +104,23 @@ final class AlertsController extends ChangeNotifier {
 
   /// Sends somebody to the operating system's settings page, then reads back.
   ///
-  /// The re-read is the point of doing it here rather than from the widget:
-  /// coming back from that page is the one moment the answer can have changed
-  /// without the application doing anything at all.
-  Future<void> openSystemSettings() async {
+  /// The read is re-dispatched rather than done here, so every read of the
+  /// device's answer goes through one handler under one policy. Coming back
+  /// from that page is the one moment the answer can have changed without the
+  /// application doing anything at all — and it is also a moment the app's
+  /// own resume listener asks about, which is exactly the overlap
+  /// `restartable()` is there to collapse.
+  Future<void> _onSystemSettingsOpened(
+    SystemSettingsOpened event,
+    Emitter<AlertsState> emit,
+  ) async {
     await _openSystemSettings();
-    await load();
+    add(const AlertsRequested());
   }
 
-  void _emit(AlertsState next) {
-    _state = next;
-    notifyListeners();
-  }
+  AlertsState _read(Result<AlertState, NotificationsFailure> state) =>
+      switch (state) {
+        Success(:final value) => AlertsSettled(value),
+        Failed(:final failure) => AlertsUnreadable(failure),
+      };
 }

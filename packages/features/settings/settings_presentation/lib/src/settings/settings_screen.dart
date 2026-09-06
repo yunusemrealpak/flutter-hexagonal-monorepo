@@ -1,14 +1,15 @@
-import 'dart:async';
-
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:notifications_api/notifications_api.dart';
 import 'package:settings_api/settings_api.dart';
 
-import '../alerts/alerts_controller.dart';
+import '../alerts/alerts_bloc.dart';
+import '../alerts/alerts_event.dart';
 import '../alerts/alerts_state.dart';
 import '../settings_strings.dart';
-import 'settings_controller.dart';
+import 'settings_bloc.dart';
+import 'settings_event.dart';
 import 'settings_state.dart';
 
 /// Where somebody chooses how the product behaves.
@@ -21,26 +22,21 @@ import 'settings_state.dart';
 /// out somewhere else passes nothing and no button is drawn. `settings` still
 /// does not depend on `identity_api`.
 ///
-/// **The alerts section arrives the same way**, as an optional controller. An
-/// app that composes no alert channel capable of opening — `app_dispatcher`
-/// answers every open with `AlertsRefused`, because a desk is not a device
-/// that gets alerted — passes nothing and no switch is drawn. A control that
-/// cannot work is worse than an absent one: somebody taps it, nothing happens,
-/// and they conclude the product is broken.
+/// **The alerts section arrives the same way**, as an `AlertsBloc` the app
+/// either put in the tree or did not. An app that composes no alert channel
+/// capable of opening — `app_dispatcher` answers every open with
+/// `AlertsRefused`, because a desk is not a device that gets alerted —
+/// provides none and no switch is drawn. A control that cannot work is worse
+/// than an absent one: somebody taps it, nothing happens, and they conclude
+/// the product is broken.
+///
+/// A nullable `context.read<AlertsBloc?>()` is provider's documented way to
+/// depend on a provider optionally, and it says exactly what the
+/// `AlertsController?` parameter used to — with the disposal moved to the
+/// `BlocProvider` that owns it.
 final class SettingsScreen extends StatefulWidget {
-  /// Creates the screen over [controller].
-  const SettingsScreen({
-    required this.controller,
-    this.alerts,
-    this.onSignOut,
-    super.key,
-  });
-
-  /// What drives it.
-  final SettingsController controller;
-
-  /// What drives the alerts section, when this app has one to draw.
-  final AlertsController? alerts;
+  /// Creates the screen. Its bloc comes from the tree above it.
+  const SettingsScreen({this.onSignOut, super.key});
 
   /// Ends the session, when this app offers that here.
   final VoidCallback? onSignOut;
@@ -101,8 +97,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    widget.controller.watch();
-    unawaited(widget.controller.load());
+    context.read<SettingsBloc>()
+      ..add(const SettingsWatched())
+      ..add(const SettingsRequested());
   }
 
   @override
@@ -110,6 +107,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     final strings = PeykStrings.of(context);
 
     final signOut = widget.onSignOut;
+    // Optional by absence rather than by a flag: the section is drawn when
+    // the app put a bloc in the tree for it.
+    final hasAlerts = context.read<AlertsBloc?>() != null;
 
     return PeykScreen(
       title: strings.resolve(SettingsStrings.title),
@@ -122,18 +122,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
-          ListenableBuilder(
-            listenable: widget.controller,
-            builder: (context, _) => switch (widget.controller.state) {
+          // No `buildWhen` and no `BlocSelector` on this one, and that is a
+          // judgement rather than an omission. Every emission this bloc makes
+          // changes something every row draws: a new set of preferences moves
+          // the selection, and the transitions in and out of
+          // [SettingsSaving] enable and disable all nine rows at once. A
+          // selector buys a subtree that does not rebuild, and there is no
+          // such subtree here.
+          BlocBuilder<SettingsBloc, SettingsState>(
+            builder: (context, state) => switch (state) {
               SettingsIdle() || SettingsLoading() => const PeykLoadingView(),
               SettingsReady(:final preferences) => _Choices(
                 preferences: preferences,
-                controller: widget.controller,
                 busy: false,
               ),
               SettingsSaving(:final preferences) => _Choices(
                 preferences: preferences,
-                controller: widget.controller,
                 busy: true,
               ),
               SettingsFailed(:final failure) => PeykFailureView(
@@ -141,13 +145,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   SettingsScreen.describe(failure),
                   arguments: SettingsScreen.argumentsFor(failure),
                 ),
-                onRetry: () => unawaited(widget.controller.load()),
+                onRetry: () =>
+                    context.read<SettingsBloc>().add(const SettingsRequested()),
               ),
             },
           ),
-          if (widget.alerts case final alerts?) ...[
+          if (hasAlerts) ...[
             const PeykGap.vertical(PeykGapSize.betweenGroups),
-            _AlertsSection(controller: alerts),
+            const _AlertsSection(),
           ],
           if (signOut != null) ...[
             const PeykGap.vertical(PeykGapSize.betweenGroups),
@@ -169,18 +174,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
 /// emptied itself for the duration of a write would flicker on every tap, and
 /// somebody would tap the same row twice because the first tap left no trace.
 class _Choices extends StatelessWidget {
-  const _Choices({
-    required this.preferences,
-    required this.controller,
-    required this.busy,
-  });
+  const _Choices({required this.preferences, required this.busy});
 
   final UserPreferences preferences;
-  final SettingsController controller;
   final bool busy;
 
   @override
   Widget build(BuildContext context) {
+    final bloc = context.read<SettingsBloc>();
     final strings = PeykStrings.of(context);
 
     return Column(
@@ -194,7 +195,7 @@ class _Choices extends StatelessWidget {
               PeykOptionRow(
                 label: strings.resolve(SettingsStrings.language(language)),
                 selected: preferences.language == language,
-                onTap: busy ? null : () => controller.chooseLanguage(language),
+                onTap: busy ? null : () => bloc.add(LanguageChosen(language)),
               ),
           ],
         ),
@@ -206,7 +207,7 @@ class _Choices extends StatelessWidget {
               PeykOptionRow(
                 label: strings.resolve(SettingsStrings.theme(theme)),
                 selected: preferences.theme == theme,
-                onTap: busy ? null : () => controller.chooseTheme(theme),
+                onTap: busy ? null : () => bloc.add(ThemeChosen(theme)),
               ),
           ],
         ),
@@ -218,7 +219,7 @@ class _Choices extends StatelessWidget {
               PeykOptionRow(
                 label: strings.resolve(SettingsStrings.syncPolicy(policy)),
                 selected: preferences.syncPolicy == policy,
-                onTap: busy ? null : () => controller.chooseSyncPolicy(policy),
+                onTap: busy ? null : () => bloc.add(SyncPolicyChosen(policy)),
               ),
           ],
         ),
@@ -236,9 +237,7 @@ class _Choices extends StatelessWidget {
 /// without it the button that sends somebody there would appear to do nothing
 /// when they came back.
 class _AlertsSection extends StatefulWidget {
-  const _AlertsSection({required this.controller});
-
-  final AlertsController controller;
+  const _AlertsSection();
 
   @override
   State<_AlertsSection> createState() => _AlertsSectionState();
@@ -250,10 +249,13 @@ class _AlertsSectionState extends State<_AlertsSection> {
   @override
   void initState() {
     super.initState();
+    final bloc = context.read<AlertsBloc>();
+    // Two reads that can overlap — the section opening and the app coming
+    // back — which is what makes the handler behind them `restartable()`.
     _lifecycle = AppLifecycleListener(
-      onResume: () => unawaited(widget.controller.load()),
+      onResume: () => bloc.add(const AlertsRequested()),
     );
-    unawaited(widget.controller.load());
+    bloc.add(const AlertsRequested());
   }
 
   @override
@@ -269,15 +271,15 @@ class _AlertsSectionState extends State<_AlertsSection> {
     return PeykSection(
       title: strings.resolve(SettingsStrings.alertsSection),
       children: [
-        ListenableBuilder(
-          listenable: widget.controller,
-          builder: (context, _) => switch (widget.controller.state) {
+        BlocBuilder<AlertsBloc, AlertsState>(
+          builder: (context, state) => switch (state) {
             AlertsLoading() => const PeykLoadingView(),
             AlertsUnreadable(:final failure) => PeykFailureView(
               message: strings.resolve(
                 SettingsScreen.describeAlerts(failure),
               ),
-              onRetry: () => unawaited(widget.controller.load()),
+              onRetry: () =>
+                  context.read<AlertsBloc>().add(const AlertsRequested()),
             ),
             // The one state that is not a control. A switch here would be the
             // button that does nothing which `AlertsBlocked` exists as a
@@ -290,8 +292,9 @@ class _AlertsSectionState extends State<_AlertsSection> {
                 const PeykGap.vertical(PeykGapSize.betweenLines),
                 PeykButton(
                   label: strings.resolve(SettingsStrings.alertsOpenSettings),
-                  onPressed: () =>
-                      unawaited(widget.controller.openSystemSettings()),
+                  onPressed: () => context.read<AlertsBloc>().add(
+                    const SystemSettingsOpened(),
+                  ),
                 ),
               ],
             ),
@@ -308,7 +311,9 @@ class _AlertsSectionState extends State<_AlertsSection> {
                     value: alerts is AlertsOpen,
                     onChanged: changing
                         ? null
-                        : (on) => unawaited(widget.controller.choose(on: on)),
+                        : (on) => context.read<AlertsBloc>().add(
+                            AlertsChosen(on: on),
+                          ),
                   ),
                   if (failure != null) ...[
                     const PeykGap.vertical(PeykGapSize.betweenLines),
