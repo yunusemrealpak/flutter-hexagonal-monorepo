@@ -24,6 +24,13 @@ final class CountPreparing extends CountState {
 }
 
 /// Somebody is scanning.
+///
+/// **No `==`, and this is the package where that decision is load-bearing.**
+/// `LoadCount` is an entity, and an entity's equality in this workspace is its
+/// identifier alone — a count keeps its identifier for its whole life. A state
+/// that delegated to it would compare equal to itself after every scan, and
+/// `Bloc` drops an emission that compares equal to the one before it: the
+/// courier would scan a van and watch the number stay at zero.
 final class CountInProgress extends CountState {
   /// Creates the state.
   const CountInProgress(this.count);

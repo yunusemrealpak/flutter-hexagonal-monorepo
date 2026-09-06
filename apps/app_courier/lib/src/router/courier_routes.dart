@@ -207,11 +207,12 @@ PeykRouter buildCourierRouter(GetIt container) {
         ),
         child: const IncidentBoardScreen(),
       ),
-      'inventory.count': (context, _) => CountScreen(
-        controller: CountController(
+      'inventory.count': (context, _) => BlocProvider(
+        create: (_) => CountBloc(
           inventory: container<VehicleInventoryFacade>(),
           courier: actor(),
         ),
+        child: const CountScreen(),
       ),
       'messaging.thread': (context, parameters) => _parsed(
         ThreadId.parse(parameters['threadId'] ?? ''),

@@ -15,7 +15,8 @@
 /// already half counted.
 library;
 
-export 'src/count/count_controller.dart';
+export 'src/count/count_bloc.dart';
+export 'src/count/count_event.dart';
 export 'src/count/count_screen.dart';
 export 'src/count/count_state.dart';
 export 'src/vehicle_inventory_routes.dart';

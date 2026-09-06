@@ -1,11 +1,11 @@
-import 'dart:async';
-
 import 'package:design_system/design_system.dart';
 import 'package:flutter/widgets.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:vehicle_inventory_api/vehicle_inventory_api.dart';
 
 import '../vehicle_inventory_strings.dart';
-import 'count_controller.dart';
+import 'count_bloc.dart';
+import 'count_event.dart';
 import 'count_state.dart';
 
 /// Where a courier counts a van.
@@ -14,12 +14,22 @@ import 'count_state.dart';
 /// `platform/*`, so the barcode arrives as a `ShipmentId` from whatever the
 /// app wired to the trigger — the same decision `delivery_presentation` made
 /// about the camera in phase 5, for the same reason.
+/// The bloc arrives through the widget tree: whoever mounts this screen puts a
+/// [CountBloc] above it with `BlocProvider`.
 final class CountScreen extends StatelessWidget {
-  /// Creates the screen over [controller].
-  const CountScreen({required this.controller, super.key});
+  /// Creates the screen.
+  const CountScreen({super.key});
 
-  /// What drives it.
-  final CountController controller;
+  /// The count on screen, or `null` while there is not one.
+  ///
+  /// Every selector below goes through this. A `BlocSelector` runs against
+  /// whatever the state is *now*, which can be a case the outer builder has
+  /// not drawn yet — an emission can land between the two rebuilds — so a
+  /// selector that assumed its case would throw on the frame in between.
+  static LoadCount? _countOf(CountState state) => switch (state) {
+    CountInProgress(:final count) || CountClosedState(:final count) => count,
+    CountIdle() || CountPreparing() || CountFailed() => null,
+  };
 
   /// Which string a failure should be shown as.
   ///
@@ -50,28 +60,32 @@ final class CountScreen extends StatelessWidget {
 
     return PeykScreen(
       title: strings.resolve(VehicleInventoryStrings.title),
-      body: ListenableBuilder(
-        listenable: controller,
-        builder: (context, _) => switch (controller.state) {
+      // **`buildWhen` is what makes the selectors in `_Progress` worth
+      // writing**, and this is the package that needs them most: a scanner
+      // fires several times a second, and without narrowing here every scan
+      // would rebuild the whole subtree and re-create the selectors rather
+      // than skip them.
+      //
+      // It is safe because no case this bloc emits can follow itself. Reading
+      // and starting both emit `CountPreparing` first, a scan only fires from
+      // `CountInProgress`, and a failure ends the sequence.
+      body: BlocBuilder<CountBloc, CountState>(
+        buildWhen: (previous, current) =>
+            previous.runtimeType != current.runtimeType,
+        builder: (context, state) => switch (state) {
           CountIdle() => PeykEmptyView(
             message: strings.resolve(VehicleInventoryStrings.idle),
           ),
           CountPreparing() => const PeykLoadingView(),
-          CountInProgress(:final count) => _Progress(
-            count: count,
-            closed: false,
-          ),
-          CountClosedState(:final count) => _Progress(
-            count: count,
-            closed: true,
-          ),
+          CountInProgress() => const _Progress(closed: false),
+          CountClosedState() => const _Progress(closed: true),
           CountFailed(:final failure) => PeykFailureView(
             message: strings.resolve(CountScreen.describe(failure)),
             // resume() rather than a retry of its own: what failed was
             // reading whether a count is open, and asking again is exactly
             // that question.
             onRetry: CountScreen.canRetry(failure)
-                ? () => unawaited(controller.resume())
+                ? () => context.read<CountBloc>().add(const CountResumed())
                 : null,
           ),
         },
@@ -92,9 +106,8 @@ final class CountScreen extends StatelessWidget {
 /// thing. A parcel the van does not have is a delivery that will not happen;
 /// a parcel nobody expected is paperwork.
 class _Progress extends StatelessWidget {
-  const _Progress({required this.count, required this.closed});
+  const _Progress({required this.closed});
 
-  final LoadCount count;
   final bool closed;
 
   @override
@@ -105,42 +118,90 @@ class _Progress extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        PeykText.display(
-          strings.resolve(
-            VehicleInventoryStrings.progress,
-            arguments: {
-              'scanned': count.scanned.length,
-              'expected': count.manifest.length,
-            },
-          ),
+        // A record, so the two numbers travel as one value with the value
+        // equality a record has. Two selectors would rebuild this line twice
+        // for a scan that changed both.
+        BlocSelector<CountBloc, CountState, (int, int)?>(
+          selector: (state) {
+            final count = CountScreen._countOf(state);
+            return count == null
+                ? null
+                : (count.scanned.length, count.manifest.length);
+          },
+          builder: (context, progress) => progress == null
+              ? const PeykGap.vertical(PeykGapSize.betweenRows)
+              : PeykText.display(
+                  strings.resolve(
+                    VehicleInventoryStrings.progress,
+                    arguments: {
+                      'scanned': progress.$1,
+                      'expected': progress.$2,
+                    },
+                  ),
+                ),
         ),
-        if (count.missing.isNotEmpty) ...[
-          const PeykGap.vertical(PeykGapSize.betweenRows),
-          PeykChip(
-            label: strings.resolve(
-              VehicleInventoryStrings.missing,
-              arguments: {'count': count.missing.length},
-            ),
-            intent: PeykIntent.danger,
+        // Scanning a parcel that is on the manifest moves this number and
+        // leaves the one below it alone — which is the whole reason the two
+        // chips select separately rather than sharing a builder.
+        BlocSelector<CountBloc, CountState, int>(
+          selector: (state) => CountScreen._countOf(state)?.missing.length ?? 0,
+          builder: (context, missing) => missing == 0
+              ? const PeykGap.vertical(PeykGapSize.betweenRows)
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const PeykGap.vertical(PeykGapSize.betweenRows),
+                    PeykChip(
+                      label: strings.resolve(
+                        VehicleInventoryStrings.missing,
+                        arguments: {'count': missing},
+                      ),
+                      intent: PeykIntent.danger,
+                    ),
+                  ],
+                ),
+        ),
+        BlocSelector<CountBloc, CountState, int>(
+          selector: (state) =>
+              CountScreen._countOf(state)?.unexpected.length ?? 0,
+          builder: (context, unexpected) => unexpected == 0
+              ? const PeykGap.vertical(PeykGapSize.betweenLines)
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const PeykGap.vertical(PeykGapSize.betweenLines),
+                    PeykChip(
+                      label: strings.resolve(
+                        VehicleInventoryStrings.unexpected,
+                        arguments: {'count': unexpected},
+                      ),
+                      intent: PeykIntent.warning,
+                    ),
+                  ],
+                ),
+        ),
+        if (closed)
+          BlocSelector<CountBloc, CountState, bool>(
+            selector: (state) =>
+                CountScreen._countOf(state)?.isReconciled ?? false,
+            builder: (context, reconciled) => reconciled
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const PeykGap.vertical(PeykGapSize.betweenRows),
+                      PeykChip(
+                        label: strings.resolve(
+                          VehicleInventoryStrings.reconciled,
+                        ),
+                        intent: PeykIntent.success,
+                      ),
+                    ],
+                  )
+                : const PeykGap.vertical(PeykGapSize.betweenRows),
           ),
-        ],
-        if (count.unexpected.isNotEmpty) ...[
-          const PeykGap.vertical(PeykGapSize.betweenLines),
-          PeykChip(
-            label: strings.resolve(
-              VehicleInventoryStrings.unexpected,
-              arguments: {'count': count.unexpected.length},
-            ),
-            intent: PeykIntent.warning,
-          ),
-        ],
-        if (closed && count.isReconciled) ...[
-          const PeykGap.vertical(PeykGapSize.betweenRows),
-          PeykChip(
-            label: strings.resolve(VehicleInventoryStrings.reconciled),
-            intent: PeykIntent.success,
-          ),
-        ],
       ],
     );
   }
