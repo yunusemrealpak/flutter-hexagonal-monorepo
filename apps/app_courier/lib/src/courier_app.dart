@@ -4,6 +4,7 @@ import 'package:design_system/design_system.dart';
 import 'package:design_tokens/design_tokens.dart';
 import 'package:documents_presentation/documents_presentation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:identity_presentation/identity_presentation.dart';
 import 'package:incidents_presentation/incidents_presentation.dart';
 import 'package:messaging_presentation/messaging_presentation.dart';
@@ -12,6 +13,7 @@ import 'package:payments_presentation/payments_presentation.dart';
 import 'package:routing_presentation/routing_presentation.dart';
 import 'package:settings_presentation/settings_presentation.dart';
 import 'package:shipments_presentation_courier/shipments_presentation_courier.dart';
+import 'package:sync_api/sync_api.dart';
 import 'package:sync_presentation/sync_presentation.dart';
 import 'package:vehicle_inventory_presentation/vehicle_inventory_presentation.dart';
 
@@ -89,37 +91,53 @@ const Set<String> courierUnmountedRoutes = {
 
 /// The shell.
 ///
-/// It installs the palette, the catalogue and the router, and draws nothing.
-/// Everything a courier sees comes from a presentation package.
+/// It installs the palette, the catalogue, the router and the one bloc whose
+/// lifetime is the application's, and draws nothing. Everything a courier sees
+/// comes from a presentation package.
 final class CourierApp extends StatelessWidget {
-  /// Creates the shell over [router].
-  const CourierApp({required this.router, super.key});
+  /// Creates the shell over [router], reading the queue through [sync].
+  const CourierApp({required this.router, required this.sync, super.key});
 
   /// The router this app assembled.
   final RouterConfig<Object> router;
 
+  /// What the queue badge follows.
+  ///
+  /// The facade rather than a bloc, so that `BlocProvider(create:)` owns what
+  /// it builds. Handing a live bloc in would make the caller responsible for
+  /// closing it, and closing a bloc from a widget test's tear-down deadlocks
+  /// in the fake-async zone.
+  final SyncFacade sync;
+
   @override
-  Widget build(BuildContext context) => MaterialApp.router(
-    title: 'Peyk',
-    theme: PeykTheme.themeData(PeykPalette.light),
-    darkTheme: PeykTheme.themeData(PeykPalette.dark),
-    // Two sets of delegates: this app's product strings and the design
-    // system's component strings. §4.1's split, at the point where the two
-    // meet — and the reason a component can say "3 unread" in the right plural
-    // form without every app spelling it out.
-    localizationsDelegates: const [
-      ...PeykCourierLocalizations.localizationsDelegates,
-      ...PeykSystemLocalizations.localizationsDelegates,
-    ],
-    supportedLocales: PeykCourierLocalizations.supportedLocales,
-    routerConfig: router,
-    builder: (context, child) => PeykStrings(
-      // Built from the context so that it follows the locale: a person who
-      // changes the language in settings gets new sentences without the app
-      // being rebuilt, because `PeykCourierLocalizations.of` is an inherited
-      // lookup and this builder runs again.
-      catalogue: CourierCatalogue(context),
-      child: child ?? const SizedBox.shrink(),
+  Widget build(BuildContext context) => BlocProvider(
+    // Above the router, because this is the one piece of state in the app
+    // whose lifetime is the app's. `CourierShell` draws the badge over it and
+    // survives a tab switch; a provider on a route would be rebuilt every
+    // time somebody left the tab, and the subscription with it.
+    create: (_) => SyncStatusBloc(sync: sync)..add(const SyncStatusWatched()),
+    child: MaterialApp.router(
+      title: 'Peyk',
+      theme: PeykTheme.themeData(PeykPalette.light),
+      darkTheme: PeykTheme.themeData(PeykPalette.dark),
+      // Two sets of delegates: this app's product strings and the design
+      // system's component strings. §4.1's split, at the point where the two
+      // meet — and the reason a component can say "3 unread" in the right
+      // plural form without every app spelling it out.
+      localizationsDelegates: const [
+        ...PeykCourierLocalizations.localizationsDelegates,
+        ...PeykSystemLocalizations.localizationsDelegates,
+      ],
+      supportedLocales: PeykCourierLocalizations.supportedLocales,
+      routerConfig: router,
+      builder: (context, child) => PeykStrings(
+        // Built from the context so that it follows the locale: a person who
+        // changes the language in settings gets new sentences without the app
+        // being rebuilt, because `PeykCourierLocalizations.of` is an inherited
+        // lookup and this builder runs again.
+        catalogue: CourierCatalogue(context),
+        child: child ?? const SizedBox.shrink(),
+      ),
     ),
   );
 }

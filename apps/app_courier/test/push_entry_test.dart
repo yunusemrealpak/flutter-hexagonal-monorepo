@@ -13,6 +13,7 @@ import 'package:identity_testing/identity_testing.dart';
 import 'package:messaging_presentation/messaging_presentation.dart';
 import 'package:push_messaging/push_messaging.dart';
 import 'package:shipments_presentation_courier/shipments_presentation_courier.dart';
+import 'package:sync_api/sync_api.dart';
 
 import 'support/test_platform.dart';
 
@@ -180,7 +181,9 @@ void main() {
       );
       addTearDown(entry.dispose);
 
-      await tester.pumpWidget(CourierApp(router: router));
+      await tester.pumpWidget(
+        CourierApp(router: router, sync: container<SyncFacade>()),
+      );
       await tester.pumpAndSettle();
       await entry.start();
 
@@ -211,7 +214,9 @@ void main() {
       );
       addTearDown(entry.dispose);
 
-      await tester.pumpWidget(CourierApp(router: router));
+      await tester.pumpWidget(
+        CourierApp(router: router, sync: container<SyncFacade>()),
+      );
       await tester.pumpAndSettle();
       await entry.start();
 
