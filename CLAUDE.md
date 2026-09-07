@@ -1004,6 +1004,38 @@ above; `docs/TESTING.md` §3.1 holds the two rules that make the tests real and
   `appending` is now the only way to change the rows or the cursor, and neither
   is a `copyWith` parameter any more.
 
+#### The queue badge is mounted — done, and the placement is the decision
+
+`SyncStatusBadge` had no call site since it was written. It has one now:
+`app_courier` provides one `SyncStatusBloc` above the router and `CourierShell`
+draws the badge on a strip over the navigation bar. Nothing in
+`sync_presentation` changed except a doc comment that had gone stale.
+
+- **Where the provider goes is a lifetime decision, not a wiring detail.** The
+  queue is a fact about the device, so it outlives every tab; a provider on a
+  route opens a fresh subscription each time somebody arrives and abandons the
+  previous one. The test counts subscriptions rather than looking at pixels,
+  because that is the only place the difference shows — re-run against a
+  provider keyed per tab it reports 5 where the shell reports 1, and all five
+  draw the same chip.
+- **`CourierApp` takes the facade, not a bloc.** A caller handing a live bloc
+  in would own closing it, and `Bloc.close()` deadlocks in a widget test's
+  tear-down. `BlocProvider(create:)` owning what it builds is the same rule
+  `docs/TESTING.md` §3.1 states for the packages.
+- **The strip is in `bottomNavigationBar`, not in the body.** `Scaffold` is
+  what keeps that slot clear of the system inset; a strip in the body sits
+  above the bar on a phone and under the home indicator on a tablet.
+- **The badge is drawn in `SyncIdle` too.** A corner that is blank when
+  everything is sent and occupied when it is not is a corner nobody learns to
+  read — which is the badge's own argument for five sentences, applied to
+  whether it appears at all.
+- **`PeykScreen.actions` was the rejected alternative**, and the constitution
+  rejected it: every feature drawing its own badge would give
+  `delivery_presentation` a `sync_presentation` dependency §1.1 does not allow.
+
+Open, deliberately: `app_dispatcher` has no shell to hang it on, and a desk's
+outbox is in memory anyway.
+
 #### What is worth taking next
 
 Items 1 and 2 of this list are done, above. The rest stand as written; each entry names the evidence so the next session does not have to re-derive it.
@@ -1024,7 +1056,7 @@ Items 1 and 2 of this list are done, above. The rest stand as written; each entr
 
 **10. `onBackgroundMessage` is never set**, and it is in the same category as `codemagic.yaml`: real, and unrunnable here. It needs `apps/*/android`, Firebase initialisation and a native invoker this repository does not build, so a handler written now could not be exercised even by a test. `courierBackgroundTasks` joined it on 2026-09-02 for exactly the same reason, which is what promoted item 7 to the top of the plan: this category now has four members and gains one with every device capability.
 
-Smaller, and each named in a note: a push that merely arrives shows nothing in-app, `PeykNavigationDestination` carries no unread count, and the scanned barcode and pasted URL produce no locations yet. `SyncStatusBadge` has had no call site since it was written — it now reads a `SyncStatusBloc` from the tree, so mounting it is one provider above a shell and the badge in it, which is a change to `CourierShell` rather than to `sync_presentation`.
+Smaller, and each named in a note: a push that merely arrives shows nothing in-app, `PeykNavigationDestination` carries no unread count, and the scanned barcode and pasted URL produce no locations yet. `SyncStatusBadge` is mounted — see the log entry below; `app_dispatcher` still draws no queue badge, deliberately, for the same reason it draws no alerts section.
 
 The gaps the repository states rather than fixes are deliberate: `codemagic.yaml`, `fastlane/Fastfile`, `onBackgroundMessage` and `courierBackgroundTasks` cannot run without `apps/*/android/`, `apps/*/ios/` and `apps/*/config/<flavour>.json` (the specification excludes native builds), and no test carries the `golden` or `integration` tag yet — the tags, presets, exclusions and CI steps are the mechanism, and the images arrive with the screens that need them.
 

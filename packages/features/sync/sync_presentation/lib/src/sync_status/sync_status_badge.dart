@@ -17,9 +17,10 @@ import 'sync_status_bloc.dart';
 /// **It takes nothing and reads its bloc from the tree**, which is what lets
 /// it be dropped into a shell, an app bar or a tile without any of them
 /// holding a reference to sync. A `SyncStatusBloc` provided once above the
-/// router is the whole wiring, and no app mounts one yet — the badge has had
-/// no call site since it was written, which is a gap in the composition roots
-/// rather than in this file.
+/// router is the whole wiring; `app_courier` does exactly that and hangs the
+/// badge on `CourierShell`, so all four tabs read one subscription. Nothing
+/// here decides that — where the provider goes is a lifetime decision, and it
+/// belongs to the app that knows what outlives what.
 ///
 /// There is no `buildWhen` and no selector here, and none is possible: this
 /// widget draws the state and nothing else. Repeat emissions are already

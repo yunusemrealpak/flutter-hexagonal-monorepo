@@ -14,6 +14,8 @@ import 'package:identity_presentation/identity_presentation.dart';
 import 'package:identity_testing/identity_testing.dart';
 import 'package:routing_presentation/routing_presentation.dart';
 import 'package:shipments_presentation_courier/shipments_presentation_courier.dart';
+import 'package:sync_api/sync_api.dart';
+import 'package:sync_presentation/sync_presentation.dart';
 
 import 'support/test_platform.dart';
 
@@ -101,9 +103,17 @@ void main() {
   });
 
   group('the shell', () {
-    Future<GoRouter> pumpShell(WidgetTester tester) async {
+    /// Pumps the app, optionally against a queue the test steers.
+    ///
+    /// The default is the container's own facade, so that every test that has
+    /// nothing to say about sync still runs against the graph the app
+    /// composes. The two badge tests below pass their own, because what they
+    /// assert is how many times it was subscribed to.
+    Future<GoRouter> pumpShell(WidgetTester tester, {SyncFacade? sync}) async {
       final router = buildCourierRouter(container).build();
-      await tester.pumpWidget(CourierApp(router: router));
+      await tester.pumpWidget(
+        CourierApp(router: router, sync: sync ?? container<SyncFacade>()),
+      );
       await tester.pumpAndSettle();
       return router;
     }
@@ -198,7 +208,85 @@ void main() {
       expect(find.byType(CourierManifestScreen), findsOneWidget);
       expect(find.byType(ProofCaptureScreen), findsNothing);
     });
+
+    // The claim the placement makes, and the one nothing on screen could show.
+    // The badge is drawn once, above the router, so all four tabs share a
+    // single subscription to the queue. A provider on a route would open a
+    // fresh one every time somebody arrived at a tab and abandon the previous
+    // one on the way out — four watchers for one badge, all agreeing, and
+    // three of them leaks. Re-run against a provider keyed per tab and the
+    // count is 5 — one for the first frame and one for each tap.
+    testWidgets('the queue badge is on every tab, and watches once for all', (
+      tester,
+    ) async {
+      final sync = _Facade();
+      addTearDown(sync.close);
+
+      await pumpShell(tester, sync: sync);
+
+      for (final label in ['Route', 'Inbox', 'More', 'Stops']) {
+        await tester.tap(tab(label));
+        await tester.pumpAndSettle();
+        expect(
+          find.byType(SyncStatusBadge),
+          findsOneWidget,
+          reason: 'the $label tab lost the badge',
+        );
+      }
+
+      expect(sync.watchers, 1);
+    });
+
+    // That the strip is wired to the queue and not merely present. The idle
+    // sentence is asserted first on purpose: the badge is drawn in every state
+    // including the empty one, because a corner that is blank when everything
+    // is sent and occupied when it is not is a corner nobody learns to read.
+    testWidgets('the badge says what the queue is doing', (tester) async {
+      final sync = _Facade();
+      addTearDown(sync.close);
+
+      await pumpShell(tester, sync: sync);
+      expect(find.text('Everything is sent'), findsOneWidget);
+
+      sync.emit(const SyncStatus.waitingForNetwork(pending: 4));
+      await tester.pumpAndSettle();
+
+      expect(find.text('4 waiting for signal'), findsOneWidget);
+    });
   });
+}
+
+/// A queue this file steers, and counts the subscriptions to.
+///
+/// The count is what the placement test is about, so the stream is an `async*`
+/// generator rather than the controller's own: subscribing to a broadcast
+/// controller directly is invisible from the outside, and the number of
+/// subscriptions is the entire difference between a provider above the router
+/// and one on a route.
+final class _Facade implements SyncFacade {
+  final _statuses = StreamController<SyncStatus>.broadcast();
+
+  /// How many times the status stream has been subscribed to.
+  int watchers = 0;
+
+  /// Pushes a status to whoever is watching.
+  void emit(SyncStatus status) => _statuses.add(status);
+
+  @override
+  Stream<SyncStatus> statusChanges() async* {
+    watchers++;
+    yield* _statuses.stream;
+  }
+
+  /// Every other method of the port, which this file does not use.
+  ///
+  /// A stub rather than four overrides answering a plausible value: a call to
+  /// anything else throws, which says "this test is about the badge" louder
+  /// than a silent default would.
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+
+  Future<void> close() => _statuses.close();
 }
 
 /// A session that can end and begin again, which is what this file is about.

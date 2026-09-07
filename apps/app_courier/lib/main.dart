@@ -145,7 +145,7 @@ Future<void> main() async {
     ).start(),
   );
 
-  runApp(CourierApp(router: router));
+  runApp(CourierApp(router: router, sync: container<SyncFacade>()));
 }
 
 /// Where the operation's API lives.

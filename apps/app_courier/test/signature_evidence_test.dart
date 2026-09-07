@@ -14,6 +14,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:identity_api/identity_api.dart';
 import 'package:identity_testing/identity_testing.dart';
+import 'package:sync_api/sync_api.dart';
 
 import 'support/test_platform.dart';
 
@@ -58,7 +59,9 @@ void main() {
 
   Future<ProofCaptureScreen> openProof(WidgetTester tester) async {
     final router = buildCourierRouter(container).build();
-    await tester.pumpWidget(CourierApp(router: router));
+    await tester.pumpWidget(
+      CourierApp(router: router, sync: container<SyncFacade>()),
+    );
     await tester.pumpAndSettle();
     router.go('/stops/SHP-1/proof');
     await tester.pumpAndSettle();

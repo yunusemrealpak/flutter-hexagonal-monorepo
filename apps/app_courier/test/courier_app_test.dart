@@ -6,6 +6,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:identity_presentation/identity_presentation.dart';
+import 'package:sync_api/sync_api.dart';
 
 import 'support/test_platform.dart';
 
@@ -25,7 +26,10 @@ void main() {
     tester,
   ) async {
     await tester.pumpWidget(
-      CourierApp(router: buildCourierRouter(container).build()),
+      CourierApp(
+        router: buildCourierRouter(container).build(),
+        sync: container<SyncFacade>(),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -34,7 +38,10 @@ void main() {
 
   testWidgets('draws sentences, not keys', (tester) async {
     await tester.pumpWidget(
-      CourierApp(router: buildCourierRouter(container).build()),
+      CourierApp(
+        router: buildCourierRouter(container).build(),
+        sync: container<SyncFacade>(),
+      ),
     );
     await tester.pumpAndSettle();
 
@@ -50,7 +57,10 @@ void main() {
     addTearDown(tester.platformDispatcher.clearLocalesTestValue);
 
     await tester.pumpWidget(
-      CourierApp(router: buildCourierRouter(container).build()),
+      CourierApp(
+        router: buildCourierRouter(container).build(),
+        sync: container<SyncFacade>(),
+      ),
     );
     await tester.pumpAndSettle();
 
